@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit a Transmission — Bond6.io</title>
+  <meta name="description" content="Submit your writing to Bond6.io. We only accept text with body temperature." />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav__logo">
+      <span class="logo-b">B</span><span class="logo-ond">ond</span><span class="logo-6">6</span><span class="logo-dot">.</span><span class="logo-io">io</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="manifesto.html">Manifesto</a></li>
+      <li><a href="magazine.html">Transmissions</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="submit.html" class="nav__cta active">Write</a></li>
+    </ul>
+    <button class="nav__hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <header class="page-header">
+    <div class="container">
+      <p class="section-eyebrow">Input Terminal</p>
+      <h1 class="page-header__title">Submit a Transmission</h1>
+      <p class="page-header__sub">We only accept text with body temperature. No pitches. No SEO. No optimal solutions.</p>
+    </div>
+  </header>
+
+  <!-- GUIDELINES -->
+  <section class="submit-guidelines">
+    <div class="container submit-guidelines__inner">
+      <div class="submit-guidelines__text">
+        <h2>Before you write</h2>
+        <p>
+          Bond6.io is not a platform for content. It is a terminal for transmission. Before you submit, ask yourself one question: <em>did writing this cost me something?</em>
+        </p>
+        <p>
+          If the answer is yes — if there was a moment where you almost stopped, where the sentence became too honest, where you had to look away from the screen — then you are in the right place.
+        </p>
+        <div class="guidelines-list">
+          <div class="guideline-item">
+            <span class="guideline-item__icon">✓</span>
+            <div>
+              <h4>We welcome</h4>
+              <p>Essays, fragments, dispatches, letters, reflections, confessions, observations, and anything that doesn't fit neatly into a category.</p>
+            </div>
+          </div>
+          <div class="guideline-item">
+            <span class="guideline-item__icon">✓</span>
+            <div>
+              <h4>We welcome imperfection</h4>
+              <p>The typo born from trembling hands. The sentence that trails off. The paragraph that contradicts the one before it. Leave them in.</p>
+            </div>
+          </div>
+          <div class="guideline-item">
+            <span class="guideline-item__icon">✗</span>
+            <div>
+              <h4>We do not accept</h4>
+              <p>AI-generated text, SEO content, promotional material, or anything written without a pulse. We can tell the difference.</p>
+            </div>
+          </div>
+          <div class="guideline-item">
+            <span class="guideline-item__icon">✗</span>
+            <div>
+              <h4>We do not optimize</h4>
+              <p>We will not ask you to shorten your sentences, add subheadings, or make it more "readable." We will only ask: is this true?</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FORM -->
+  <section class="submit-form-section">
+    <div class="container">
+      <form class="submit-form" id="submitForm" novalidate>
+
+        <div class="form-group">
+          <label for="name">Your name</label>
+          <input type="text" id="name" name="name" placeholder="What do you want to be called here?" autocomplete="name" />
+        </div>
+
+        <div class="form-group">
+          <label for="email">Your email</label>
+          <input type="email" id="email" name="email" placeholder="We'll only use this to respond to you." autocomplete="email" />
+        </div>
+
+        <div class="form-group">
+          <label for="category">Category</label>
+          <select id="category" name="category">
+            <option value="" disabled selected>What kind of transmission is this?</option>
+            <option value="essay">Essay</option>
+            <option value="fragment">Fragment</option>
+            <option value="dispatch">Dispatch</option>
+            <option value="reflection">Reflection</option>
+            <option value="other">Something else entirely</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="title">Title <span class="form-optional">(or working title, or nothing)</span></label>
+          <input type="text" id="title" name="title" placeholder="Untitled is fine." />
+        </div>
+
+        <div class="form-group form-group--full">
+          <label for="content">
+            Your transmission
+            <span class="form-optional">— write it here, or paste it in</span>
+          </label>
+          <textarea id="content" name="content" rows="16" placeholder="Begin anywhere. The cursor is waiting."></textarea>
+          <div class="form-char-count"><span id="charCount">0</span> characters</div>
+        </div>
+
+        <div class="form-group form-group--full">
+          <label for="note">A note to the editors <span class="form-optional">(optional)</span></label>
+          <textarea id="note" name="note" rows="4" placeholder="Anything you want us to know. Context, hesitations, the story behind the story."></textarea>
+        </div>
+
+        <div class="form-group form-group--full form-group--checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" id="human" name="human" required />
+            <span class="checkbox-custom"></span>
+            <span>I confirm this was written by a human, at some cost to themselves.</span>
+          </label>
+        </div>
+
+        <div class="form-submit">
+          <button type="submit" class="btn btn--primary btn--large">Transmit →</button>
+          <p class="form-note">We read every submission. Response time: 2–4 weeks.</p>
+        </div>
+
+      </form>
+
+      <div class="submit-success" id="submitSuccess" hidden>
+        <div class="submit-success__inner">
+          <span class="submit-success__icon">C₆</span>
+          <h2>Transmission received.</h2>
+          <p>Your words are now in the fortress. We'll read them carefully and respond within 2–4 weeks.</p>
+          <a href="magazine.html" class="btn btn--ghost">Read other transmissions →</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <a href="index.html" class="nav__logo">
+          <span class="logo-b">B</span><span class="logo-ond">ond</span><span class="logo-6">6</span><span class="logo-dot">.</span><span class="logo-io">io</span>
+        </a>
+        <p>The Last Fortress of Carbon-Based Life</p>
+        <p class="footer__tagline">"Upon the atom, hear the roar of humanity."</p>
+      </div>
+      <div class="footer__links">
+        <div class="footer__col">
+          <h4>Navigate</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="manifesto.html">Manifesto</a></li>
+            <li><a href="magazine.html">Transmissions</a></li>
+            <li><a href="about.html">About</a></li>
+          </ul>
+        </div>
+        <div class="footer__col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="submit.html">Submit Writing</a></li>
+            <li><a href="mailto:signal@bond6.io">signal@bond6.io</a></li>
+            <li><a href="#">Twitter / X</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p>© 2026 Bond6.io — Carbon-Based Life Communication Protocol</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
