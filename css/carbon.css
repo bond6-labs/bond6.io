@@ -1,0 +1,560 @@
+﻿/* ============================================================
+   carbon.css — Styles for the Carbon knowledge page
+   ============================================================ */
+
+/* ── Hero ── */
+.carbon-hero {
+  position: relative;
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: var(--nav-h);
+  overflow: hidden;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.carbon-hero__bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(201,168,76,0.05) 0%, transparent 70%);
+}
+
+.carbon-hero__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carbon-hero__content {
+  position: relative;
+  z-index: 2;
+  padding: 5rem 2rem;
+}
+
+.carbon-hero__title {
+  font-family: var(--font-serif);
+  font-size: clamp(4rem, 12vw, 9rem);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--white);
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+.carbon-hero__title em {
+  color: var(--gold);
+  font-style: italic;
+}
+
+.carbon-hero__sub {
+  font-size: 1.125rem;
+  color: var(--mid);
+  line-height: 1.7;
+  margin-bottom: 3rem;
+}
+
+/* Chapter nav */
+.carbon-chapnav {
+  display: flex;
+  gap: 0;
+  justify-content: center;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  display: inline-flex;
+}
+
+.carbon-chapnav a {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-right: 1px solid var(--border);
+  transition: color 0.2s, background 0.2s;
+}
+.carbon-chapnav a:last-child { border-right: none; }
+.carbon-chapnav a:hover {
+  color: var(--gold);
+  background: rgba(201,168,76,0.05);
+}
+
+/* ── Section scroll offset for sticky nav ── */
+.carbon-section {
+  scroll-margin-top: calc(var(--nav-h) + 2rem);
+}
+
+/* ── Atom Diagram ── */
+.carbon-diagram {
+  margin: 3rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.carbon-diagram__label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.atom-diagram {
+  position: relative;
+  width: 260px;
+  height: 260px;
+}
+
+.atom-nucleus {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--dark-2);
+  border: 2px solid var(--gold);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: 0 0 20px rgba(201,168,76,0.2);
+}
+
+.atom-nucleus__symbol {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.atom-nucleus__num {
+  font-size: 0.5rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.atom-shell {
+  position: absolute;
+  top: 50%; left: 50%;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+}
+
+.atom-shell--1 {
+  width: 120px; height: 120px;
+  animation: spinShell 6s linear infinite;
+}
+
+.atom-shell--2 {
+  width: 220px; height: 220px;
+  animation: spinShell 10s linear infinite reverse;
+}
+
+@keyframes spinShell {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.atom-electron {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--mid);
+  top: 50%; left: 50%;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--angle))
+    translateX(55px)
+    rotate(calc(-1 * var(--angle)));
+}
+
+.atom-electron--outer {
+  background: var(--gold);
+  width: 10px; height: 10px;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--angle))
+    translateX(105px)
+    rotate(calc(-1 * var(--angle)));
+  box-shadow: 0 0 6px rgba(201,168,76,0.6);
+}
+
+.atom-shell-label {
+  position: absolute;
+  font-size: 0.5625rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.atom-shell-label--1 {
+  top: 50%;
+  left: calc(50% + 65px);
+  transform: translateY(-50%);
+}
+
+.atom-shell-label--2 {
+  top: 50%;
+  left: calc(50% + 115px);
+  transform: translateY(-50%);
+}
+
+/* ── Fact Row ── */
+.carbon-fact-row {
+  display: flex;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+.carbon-fact {
+  flex: 1;
+  background: var(--dark);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.carbon-fact__val {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.carbon-fact__key {
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── Bond Types ── */
+.bond-types {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+.bond-type {
+  background: var(--dark);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: background 0.2s;
+}
+.bond-type:hover { background: var(--dark-2); }
+
+.bond-type__diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 60px;
+  margin-bottom: 0.5rem;
+}
+
+.bond-type__diagram--ring {
+  height: 80px;
+}
+.bond-type__diagram--ring svg {
+  width: 80px;
+  height: 80px;
+}
+
+.bond-atom {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--dark-3);
+  border: 1px solid var(--gold-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--gold);
+}
+
+.bond-line {
+  background: var(--gold);
+  height: 2px;
+  width: 30px;
+  position: relative;
+}
+
+.bond-line--double::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: 0; right: 0;
+  height: 2px;
+  background: var(--gold);
+}
+
+.bond-line--triple::before,
+.bond-line--triple::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: var(--gold);
+}
+.bond-line--triple::before { top: -5px; }
+.bond-line--triple::after  { top: 5px; }
+
+.bond-type h3 {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.bond-type p {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.bond-type__notation {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  margin-top: auto;
+}
+
+/* ── Allotropes Grid ── */
+.allotropes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+.allotrope-card {
+  background: var(--dark);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: background 0.25s;
+}
+.allotrope-card:hover { background: var(--dark-2); }
+
+.allotrope-card--featured {
+  background: var(--dark-2);
+  border: 1px solid var(--gold-dim);
+  margin: -1px;
+  z-index: 1;
+}
+
+.allotrope-card__diagram {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.allotrope-card__diagram svg {
+  width: 120px;
+  height: 100px;
+}
+
+.allotrope-card h3 {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  color: var(--white);
+  font-weight: 400;
+}
+
+.allotrope-card__tag {
+  font-size: 0.5625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  padding: 0.15rem 0.5rem;
+  align-self: flex-start;
+}
+
+.allotrope-card p {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ── Life Molecules ── */
+.life-molecules {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+.life-molecule {
+  background: var(--dark);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: background 0.2s;
+}
+.life-molecule:hover { background: var(--dark-2); }
+
+.life-molecule h3 {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  color: var(--white);
+  font-weight: 400;
+}
+
+.life-molecule p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+  flex: 1;
+}
+
+.life-molecule__formula {
+  font-family: var(--font-serif);
+  font-size: 0.875rem;
+  color: var(--gold);
+  font-style: italic;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Carbon Cycle ── */
+.cycle-diagram {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin: 2.5rem 0;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.cycle-step {
+  flex: 1;
+  min-width: 120px;
+  background: var(--dark);
+  border: 1px solid var(--border);
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.cycle-step__num {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--gold);
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.cycle-step h4 {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--white);
+  margin-bottom: 0.75rem;
+}
+
+.cycle-step p {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.cycle-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold-dim);
+  font-size: 1.25rem;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+  padding-top: 2rem;
+}
+
+.cycle-arrow--loop {
+  font-size: 1.75rem;
+  color: var(--gold);
+}
+
+/* ── Carbon Final Grid ── */
+.carbon-final-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+.carbon-final-item {
+  background: var(--dark);
+  padding: 2rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.carbon-final-icon {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.carbon-final-item p {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .allotropes-grid { grid-template-columns: repeat(2, 1fr); }
+  .carbon-final-grid { grid-template-columns: repeat(2, 1fr); }
+  .cycle-diagram { flex-wrap: wrap; }
+  .cycle-step { min-width: 140px; }
+  .cycle-arrow { display: none; }
+}
+
+@media (max-width: 640px) {
+  .bond-types { grid-template-columns: 1fr; }
+  .life-molecules { grid-template-columns: 1fr; }
+  .allotropes-grid { grid-template-columns: 1fr; }
+  .carbon-fact-row { flex-wrap: wrap; }
+  .carbon-fact { min-width: 45%; }
+  .carbon-chapnav { flex-wrap: wrap; }
+  .carbon-chapnav a { border-bottom: 1px solid var(--border); }
+}
