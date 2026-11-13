@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bond6-transmissions",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-12",
+  "workers_dev": true,
+  "assets": { "directory": "./public" },
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": { "MAX_STORIES": "1000" },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "bond6-transmissions",
+    "database_id": "00000000-0000-0000-0000-000000000000"
+  }],
+  "observability": { "enabled": true }
+}

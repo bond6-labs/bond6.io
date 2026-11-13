@@ -1,0 +1,25 @@
+{
+  "name": "bond6-transmissions",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bond6-labs/bond6.io.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bond6-labs/bond6.io/issues"
+  },
+  "homepage": "https://github.com/bond6-labs/bond6.io#readme",
+  "description": "",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "fast-xml-parser": "^5.12.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.161.0"
+  }
+}
