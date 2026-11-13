@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { sources } from './sources.js';
+import { decodeHeadline } from './headline.js';
 
 export const DAY = 86_400_000;
 const minute = 60_000;
@@ -26,11 +27,7 @@ function canonical(value) {
 }
 
 function clean(value) {
-  return String(value?.['#text'] ?? value ?? '').replace(/<[^>]*>/g, ' ')
-    .replace(/&#(x[0-9a-f]+|\d+);/gi, (entity, code) => {
-      const number = /^x/i.test(code) ? Number.parseInt(code.slice(1), 16) : Number(code);
-      return number > 0 && number <= 0x10ffff ? String.fromCodePoint(number) : entity;
-    })
+  return decodeHeadline(String(value?.['#text'] ?? value ?? '').replace(/<[^>]*>/g, ' '))
     .replace(/\s+/g, ' ').trim().slice(0, 240);
 }
 

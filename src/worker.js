@@ -1,5 +1,6 @@
 import { collect, DAY, storyLimit } from './collect.js';
 import { sources } from './sources.js';
+import { decodeHeadline } from './headline.js';
 import { chinese } from './chinese.js';
 import { translateHeadlines } from './translate.js';
 
@@ -31,8 +32,8 @@ function layout(section, content, { t, local, zh, lang, alternate }) {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="Bond6 ${t('Transmissions')}" href="${local('/feed.xml')}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css"></head><body>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=PT+Serif:wght@400;700${zh ? '&family=Noto+Sans+SC:wght@400;500;600;700' : ''}&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css?v=type-1"></head><body>
 <a class="skip-link" href="#main">${t('Skip to content')}</a>
 <header class="masthead"><div class="shell masthead-inner">
 <a class="wordmark" href="${local('/')}" aria-label="${t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
@@ -79,7 +80,7 @@ function renderCard(story, mentions, trending, { t, zh }) {
   const date = (zh ? chineseDate : dateLabel).format(story.published_at);
   return `<article class="story">
 <div class="story-meta"><span class="topic">${escape(t(story.topic))}</span></div>
-<h2><a href="${escape(story.url)}"${original}>${escape(title)}</a></h2>
+<h2><a href="${escape(story.url)}"${original}>${escape(decodeHeadline(title))}</a></h2>
 <div class="byline"><span>${escape(story.source)}</span><time datetime="${new Date(story.published_at).toISOString()}">${date}</time>${reason}</div>
 ${links ? `<details><summary>${t('Related discussion')}</summary><div class="discussions">${links}</div></details>` : ''}
 </article>`;
@@ -188,7 +189,7 @@ async function rss(env, url, { zh, local, lang, t }) {
     'SELECT url, title, title_zh, topic, published_at FROM stories WHERE published_at >= ? ORDER BY published_at DESC, url DESC LIMIT 50'
   ).bind(Date.now() - 7 * DAY).all();
   const items = results.map(story => `<item>
-    <title>${xmlText(zh ? story.title_zh || story.title : story.title)}</title>
+    <title>${xmlText(decodeHeadline(zh ? story.title_zh || story.title : story.title))}</title>
     <link>${xmlText(story.url)}</link>
     <guid isPermaLink="false">${xmlText(story.url)}</guid>
     <pubDate>${new Date(story.published_at).toUTCString()}</pubDate>

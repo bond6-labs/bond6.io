@@ -1,3 +1,5 @@
+import { decodeHeadline } from './headline.js';
+
 export async function translateHeadlines(env, now) {
   if (!env.AI || env.TRANSLATE_HEADLINES !== 'true') return;
   const { results } = await env.DB.prepare(`SELECT url, title FROM stories
@@ -7,7 +9,7 @@ export async function translateHeadlines(env, now) {
   for (const story of results) {
     try {
       const result = await env.AI.run('@cf/meta/m2m100-1.2b', {
-        text: story.title,
+        text: decodeHeadline(story.title),
         source_lang: 'english',
         target_lang: 'chinese'
       });
