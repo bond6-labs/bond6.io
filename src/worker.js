@@ -1,5 +1,5 @@
 import { collect, DAY, storyLimit } from './collect.js';
-import { sources } from './sources.js';
+import { sources, essaySources, essaySourceParams, ESSAY_DAYS } from './sources.js';
 import { decodeHeadline } from './headline.js';
 import { chinese } from './chinese.js';
 import { translateHeadlines } from './translate.js';
@@ -18,7 +18,7 @@ function locale(url) {
     alternate: (zh ? path.replace(/^\/+/, '/') : '/zh' + path) + url.search };
 }
 
-function layout(section, content, { t, local, zh, lang, alternate }) {
+function layout(section, content, { t, local, zh, lang, alternate }, tools) {
   const heading = t(section === 'Latest' ? 'Transmissions' : section);
   const description = t('News and essays on writing, creative work, and life with AI.');
   const nav = [['/', 'Latest'], ['/trending', 'Trending'], ['/sources', 'Sources'], ['/about', 'About']]
@@ -32,8 +32,9 @@ function layout(section, content, { t, local, zh, lang, alternate }) {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="Bond6 ${t('Transmissions')}" href="${local('/feed.xml')}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=PT+Serif:wght@400;700${zh ? '&family=Noto+Sans+SC:wght@400;500;600;700' : ''}&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=type-1"></head><body>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;500;600;700${zh ? '&family=Noto+Sans+SC:wght@400;500;600;700' : ''}&family=PT+Serif:wght@400;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+${zh ? '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&text=' + encodeURIComponent(t('Human Voices')) + '&display=swap" rel="stylesheet">' : ''}
+<link rel="stylesheet" href="/style.css?v=columns-5"></head><body>
 <a class="skip-link" href="#main">${t('Skip to content')}</a>
 <header class="masthead"><div class="shell masthead-inner">
 <a class="wordmark" href="${local('/')}" aria-label="${t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
@@ -45,8 +46,8 @@ function layout(section, content, { t, local, zh, lang, alternate }) {
 </button>
 </div>
 </div></header>
-<main class="shell" id="main" tabindex="-1"><div class="intro"><h1>${heading}</h1>
-${section === 'Latest' ? `<p>${description}</p>` : ''}</div>
+<main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${heading}</h1>
+${section === 'Latest' ? `<p>${description}</p>` : ''}</div>${tools}</div>
 ${content}</main>
 <footer class="shell footer" id="footer">
   <div class="footer-inner">
@@ -60,8 +61,8 @@ ${content}</main>
 </body></html>`;
 }
 
-function html(view, section, content, status = 200) {
-  return new Response(layout(section, content, view), { status, headers: {
+function html(view, section, content, status = 200, tools = '') {
+  return new Response(layout(section, content, view, tools), { status, headers: {
     'Content-Type': 'text/html; charset=utf-8',
     'Content-Language': view.lang,
     'Cache-Control': status === 200 ? 'public, max-age=30' : 'no-store',
@@ -70,7 +71,16 @@ function html(view, section, content, status = 200) {
   } });
 }
 
-function renderCard(story, mentions, trending, { t, zh }) {
+function activityBar({ human, ai }, t) {
+  const total = human + ai;
+  return `<section class="activity-bar" aria-labelledby="activity-title">
+    <div class="activity-heading"><h2 id="activity-title">${t('Feed temperature')}</h2><p>${t('Stories published in the past 7 days')}</p></div>
+    ${total ? `<progress aria-label="${t('Human Voices share of recent stories')}" value="${human}" max="${total}"></progress>` : ''}
+    <div class="activity-labels"><span>${t('Human Voices')} <strong>${human}</strong></span><span>${t('AI & Its Impact')} <strong>${ai}</strong></span></div>
+  </section>`;
+}
+
+function renderCard(story, mentions, trending, { t, zh }, heading = 'h2') {
   const title = zh ? story.title_zh || story.title : story.title;
   const original = zh && !story.title_zh ? ' lang="en"' : '';
   const links = mentions.filter(mention => mention.link !== story.url).map(mention =>
@@ -80,7 +90,7 @@ function renderCard(story, mentions, trending, { t, zh }) {
   const date = (zh ? chineseDate : dateLabel).format(story.published_at);
   return `<article class="story">
 <div class="story-meta"><span class="topic">${escape(t(story.topic))}</span></div>
-<h2><a href="${escape(story.url)}"${original}>${escape(decodeHeadline(title))}</a></h2>
+<${heading}><a href="${escape(story.url)}"${original}>${escape(decodeHeadline(title))}</a></${heading}>
 <div class="byline"><span>${escape(story.source)}</span><time datetime="${new Date(story.published_at).toISOString()}">${date}</time>${reason}</div>
 ${links ? `<details><summary>${t('Related discussion')}</summary><div class="discussions">${links}</div></details>` : ''}
 </article>`;
@@ -91,11 +101,13 @@ async function feed(env, url, trending, view) {
   const now = Date.now();
   const db = env.DB;
   const search = trending ? '' : (url.searchParams.get('q') ?? '').trim().slice(0, 120);
-  const searchForm = trending ? '' : `<form class="story-search" role="search" action="${local('/')}">
+  const searchForm = trending ? '' : `<details class="search-control"${search ? ' open' : ''}>
+    <summary>${t('Search')}</summary>
+    <form class="story-search" role="search" action="${local('/')}">
     <label for="story-query">${t('Search stories')}</label>
     <div><input id="story-query" name="q" type="search" maxlength="120" value="${escape(search)}">
     <button type="submit">${t('Search')}</button></div>
-  </form>`;
+  </form></details>`;
   const before = Number(url.searchParams.get('before'));
   const key = url.searchParams.get('key') ?? '';
   const rawPage = Number(url.searchParams.get('page'));
@@ -104,8 +116,26 @@ async function feed(env, url, trending, view) {
   const latestLink = `<a href="${local('/')}">${t('Back to latest')}</a>`;
   if (page > cap) return html(view, 'Latest', `<p class="notice">${t('This page is outside the current feed.')} ${latestLink}</p>`, 404);
   const cutoff = now - 7 * DAY;
+  const split = !trending && !search && page === 1 && url.searchParams.get('view') !== 'all';
+  const essayCutoff = now - ESSAY_DAYS * DAY;
   let query;
-  if (trending) {
+  let results;
+  let activity = '';
+  if (split) {
+    const columns = await db.batch([
+      db.prepare(`SELECT * FROM (
+        SELECT stories.*, ROW_NUMBER() OVER (PARTITION BY source ORDER BY published_at DESC, url DESC) AS source_rank
+        FROM stories WHERE published_at >= ? AND source IN (${essaySourceParams})
+      ) WHERE source_rank <= 3 ORDER BY published_at DESC, url DESC LIMIT 10`).bind(essayCutoff, ...essaySources),
+      db.prepare(`SELECT * FROM stories WHERE published_at >= ? AND source NOT IN (${essaySourceParams})
+        ORDER BY published_at DESC, url DESC LIMIT 10`).bind(cutoff, ...essaySources),
+      db.prepare(`SELECT COUNT(CASE WHEN source IN (${essaySourceParams}) THEN 1 END) AS human,
+        COUNT(CASE WHEN source NOT IN (${essaySourceParams}) THEN 1 END) AS ai
+        FROM stories WHERE published_at >= ?`).bind(...essaySources, ...essaySources, cutoff)
+    ]);
+    results = columns.slice(0, 2).flatMap(column => column.results);
+    activity = activityBar(columns[2].results[0], t);
+  } else if (trending) {
     query = db.prepare(`SELECT stories.*, COUNT(*) AS coverage, MAX(mentions.published_at) AS recent
       FROM mentions JOIN stories USING (url) WHERE mentions.published_at >= ? AND stories.published_at >= ?
       GROUP BY stories.url ORDER BY coverage DESC, recent DESC, stories.url DESC LIMIT ?`)
@@ -113,19 +143,20 @@ async function feed(env, url, trending, view) {
   } else {
     const searchFilter = search ? "AND instr(lower(title || ' ' || coalesce(title_zh, '') || ' ' || source || ' ' || topic), lower(?)) > 0" : '';
     const cursorFilter = page > 1 ? 'AND (published_at, url) < (?, ?)' : '';
-    query = db.prepare(`SELECT * FROM stories WHERE published_at >= ? ${searchFilter} ${cursorFilter}
+    query = db.prepare(`SELECT * FROM stories WHERE (published_at >= ? OR
+      (published_at >= ? AND source IN (${essaySourceParams}))) ${searchFilter} ${cursorFilter}
       ORDER BY published_at DESC, url DESC LIMIT ?`)
-      .bind(cutoff, ...(search ? [search] : []), ...(page > 1 ? [before, key] : []), PAGE_SIZE + 1);
+      .bind(cutoff, essayCutoff, ...essaySources, ...(search ? [search] : []), ...(page > 1 ? [before, key] : []), PAGE_SIZE + 1);
   }
-  const { results } = await query.all();
+  if (query) ({ results } = await query.all());
   const stories = results.slice(0, PAGE_SIZE);
   const section = trending ? 'Trending' : 'Latest';
   const { ok_at: last } = await db.prepare('SELECT MAX(ok_at) AS ok_at FROM source_state').first();
   const status = last ? (zh ? '上次更新 ' : 'Last checked ') + timeLabel.format(last) : t('Awaiting the first source check');
-  const header = trending ? `<p class="feed-note">${t('Most discussed among tracked sources in the past 24 hours.')}</p>` : searchForm;
+  const header = trending ? `<p class="feed-note">${t('Most discussed among tracked sources in the past 24 hours.')}</p>` : activity;
   if (!stories.length) {
     const message = search ? 'No recent stories match your search. Try another word or phrase.' : trending ? 'Nothing is trending in the past 24 hours yet.' : page > 1 ? 'You’ve reached the end of the current feed.' : 'New stories will appear as the scheduled checks run.';
-    return html(view, section, header + `<p class="notice">${t(message)} ${page > 1 ? latestLink : ''}</p>`);
+    return html(view, section, header + `<p class="notice">${t(message)} ${page > 1 ? latestLink : ''}</p>`, 200, searchForm);
   }
   const { results: mentions } = await db.prepare(`SELECT url, link, source FROM mentions WHERE url IN (${stories.map(() => '?').join(',')}) ORDER BY published_at DESC`)
     .bind(...stories.map(story => story.url)).all();
@@ -134,15 +165,23 @@ async function feed(env, url, trending, view) {
     if (!byUrl.has(mention.url)) byUrl.set(mention.url, []);
     byUrl.get(mention.url).push(mention);
   }
-  const cards = stories.map(story => renderCard(story, byUrl.get(story.url) ?? [], trending, view)).join('');
+  const card = story => renderCard(story, byUrl.get(story.url) ?? [], trending, view, split ? 'h3' : 'h2');
+  const column = (title, description, items) => `<section class="feed-column">
+    <header class="column-masthead"><h2>${t(title)}</h2><p>${t(description)}</p></header>
+    <div class="stories">${items.length ? items.map(card).join('') : `<p class="notice">${t('No recent stories in this section yet.')}</p>`}</div>
+  </section>`;
+  const storyList = split ? `<div class="feed-columns">
+    ${column('Human Voices', 'Music, literature, visual art, and personal essays.', stories.filter(story => essaySources.includes(story.source)))}
+    ${column('AI & Its Impact', 'How AI and digital platforms are changing work and culture.', stories.filter(story => !essaySources.includes(story.source)))}
+  </div>` : `<div class="stories">${stories.map(card).join('')}</div>`;
   const oldest = stories.at(-1);
-  const nextParams = { page: String(page + 1), before: String(oldest.published_at), key: oldest.url };
+  const nextParams = { view: 'all', page: String(page + 1), before: String(oldest.published_at), key: oldest.url };
   if (search) nextParams.q = search;
-  const next = !trending && page < cap && results.length > PAGE_SIZE
+  const next = split ? `<a href="${local('/')}?view=all">${t('Browse all stories')} →</a>` : !trending && page < cap && results.length > PAGE_SIZE
     ? `<a href="${local('/')}?${escape(new URLSearchParams(nextParams))}">${t(search ? 'More results' : 'Older stories')} →</a>` : '';
   const first = search ? `<a href="${local('/')}">${t('Clear search')}</a>` : page > 1 ? latestLink : '';
   const translationNote = zh ? `<p class="feed-note">${t('Chinese headlines use machine translation when available. Open a story to read it at the original source.')}</p>` : '';
-  return html(view, section, header + translationNote + `<div class="stories">${cards}</div>` + (next || first ? `<nav class="pagination" aria-label="${t('Story pages')}">${first}${next}</nav>` : '') + `<p class="feed-note feed-status">${status}</p>`);
+  return html(view, section, header + translationNote + storyList + (next || first ? `<nav class="pagination" aria-label="${t('Story pages')}">${first}${next}</nav>` : '') + `<p class="feed-note feed-status">${status}</p>`, 200, searchForm);
 }
 
 function about(view) {
@@ -186,8 +225,10 @@ function xmlText(value) {
 
 async function rss(env, url, { zh, local, lang, t }) {
   const { results } = await env.DB.prepare(
-    'SELECT url, title, title_zh, topic, published_at FROM stories WHERE published_at >= ? ORDER BY published_at DESC, url DESC LIMIT 50'
-  ).bind(Date.now() - 7 * DAY).all();
+    `SELECT url, title, title_zh, topic, published_at FROM stories
+      WHERE published_at >= ? OR (published_at >= ? AND source IN (${essaySourceParams}))
+      ORDER BY published_at DESC, url DESC LIMIT 50`
+  ).bind(Date.now() - 7 * DAY, Date.now() - ESSAY_DAYS * DAY, ...essaySources).all();
   const items = results.map(story => `<item>
     <title>${xmlText(decodeHeadline(zh ? story.title_zh || story.title : story.title))}</title>
     <link>${xmlText(story.url)}</link>

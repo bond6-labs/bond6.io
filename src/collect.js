@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import { sources } from './sources.js';
+import { sources, essaySources, essaySourceParams, ESSAY_DAYS } from './sources.js';
 import { decodeHeadline } from './headline.js';
 
 export const DAY = 86_400_000;
@@ -85,8 +85,10 @@ async function poll(source, state, now) {
   const body = await readBody(response);
   const items = source.kind === 'rss' ? fromRss(body, source) : fromBluesky(body, source);
   return {
-    items: items.filter(item => item.url && item.link && item.title && editorial.test(item.subject)
-      && !/^daily deal:/i.test(item.title) && item.date >= now - 7 * DAY && item.date <= now + 5 * minute),
+    items: items.filter(item => item.url && item.link && item.title
+      && (source.essays || source.allPosts || editorial.test(item.subject))
+      && !/^daily deal:/i.test(item.title) && item.date >= now - (source.essays ? ESSAY_DAYS : 7) * DAY
+      && item.date <= now + 5 * minute),
     etag: response.headers.get('etag'),
     modified: response.headers.get('last-modified')
   };
@@ -136,7 +138,9 @@ export async function collect(env, now = Date.now()) {
     }
   }
   statements.push(
-    db.prepare('DELETE FROM stories WHERE published_at < ?').bind(now - 7 * DAY),
+    db.prepare(`DELETE FROM stories WHERE published_at < ?
+      OR (published_at < ? AND source NOT IN (${essaySourceParams}))`)
+      .bind(now - ESSAY_DAYS * DAY, now - 7 * DAY, ...essaySources),
     db.prepare(`DELETE FROM stories WHERE url IN (
       SELECT url FROM stories ORDER BY published_at DESC, url DESC LIMIT -1 OFFSET ?
     )`).bind(storyLimit(env))
