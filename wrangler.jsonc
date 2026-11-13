@@ -6,7 +6,8 @@
   "workers_dev": true,
   "assets": { "directory": "./public" },
   "triggers": { "crons": ["* * * * *"] },
-  "vars": { "MAX_STORIES": "1000" },
+  "vars": { "MAX_STORIES": "1000", "TRANSLATE_HEADLINES": "true" },
+  "ai": { "binding": "AI" },
   "d1_databases": [{
     "binding": "DB",
     "database_name": "bond6-transmissions",

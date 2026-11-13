@@ -108,10 +108,15 @@ export async function collect(env, now = Date.now()) {
       for (const item of items) {
         const date = Math.min(item.date, now);
         statements.push(
-          db.prepare(`INSERT INTO stories VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(url) DO UPDATE SET
+          db.prepare(`INSERT INTO stories (url, title, source, topic, published_at, is_article)
+            VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(url) DO UPDATE SET
             title = excluded.title, source = excluded.source, topic = excluded.topic,
-            published_at = excluded.published_at, is_article = excluded.is_article
-            WHERE excluded.is_article > stories.is_article`)
+            published_at = excluded.published_at, is_article = excluded.is_article,
+            title_zh = CASE WHEN excluded.title = stories.title THEN stories.title_zh END,
+            translate_after = CASE WHEN excluded.title = stories.title THEN stories.translate_after ELSE 0 END
+            WHERE excluded.is_article > stories.is_article
+              OR (excluded.is_article = stories.is_article AND excluded.source = stories.source
+                AND excluded.title <> stories.title)`)
             .bind(item.url, item.title, source.name, item.topic, date, Number(source.kind === 'rss')),
           db.prepare(`INSERT INTO mentions VALUES (?, ?, ?, ?) ON CONFLICT(url, source) DO UPDATE SET
             link = excluded.link, published_at = excluded.published_at
@@ -123,7 +128,7 @@ export async function collect(env, now = Date.now()) {
       statements.push(db.prepare(`INSERT INTO source_state VALUES (?, ?, ?, ?, ?, 0, ?)
         ON CONFLICT(id) DO UPDATE SET etag=excluded.etag, modified=excluded.modified,
         checked_at=excluded.checked_at, ok_at=excluded.ok_at, failures=0, next_at=excluded.next_at`)
-        .bind(source.id, etag, modified, now, now, now + 10 * minute));
+        .bind(source.id, etag, modified, now, now, now + Math.max(10, sources.length) * minute));
     } catch (error) {
       const failures = (state?.failures ?? 0) + 1;
       const delay = Math.min(120, 5 * 2 ** Math.min(failures, 5));

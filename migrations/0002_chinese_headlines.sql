@@ -1,0 +1,2 @@
+ALTER TABLE stories ADD COLUMN title_zh TEXT;
+ALTER TABLE stories ADD COLUMN translate_after INTEGER NOT NULL DEFAULT 0;

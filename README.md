@@ -9,10 +9,10 @@ Use Node.js 22 or later.
 ```sh
 npm ci
 npx wrangler d1 migrations apply DB --local
-npm run dev
+npm run dev -- --local --var TRANSLATE_HEADLINES:false
 ```
 
-Open the URL printed by Wrangler. To populate the feed, call `/__scheduled` at that URL. Each call polls one due source. Allow each poll to finish before calling again to cycle through the seven initial sources. The local schedule endpoint is provided by Wrangler in development.
+Open the URL printed by Wrangler. To populate the feed, call `/__scheduled` at that URL. Each call polls one due source. Allow each poll to finish before calling again to cycle through the source list. The local schedule endpoint is provided by Wrangler in development.
 
 ## Cloudflare deployment
 
@@ -25,6 +25,8 @@ Open the URL printed by Wrangler. To populate the feed, call `/__scheduled` at t
 
 ## Operations
 
-Edit `src/sources.js` to change the tracked publications and Bluesky accounts. The Cron Trigger runs every minute and processes one due source at a time. Successful sources are due again after ten minutes. Failed sources retry with backoff and log a warning.
+English is served at `/` and Simplified Chinese at `/zh/`. Each edition has its own RSS URL. Cloudflare Workers AI uses the `AI` binding to translate up to three pending headlines per scheduled run. The Chinese edition shows the original title while a translation is pending. Set `TRANSLATE_HEADLINES` to `false` to pause inference or to run a local preview without Cloudflare credentials.
+
+Edit `src/sources.js` to change the tracked publications and Bluesky accounts. The Cron Trigger polls one due source per minute. A successful source is due again after at least ten minutes, with a longer interval as the list grows. Failed sources retry with backoff and log a warning.
 
 Latest displays 20 stories per page. The collector trims stories after seven days or when they fall outside the newest `MAX_STORIES` entries, whichever comes first. Change `MAX_STORIES` from 1000 to 2000 for a 100-page ceiling. Trending counts distinct tracked sources that mentioned the same link in the past 24 hours.
