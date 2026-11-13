@@ -3,6 +3,7 @@ import { sources, essaySources, essaySourceParams, ESSAY_DAYS } from './sources.
 import { decodeHeadline } from './headline.js';
 import { chinese } from './chinese.js';
 import { translateHeadlines } from './translate.js';
+import { editions } from './picks.js';
 
 const PAGE_SIZE = 20;
 const dateLabel = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -19,26 +20,27 @@ function locale(url) {
 }
 
 function layout(section, content, { t, local, zh, lang, alternate }, tools) {
-  const heading = t(section === 'Latest' ? 'Transmissions' : section);
-  const description = t('News and essays on writing, creative work, and life with AI.');
-  const nav = [['/', 'Latest'], ['/trending', 'Trending'], ['/sources', 'Sources'], ['/about', 'About']]
+  const siteTitle = t('The Bond6 Edit');
+  const heading = section === 'Latest' ? siteTitle : t(section);
+  const description = t('New writing on culture, creative work, and life with AI.');
+  const nav = [['/', 'Latest'], ['/trending', 'Trending'], ['/bond', 'The Bond'], ['/sources', 'Sources'], ['/about', 'About']]
     .map(([path, label]) => `<a href="${local(path)}"${section === label ? ' aria-current="page"' : ''}>${t(label)}</a>`).join('');
   return `<!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${heading} · Bond6.io</title>
+<title>${section === 'Latest' ? siteTitle : heading + ' · Bond6.io'}</title>
 <meta name="description" content="${description}">
 <meta name="theme-color" content="#f6f3ec">
 <script src="/theme.js"></script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="alternate" type="application/rss+xml" title="Bond6 ${t('Transmissions')}" href="${local('/feed.xml')}">
+<link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${local('/feed.xml')}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;500;600;700${zh ? '&family=Noto+Sans+SC:wght@400;500;600;700' : ''}&family=PT+Serif:wght@400;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 ${zh ? '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&text=' + encodeURIComponent(t('Human Voices')) + '&display=swap" rel="stylesheet">' : ''}
-<link rel="stylesheet" href="/style.css?v=columns-6"></head><body>
+<link rel="stylesheet" href="/style.css?v=bond-3"></head><body>
 <a class="skip-link" href="#main">${t('Skip to content')}</a>
 <header class="masthead"><div class="shell masthead-inner">
 <a class="wordmark" href="${local('/')}" aria-label="${t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
-<nav class="tabs" aria-label="${t('Transmissions')}">${nav}</nav>
+<nav class="tabs" aria-label="${t('Main navigation')}">${nav}</nav>
 <div class="reader-controls">
 <a class="language-link" href="${escape(alternate)}" lang="${zh ? 'en' : 'zh-Hans'}" hreflang="${zh ? 'en' : 'zh-Hans'}">${zh ? 'English' : '简体中文'}</a>
 <button type="button" class="theme-toggle" role="switch" aria-checked="false" hidden>
@@ -81,6 +83,46 @@ function activityBar({ human, ai }, t) {
       <label><input id="show-human" type="radio" name="feed-column" aria-controls="human-feed" checked><span>${t('Human Voices')}</span></label>
       <label><input id="show-ai" type="radio" name="feed-column" aria-controls="ai-feed"><span>${t('AI & Its Impact')}</span></label>
     </fieldset>
+  </section>`;
+}
+
+function renderPick(pick, label, { t, zh }) {
+  const { title, note, quote } = zh ? pick.zh : pick.en;
+  return `<article class="editorial-pick">
+    <p class="pick-label">${t(label)}</p>
+    <h3>${escape(title)}</h3>
+    <p>${escape(note)}</p>
+    ${pick.quote ? `<blockquote cite="${escape(pick.post)}"><p>${escape(quote || pick.quote)}${zh ? ` <small>${t('(translated)')}</small>` : ''}</p></blockquote>` : ''}
+    <p class="pick-links"><a href="${escape(pick.url)}">${escape(pick.source)}</a>${pick.post ? ` · <a href="${escape(pick.post)}">${t('Original Bluesky post')}</a>` : ''}</p>
+  </article>`;
+}
+
+function renderBond(view) {
+  const { t, zh } = view;
+  const renderEdition = (edition, { question, note, prompt }) => `<div class="bond-edition">
+    <div class="bond-pair">
+      ${renderPick(edition.picks['human-feed'], 'Human Voices', view)}
+      ${renderPick(edition.picks['ai-feed'], 'AI & Its Impact', view)}
+    </div>
+    <p class="bond-note">${escape(note)}</p>
+    ${prompt ? `<div class="bond-response"><p>${escape(prompt)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('The Bond | ' + question)}">${t('Share your experience')}</a></div>` : ''}
+  </div>`;
+  const [featured, ...archive] = editions;
+  const lead = zh ? featured.zh : featured.en;
+  const previous = archive.map(edition => {
+    const copy = zh ? edition.zh : edition.en;
+    return `<details><summary>${escape(copy.question)}</summary>${renderEdition(edition, copy)}</details>`;
+  }).join('');
+  return `<section class="bond-feature" aria-labelledby="bond-question">
+    <header class="bond-header"><h2 id="bond-question">${escape(lead.question)}</h2></header>
+    ${renderEdition(featured, lead)}
+    <div class="bond-archive"><h3>${t('More editions')}</h3>${previous}</div>
+    <div class="bond-participation">
+      <div><h3>${t('Send us a find')}</h3><p>${t('Share a public link and one sentence about what caught your attention. Tell us if you’d like to be credited.')}</p>
+        <a href="mailto:info@bond6.io?subject=The%20Bond%20%7C%20Reader%20find">${t('Email a find')}</a></div>
+      <div><h3>${t('Invite a voice')}</h3><p>${t('Suggest a creator and one question you’d ask them. You can also suggest yourself. We ask permission before publishing a response.')}</p>
+        <a href="mailto:info@bond6.io?subject=The%20Bond%20%7C%20Creator%20suggestion">${t('Suggest a creator')}</a></div>
+    </div>
   </section>`;
 }
 
@@ -158,12 +200,14 @@ async function feed(env, url, trending, view) {
   const { ok_at: last } = await db.prepare('SELECT MAX(ok_at) AS ok_at FROM source_state').first();
   const status = last ? (zh ? '上次更新 ' : 'Last checked ') + timeLabel.format(last) : t('Awaiting the first source check');
   const header = trending ? `<p class="feed-note">${t('Most discussed among tracked sources in the past 24 hours.')}</p>` : activity;
-  if (!stories.length) {
+  if (!stories.length && !split) {
     const message = search ? 'No recent stories match your search. Try another word or phrase.' : trending ? 'Nothing is trending in the past 24 hours yet.' : page > 1 ? 'You’ve reached the end of the current feed.' : 'New stories will appear as the scheduled checks run.';
     return html(view, section, header + `<p class="notice">${t(message)} ${page > 1 ? latestLink : ''}</p>`, 200, searchForm);
   }
-  const { results: mentions } = await db.prepare(`SELECT url, link, source FROM mentions WHERE url IN (${stories.map(() => '?').join(',')}) ORDER BY published_at DESC`)
-    .bind(...stories.map(story => story.url)).all();
+  const { results: mentions } = stories.length
+    ? await db.prepare(`SELECT url, link, source FROM mentions WHERE url IN (${stories.map(() => '?').join(',')}) ORDER BY published_at DESC`)
+      .bind(...stories.map(story => story.url)).all()
+    : { results: [] };
   const byUrl = new Map();
   for (const mention of mentions) {
     if (!byUrl.has(mention.url)) byUrl.set(mention.url, []);
@@ -179,31 +223,28 @@ async function feed(env, url, trending, view) {
     ${column('ai-feed', 'AI & Its Impact', 'How AI and digital platforms are changing work and culture.', stories.filter(story => !essaySources.includes(story.source)))}
   </div>` : `<div class="stories">${stories.map(card).join('')}</div>`;
   const oldest = stories.at(-1);
-  const nextParams = { view: 'all', page: String(page + 1), before: String(oldest.published_at), key: oldest.url };
-  if (search) nextParams.q = search;
+  const nextParams = oldest && { view: 'all', page: String(page + 1), before: String(oldest.published_at), key: oldest.url };
+  if (search && nextParams) nextParams.q = search;
   const next = split ? `<a href="${local('/')}?view=all">${t('Browse all stories')} →</a>` : !trending && page < cap && results.length > PAGE_SIZE
     ? `<a href="${local('/')}?${escape(new URLSearchParams(nextParams))}">${t(search ? 'More results' : 'Older stories')} →</a>` : '';
   const first = search ? `<a href="${local('/')}">${t('Clear search')}</a>` : page > 1 ? latestLink : '';
   const translationNote = zh ? `<p class="feed-note">${t('Chinese headlines use machine translation when available. Open a story to read it at the original source.')}</p>` : '';
-  return html(view, section, header + translationNote + storyList + (next || first ? `<nav class="pagination" aria-label="${t('Story pages')}">${first}${next}</nav>` : '') + `<p class="feed-note feed-status">${status}</p>`, 200, searchForm);
+  const bondLink = split ? `<a href="${local('/bond')}">${t('Read The Bond')} →</a>` : '';
+  return html(view, section, header + translationNote + storyList + (next || first ? `<nav class="pagination" aria-label="${t('Story pages')}">${first}${next}</nav>` : '') + `<p class="feed-note feed-status">${status}</p>` + (bondLink ? `<p class="bond-link">${bondLink}</p>` : ''), 200, searchForm);
 }
 
 function about(view) {
-  const { t, local, zh } = view;
-  return html(view, 'About', zh ? `<div class="about-copy">
-<p>${t('Bond6 began with a question about what happens to human expression when more of what we read, write, and share passes through algorithms. The name comes from carbon, element six and the basis of life.')}</p>
-<h2>${t('What we cover')}</h2>
-<p>${t('Transmissions follows writing, publishing, creative work, and life with AI. We look for reporting and first-person accounts that show how these changes play out in people’s work and everyday lives.')}</p>
+  const { t, local } = view;
+  return html(view, 'About', `<div class="about-copy">
+<p>${t('The Bond6 Edit brings together writing on culture, creative work, and life with AI. Bond6 takes its name from carbon, the sixth element and the basis of life.')}</p>
+<h2>${t('Human Voices')}</h2>
+<p>${t('Discover music, literary criticism, visual art, and personal essays from independent writers and cultural publications.')}</p>
+<h2>${t('AI & Its Impact')}</h2>
+<p>${t('Read reporting and firsthand accounts of how AI and digital platforms are changing creative work and everyday life.')}</p>
 <h2>${t('How the feed works')}</h2>
-<p>${t('Bond6 checks a changing list of publishers, independent writers, and public accounts. We group links to the same article and send you to the original source to read it. Latest shows recent stories in order. Trending shows what the sources we follow have discussed in the past 24 hours.')}</p>
-<p><a href="${local('/sources')}">${t('Sources')}</a> · <a href="${local('/subscribe')}">${t('Subscribe via RSS')}</a></p>
-</div>` : `<div class="about-copy">
-<p>Bond6 began with a question about what happens to human expression when more of what we read, write, and share passes through algorithms. The name comes from carbon, element six and the basis of life.</p>
-<h2>What we cover</h2>
-<p>Transmissions follows writing, publishing, creative work, and life with AI. We look for reporting and first-person accounts that show how these changes play out in people’s work and everyday lives.</p>
-<h2>How the feed works</h2>
-<p>Bond6 checks <a href="/sources">a changing list of publishers, independent writers, and public accounts</a>. We group links to the same article and send you to the original source to read it. <a href="/">Latest</a> shows recent stories in order. <a href="/trending">Trending</a> shows what the sources we follow have discussed in the past 24 hours.</p>
-<p><a href="/subscribe">Subscribe via RSS</a> or <a href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion">suggest a source</a>.</p>
+<p>${t('We check public feeds from publications, independent writers, and social accounts. We group links to the same story, and each headline takes you to the original source.')}</p>
+<p>${t('The temperature bar compares how many stories in each feed were published in the past seven days. Trending shows which stories drew the most discussion among the sources we follow in the past 24 hours.')}</p>
+<p><a href="${local('/sources')}">${t('Sources')}</a> · <a href="${local('/subscribe')}">${t('Subscribe via RSS')}</a> · <a href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion">${t('Suggest a source')}</a></p>
 </div>`);
 }
 
@@ -242,9 +283,9 @@ async function rss(env, url, { zh, local, lang, t }) {
   </item>`).join('\n');
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
-  <title>Bond6 ${t('Transmissions')}</title>
+  <title>${xmlText(t('The Bond6 Edit'))}</title>
   <link>${xmlText(new URL(local('/'), url).href)}</link>
-  <description>${xmlText(t('News and essays on writing, creative work, and life with AI.'))}</description>
+  <description>${xmlText(t('New writing on culture, creative work, and life with AI.'))}</description>
   <language>${lang}</language>
   <atom:link href="${xmlText(new URL(local('/feed.xml'), url).href)}" rel="self" type="application/rss+xml"/>
   ${items}
@@ -258,6 +299,7 @@ export default {
     const { path, local, t } = view;
     if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
     if (path === '/sources') return sourceList(view);
+    if (path === '/bond') return html(view, 'The Bond', renderBond(view));
     if (path === '/about') return about(view);
     if (path === '/about.html') return Response.redirect(new URL(local('/about'), url), 301);
     if (path === '/subscribe') return subscribe(url, view);
@@ -270,7 +312,7 @@ export default {
       }
     }
     if (path !== '/' && path !== '/trending') {
-      return html(view, 'Page unavailable', `<p class="notice"><a href="${local('/')}">${t('Go to Transmissions')}</a></p>`, 404);
+      return html(view, 'Page unavailable', `<p class="notice"><a href="${local('/')}">${t('Go to homepage')}</a></p>`, 404);
     }
     try {
       return await feed(env, url, path === '/trending', view);
