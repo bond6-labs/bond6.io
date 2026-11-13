@@ -34,7 +34,7 @@ function layout(section, content, { t, local, zh, lang, alternate }, tools) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;500;600;700${zh ? '&family=Noto+Sans+SC:wght@400;500;600;700' : ''}&family=PT+Serif:wght@400;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 ${zh ? '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&text=' + encodeURIComponent(t('Human Voices')) + '&display=swap" rel="stylesheet">' : ''}
-<link rel="stylesheet" href="/style.css?v=columns-5"></head><body>
+<link rel="stylesheet" href="/style.css?v=columns-6"></head><body>
 <a class="skip-link" href="#main">${t('Skip to content')}</a>
 <header class="masthead"><div class="shell masthead-inner">
 <a class="wordmark" href="${local('/')}" aria-label="${t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
@@ -77,6 +77,10 @@ function activityBar({ human, ai }, t) {
     <div class="activity-heading"><h2 id="activity-title">${t('Feed temperature')}</h2><p>${t('Stories published in the past 7 days')}</p></div>
     ${total ? `<progress aria-label="${t('Human Voices share of recent stories')}" value="${human}" max="${total}"></progress>` : ''}
     <div class="activity-labels"><span>${t('Human Voices')} <strong>${human}</strong></span><span>${t('AI & Its Impact')} <strong>${ai}</strong></span></div>
+    <fieldset class="feed-switch" aria-label="${t('Choose a feed')}">
+      <label><input id="show-human" type="radio" name="feed-column" aria-controls="human-feed" checked><span>${t('Human Voices')}</span></label>
+      <label><input id="show-ai" type="radio" name="feed-column" aria-controls="ai-feed"><span>${t('AI & Its Impact')}</span></label>
+    </fieldset>
   </section>`;
 }
 
@@ -166,13 +170,13 @@ async function feed(env, url, trending, view) {
     byUrl.get(mention.url).push(mention);
   }
   const card = story => renderCard(story, byUrl.get(story.url) ?? [], trending, view, split ? 'h3' : 'h2');
-  const column = (title, description, items) => `<section class="feed-column">
+  const column = (id, title, description, items) => `<section class="feed-column" id="${id}">
     <header class="column-masthead"><h2>${t(title)}</h2><p>${t(description)}</p></header>
     <div class="stories">${items.length ? items.map(card).join('') : `<p class="notice">${t('No recent stories in this section yet.')}</p>`}</div>
   </section>`;
   const storyList = split ? `<div class="feed-columns">
-    ${column('Human Voices', 'Music, literature, visual art, and personal essays.', stories.filter(story => essaySources.includes(story.source)))}
-    ${column('AI & Its Impact', 'How AI and digital platforms are changing work and culture.', stories.filter(story => !essaySources.includes(story.source)))}
+    ${column('human-feed', 'Human Voices', 'Music, literature, visual art, and personal essays.', stories.filter(story => essaySources.includes(story.source)))}
+    ${column('ai-feed', 'AI & Its Impact', 'How AI and digital platforms are changing work and culture.', stories.filter(story => !essaySources.includes(story.source)))}
   </div>` : `<div class="stories">${stories.map(card).join('')}</div>`;
   const oldest = stories.at(-1);
   const nextParams = { view: 'all', page: String(page + 1), before: String(oldest.published_at), key: oldest.url };

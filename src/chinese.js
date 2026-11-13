@@ -1,5 +1,6 @@
 export const chinese = {
   'Feed temperature': '资讯热度',
+  'Choose a feed': '选择资讯栏目',
   'Stories published in the past 7 days': '过去 7 天发布的文章',
   'Human Voices share of recent stories': '近期文章中「人的声音」所占比例',
   'Human Voices': '人的声音',

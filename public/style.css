@@ -210,6 +210,40 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 }
 .activity-labels span:last-child::before { background: var(--ai-heat); }
 .activity-labels strong { margin-inline-start: 3px; }
+.feed-switch { display: none; }
+@supports selector(:has(*)) {
+  @media (width < 700px) {
+    .activity-bar:has(~ .feed-columns) .feed-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      min-width: 0;
+      margin: 12px 0 0;
+      padding: 4px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+    }
+    .feed-switch label { position: relative; cursor: pointer; }
+    .feed-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .feed-switch span {
+      display: grid;
+      place-items: center;
+      min-height: 44px;
+      padding: 5px;
+      border: 2px solid transparent;
+      border-radius: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+    .feed-switch :checked + span { border-color: var(--heat); background: var(--ground); color: var(--ink); font-weight: 700; }
+    .feed-switch :focus-visible + span { outline: 2px solid var(--ink); outline-offset: 1px; }
+    .feed-switch label:first-child { --heat: var(--human-heat); }
+    .feed-switch label:last-child { --heat: var(--ai-heat); }
+    .activity-bar:has(#show-human:checked) ~ .feed-columns #ai-feed,
+    .activity-bar:has(#show-ai:checked) ~ .feed-columns #human-feed { display: none; }
+  }
+}
 .story-search label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; }
 .story-search div { display: flex; gap: 8px; max-width: 420px; }
 .story-search input, .story-search button {
