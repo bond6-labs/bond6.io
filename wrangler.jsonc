@@ -11,7 +11,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "bond6-transmissions",
-    "database_id": "00000000-0000-0000-0000-000000000000"
+    "database_id": "e49635ca-21ce-4511-a35b-7aa52edbb696"
   }],
   "observability": { "enabled": true }
 }
