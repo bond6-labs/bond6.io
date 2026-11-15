@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/worker.js && node --check public/reader.js",
+    "migrate": "wrangler d1 migrations apply DB --remote"
   },
   "repository": {
     "type": "git",

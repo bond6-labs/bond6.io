@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /events
+Disallow: /saved
+Disallow: /zh/saved
+Sitemap: https://bond6.io/sitemap.xml

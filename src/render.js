@@ -1,0 +1,74 @@
+import { chinese } from './chinese.js';
+import { subjectLabels } from './content.js';
+export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+export function locale(url) {
+  const zh=url.pathname==='/zh'||url.pathname.startsWith('/zh/');
+  const path=zh?url.pathname.slice(3)||'/':url.pathname;
+  const local=route=>zh?'/zh'+route:route;
+  return {zh,path,local,lang:zh?'zh-Hans':'en',t:label=>zh?chinese[label]??label:label,say:(en,cn)=>zh?cn:en,url,
+    alternate:(zh?path:'/zh'+path)+url.search};
+}
+export function date(ms,v) {
+  return new Intl.DateTimeFormat(v.zh?'zh-Hans':'en',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(ms);
+}
+export function qlink(v,changes={},path=v.path) {
+  const query=new URLSearchParams(v.url.search);
+  for (const [k,val] of Object.entries(changes)) val==null?query.delete(k):query.set(k,String(val));
+  return v.local(path)+(query.size?'?'+query:'');
+}
+export function searchForm(v) {
+  return `<details class="search-control"><summary>${v.t('Search')}</summary><form class="story-search" role="search" action="${v.local('/')}">
+    <label for="story-query">${v.t('Search stories')}</label><div><input id="story-query" name="q" type="search" maxlength="120" autocomplete="off" value="${esc(v.url.searchParams.get('q'))}"><button>${v.t('Search')}</button></div>
+    ${v.url.searchParams.get('lane')?`<input type="hidden" name="lane" value="${esc(v.url.searchParams.get('lane'))}">`:''}</form></details>`;
+}
+export function html(v,title,content,{status=200,description,wide=false,edition=false}={}) {
+  const siteTitle=v.t('The Bond6 Edit'), heading=title||siteTitle;
+  description??=v.t('New writing on culture, creative work, and life with AI.');
+  const canonical=new URL(v.local(v.path),'https://bond6.io').href;
+  const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;
+  const nav=[['/','Latest'],['/bond','The Bond'],['/edit',v.say('Editions','每日精选')],['/saved',v.say('Saved','已收藏')]];
+  const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,topic:null,page:null,view:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
+  const body=`<!doctype html><html lang="${v.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(heading)}${title?' · Bond6.io':''}</title><meta name="description" content="${esc(description)}"><meta name="theme-color" content="#f6f3ec">
+  <link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="en" href="${en}"><link rel="alternate" hreflang="zh-Hans" href="${zh}"><link rel="alternate" hreflang="x-default" href="${en}">
+  <meta property="og:type" content="${edition?'article':'website'}"><meta property="og:site_name" content="Bond6.io"><meta property="og:title" content="${esc(heading)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">
+  <meta property="og:image" content="https://bond6.io/social-card.png"><meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
+  <script src="/theme.js"></script><script src="/reader.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=daily-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
+  <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
+  <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
+  <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
+  <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中文'}</a>
+  <button type="button" class="theme-toggle" role="switch" aria-checked="false" hidden><span>${v.t('Dark mode')}</span><span class="theme-track" aria-hidden="true"></span></button></div></div></header>
+  <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(description)}</p>`:''}</div></div>${content}</main>
+  <div class="reader-message shell" role="status" aria-live="polite"></div>
+  <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
+  <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Trending')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
+  return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?'public, max-age=60':'no-store',
+    'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin',
+    'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
+}
+export function actions(story,v,shareUrl) {
+  const data={url:story.url,en:story.en??{title:story.title_en??story.title},zh:story.zh??{title:story.title_zh??story.title},source:story.source,author:story.author,date:story.original_published_at,original_lang:story.original_lang};
+  return `<div class="story-actions"><a class="original-link" data-event="original" href="${esc(story.url)}" rel="noopener">${v.say('Read original','阅读原文')} <span aria-hidden="true">↗</span></a><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc((v.zh?data.zh:data.en).title)}" hidden>${v.say('Share','分享')}</button></div>`;
+}
+export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
+export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
+  const copy=v.zh?s.zh:s.en, title=copy?.title??(v.zh?s.title_zh:s.title_en)??s.title;
+  const untranslated=v.zh?!s.title_zh&&!s.zh:s.original_lang==='zh'&&!s.title_en&&!s.en;
+  const publication=s.original_published_at?`<time datetime="${new Date(s.original_published_at).toISOString()}">${date(s.original_published_at,v)}</time>`:`<span>${v.say('Publication date unavailable','发表日期未知')}</span>`;
+  const discussion=mentions.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
+  const share=editionId?`https://bond6.io${v.local('/edit/'+editionId)}#story-${s.content_hash.slice(0,12)}`:s.url;
+  return `<article class="story${pick?' daily-pick':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}">
+    <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
+    <h3><a href="${esc(s.url)}" data-event="original"${untranslated?` lang="${s.original_lang==='zh'?'zh-Hans':'en'}"`:''}>${esc(title)}</a></h3>
+    ${pick?`<p class="pick-note">${esc(copy?.note)}</p>`:''}
+    <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
+    ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
+    ${untranslated?`<p class="source-context">${v.say('Original headline · translation pending','原标题 · 译文尚未生成')}</p>`:''}
+    ${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
+    ${actions(s,v,share)}${discussion?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
+}

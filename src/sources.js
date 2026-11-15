@@ -1,4 +1,10 @@
 export const sources = [
+  { id: 'bandcamp', name: 'Bandcamp Daily', kind: 'rss', url: 'https://daily.bandcamp.com/feed', site: 'https://daily.bandcamp.com/', topic: 'Music', essays: true },
+  { id: 'sspai', name: '少数派', kind: 'rss', url: 'https://sspai.com/feed', site: 'https://sspai.com/', topic: 'Life online', essays: true },
+  { id: 'gcores', name: '机核', kind: 'rss', url: 'https://www.gcores.com/rss', site: 'https://www.gcores.com/', topic: 'Creative Practice', essays: true },
+  { id: 'chuapp', name: '触乐', kind: 'rss', url: 'https://www.chuapp.com/feed', site: 'https://www.chuapp.com/', topic: 'Creative Practice', essays: true },
+  { id: 'appleton-social', name: 'Maggie Appleton', kind: 'bluesky', handle: 'maggieappleton.com', site: 'https://bsky.app/profile/maggieappleton.com', topic: 'Creative Practice', essays: true },
+  { id: 'dash-social', name: 'Anil Dash', kind: 'bluesky', handle: 'anildash.com', site: 'https://bsky.app/profile/anildash.com', topic: 'Life online', essays: true },
   { id: 'aquarium-drunkard', name: 'Aquarium Drunkard', kind: 'rss', url: 'https://aquariumdrunkard.com/feed/', site: 'https://aquariumdrunkard.com/', topic: 'Music', essays: true },
   { id: 'literary-hub', name: 'Literary Hub', kind: 'rss', url: 'https://lithub.com/feed/', site: 'https://lithub.com/', topic: 'Literature', essays: true },
   { id: 'colossal', name: 'Colossal', kind: 'rss', url: 'https://www.thisiscolossal.com/feed/', site: 'https://www.thisiscolossal.com/', topic: 'Visual arts', essays: true },

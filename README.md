@@ -1,32 +1,60 @@
-# Bond6 Transmissions
+# The Bond6 Edit
 
-An English-language reading feed on writing, creative work, and life with AI. The original display site is preserved in Git history.
+A bilingual daily reading site about culture, creative work and life with AI. Cloudflare Worker + D1, server-rendered HTML, progressively enhanced with browser-local saves. The original display site and the earlier clean design remain in Git history; `1acf1bb` preserves the pre-daily-edition work.
 
-## Local preview
+## Development
 
-Use Node.js 22 or later.
+Use Node 22.13 or newer.
 
 ```sh
 npm ci
 npx wrangler d1 migrations apply DB --local
-npm run dev -- --local --var TRANSLATE_HEADLINES:false
+npm test
+npm run dev -- --local --port 8796 --var TRANSLATE_HEADLINES:false --var GENERATED_PUBLISHING:false
 ```
 
-Open the URL printed by Wrangler. To populate the feed, call `/__scheduled` at that URL. Each call polls one due source. Allow each poll to finish before calling again to cycle through the source list. The local schedule endpoint is provided by Wrangler in development.
+On a restricted Windows workspace, direct development-only Wrangler files into the checkout:
 
-## Cloudflare deployment
+```powershell
+$env:WRANGLER_LOG_PATH = Join-Path (Get-Location) '.wrangler\logs'
+$env:CLOUDFLARE_DEV_REGISTRY_PATH = Join-Path (Get-Location) '.wrangler\registry'
+```
 
-1. Authenticate Wrangler to the Cloudflare account that manages bond6.io.
-2. Create a D1 database with `npx wrangler d1 create bond6-transmissions`. Set `database_id` in `wrangler.jsonc` to the returned ID.
-3. Run `npx wrangler d1 migrations apply DB --remote`, then `npm run deploy`.
-4. Review the `workers.dev` URL, verify scheduled runs and CPU usage in the Worker logs, and check that all enabled sources are collecting as expected.
-5. In Cloudflare Workers Builds, connect the GitHub repository and select the production branch. Use `npx wrangler deploy` as the deploy command. Apply future D1 migrations before shipping code that depends on them.
-6. When ready to switch production, identify the existing bond6.io domain binding in Cloudflare, detach it from the display site, and attach bond6.io to the Worker under Domains & Routes. Retain the display project for rollback.
+`node scripts/preview-data.mjs` collects real public feeds into the **local** database. `node scripts/audit-ai.mjs 30` uses the authenticated, remote Workers AI binding, with a local usage ledger and a resumable ignored `.local/ai-audit.json` report. It spends real account AI allowance; do not run independent audit ledgers alongside production inference. `node scripts/preview-edition.mjs` previews successfully checked notes locally. These scripts never publish their preview editions to production.
 
-## Operations
+## Routes
 
-English is served at `/` and Simplified Chinese at `/zh/`. Each edition has its own RSS URL. Cloudflare Workers AI uses the `AI` binding to translate up to three pending headlines per scheduled run. The Chinese edition shows the original title while a translation is pending. Set `TRANSLATE_HEADLINES` to `false` to pause inference or to run a local preview without Cloudflare credentials.
+English `/`, Chinese `/zh/`; both have `/edit`, `/edit/YYYY-MM-DD`, `/bond`, `/bond/<slug>`, `/saved`, `/about`, `/sources`, `/subscribe`, `/trending`, and `/feed.xml`. Query parameters `lane=human|ai` and `topic=music|art|writing|practice|digital` preserve reading choices. `q` searches retained headlines, translations, authors and publications. `view=all&page=2` explicitly paginates arrivals.
 
-Edit `src/sources.js` to change the tracked publications and Bluesky accounts. The Cron Trigger polls one due source per minute. A successful source is due again after at least ten minutes, with a longer interval as the list grows. Failed sources retry with backoff and log a warning.
+RSS accepts `kind=live|daily|bond` and optional `lane=human|ai`. The original unfiltered feed URLs remain valid. Dated editions have language alternates, canonical addresses, social metadata and sitemap entries. Expired edition URLs return 404 rather than silently pointing to another edition.
 
-Latest displays 20 stories per page. The collector trims stories after seven days or when they fall outside the newest `MAX_STORIES` entries, whichever comes first. Change `MAX_STORIES` from 1000 to 2000 for a 100-page ceiling. Trending counts distinct tracked sources that mentioned the same link in the past 24 hours.
+## Collection and publishing
+
+- A cron runs every minute. Collection and publication use separate invocations. Each source has a durable leased job, conditional HTTP requests and failure backoff. Collection is normally once per source about every 25–50 minutes, depending on publishing work and failures.
+- Items preserve author, original language, publication date (nullable), first discovery, source ID, type, excerpt, destination and content hash. Shared articles never inherit a social posting date. Distinctive social posts keep their own permalink and byline; reposts/replies are not featured. Known shorteners have a bounded redirect resolver.
+- Source excerpts are untrusted data. AI receives no tools. Topic assignment requires item content, and daily selection further checks the assigned lane. Human Voices is not a claim of certified AI-free authorship.
+- At 12:00 UTC, preparation considers the previous 72 hours, extending to seven days. One publisher/author per edition, no repeat selection within seven days, subject variety, and qualifying Chinese originals are preferred. Each lane holds at most three picks.
+- One job step prepares a bilingual note, another compares it with its source. Numbered supporting passages are resolved by the server; unknown references, unsupported numbers, invalid language and other deterministic failures are rejected. The independent comparison also checks meaning, names, dates and attribution. Only finalized validated snapshots are published in a transaction with lease fencing.
+- Daily preparation retries through 14:00 UTC. Fewer qualified picks can publish; an empty or failed preparation preserves the previous dated edition. The Bond creates at most one interpretation daily from the validated stories, with a separate review and a specific question. Older researched Bond editions have stable, explicitly dated field-note URLs.
+- Model: `@cf/qwen/qwen3.8-27b`, structured JSON, low reasoning setting with the documented non-thinking template switch. Testing showed the reasoning output otherwise exhausted the small completion cap before producing JSON. Every request reserves estimated neurons before inference and reconciles reported token usage afterward. Unknown/failed usage remains charged. The hard configured ceiling is 8,000 neurons per UTC day; it includes translation. No inference happens while serving pages.
+- Picks take priority, followed by The Bond, followed by rolling headline translation after 15:00 UTC. Budget/model failures leave originals readable. Old translations are invalidated when titles change; note caching uses the whole source-content hash.
+
+## Retention and privacy
+
+At most 1,000 live records, with seven days for AI and thirty for culture, measured from discovery. Keep 50 daily and 50 generated Bond snapshots with compact attribution. Job/evidence detail expires after eight days, AI totals after 35 days, aggregate event totals after 60 days. The four original researched Bond editions remain code-backed archive material.
+
+Saves (maximum 100) and visit markers stay in browser storage; saves have remove, clear and undo controls. Storage/JavaScript failure does not block reading. Aggregate events contain only a date, event type and count—no server visitor ID, URL or search query. Respect DNT/GPC. Counts are directional browser proxies, not unique-person or cross-device retention measurements. Cloudflare operational logs are separate.
+
+## Release and operations
+
+Push `codex/transmissions` to run **Deploy Bond6 to Cloudflare**. CI installs dependencies, runs tests/syntax checks, applies additive D1 migrations, then deploys. The token needs Workers deployment and D1 edit permissions. Migrations preserve compatibility with the preceding worker; never reset the production DB.
+
+`GENERATED_PUBLISHING=false` pauses daily/Bond creation independently of collection. `TRANSLATE_HEADLINES=false` pauses rolling inference. Disabling publication does not delete editions. Change `wrangler.jsonc` and deploy to persist switches; the next GitHub deployment restores repository configuration.
+
+Before enabling publishing, review at least 30 bilingual source/output cases, inspect accepted and rejected results, and verify the account allowance. Real-world model checks supplement mocked failure/concurrency tests. Do not represent a passing test suite as a factual-accuracy guarantee.
+
+Run `node scripts/ops-report.mjs` for a read-only production report using your Wrangler login. It includes source failures, job errors, daily edition size, AI accounting, source diversity and engagement totals. During the first seven days, check each daily edition after 14:00 UTC, source freshness and Cloudflare CPU/errors. Establish a 14-day baseline, then compare the following 14 days: returning-browser/visit ratio, original opens/saves/shares per visit, successful editions, sources/languages represented and corrections. Seven-day observation and four-week impact results require actual elapsed operation.
+
+If publishing fails, inspect the leased job's `last_error`, source failures, and daily AI allowance. A lease expires after five minutes, making interrupted work retryable. Reverting the worker to the previous Git revision is possible without reversing additive migrations. Public pages and RSS cache for 60 seconds, so allow a minute when verifying a deployment.
+
+No email provider, advertising system, paid plan upgrade, Reddit API scraping or third-party tracking is introduced. RSS is the subscription mechanism. Reddit automation requires approved access. Images from sources remain opt-in pending suitable reuse terms; the only new image is the site's own social preview card.

@@ -1,4 +1,5 @@
 export const chinese = {
+  'Art & Design': '艺术与设计', Writing: '写作', 'Creative Practice': '创作实践', 'Digital Life': '数字生活',
   'The Bond': '连结',
   'Read The Bond': '阅读「连结」',
   'Share your experience': '分享你的经历',
