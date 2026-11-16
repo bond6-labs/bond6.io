@@ -23,7 +23,7 @@ export function cleanAuthor(value) {
   return plain(value, 160).replace(/\s*\(GPG[^)]*\)/i, '').replace(/\s+@[^\s]+$/, '').trim() || null;
 }
 // These are transparent editorial topic definitions, not a measure of global popularity.
-// A topic appears only when it is present in more than one tracked source.
+// A topic appears only when it is present in at least three tracked sources.
 export const conversationTopics = [
   { key: 'creative-ai', en: 'AI & creative work', zh: 'AI 与创作', match: /\b(ai|artificial intelligence|generative|llms?|chatgpt|machine learning)\b.*\b(art|artist|music|musician|writ\w*|design|film|creative|creator)\b|\b(art|artist|music|musician|writ\w*|design|film|creative|creator)\b.*\b(ai|artificial intelligence|generative|llms?|chatgpt|machine learning)\b|人工智能.{0,32}(创作|艺术|音乐|写作|设计)|(?:创作|艺术|音乐|写作|设计).{0,32}人工智能/i },
   { key: 'ai-work', en: 'AI, work & labour', zh: 'AI、工作与劳动', match: /\b(ai|artificial intelligence|automation|algorithmic)\b.*\b(work|worker|job|labou?r|employment|pay|wage|union)\b|\b(work|worker|job|labou?r|employment|pay|wage|union)\b.*\b(ai|artificial intelligence|automation|algorithmic)\b|人工智能.{0,32}(工作|劳动|就业|薪酬)|(?:工作|劳动|就业|薪酬).{0,32}人工智能/i },
@@ -45,7 +45,7 @@ export function conversations(stories, now = Date.now()) {
     const matches = active.filter(story => storyTopics(story).includes(topic.key));
     const sources = new Set(matches.map(story => story.source_id ?? story.source));
     return { ...topic, stories: matches.length, sources: sources.size, latest: Math.max(0, ...matches.map(story => story.discovered_at ?? 0)) };
-  }).filter(topic => topic.stories >= 2 && topic.sources >= 2)
+  }).filter(topic => topic.stories >= 3 && topic.sources >= 3)
     .sort((a, b) => b.sources - a.sources || b.stories - a.stories || b.latest - a.latest).slice(0, 5);
 }
 /** Normalize untrusted feed text into plain text before it reaches storage. */

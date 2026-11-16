@@ -42,6 +42,10 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .tabs { margin-inline-start: auto; }
 .reader-controls { display: flex; align-items: center; gap: 12px; }
 .language-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; white-space: nowrap; }
+.saved-link { display: inline-grid; place-items: center; width: 44px; min-height: 44px; color: var(--muted); }
+.saved-link:hover,.saved-link:focus-visible { color: var(--ink); }
+.saved-link svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .intro { padding: clamp(24px, 5vw, 47px) 0 21px; border-bottom: 1px solid var(--rule); }
 .intro h1 { margin: 0; font: 700 clamp(36px, 7vw, 58px)/1.12 var(--headline-font); letter-spacing: -.035em; }
