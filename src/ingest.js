@@ -4,6 +4,7 @@ import { DAY, canonical, cleanAuthor, cleanPostText, plain, language, classify, 
 import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS } from './config.js';
 import { validateStorySchema } from './validation.js';
+import { saveRhythmSignals, scoreRhythmBacklog } from './rhythm.js';
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
 const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
@@ -132,6 +133,8 @@ export async function storeItems(db, source, items, now) {
       .bind(...chunk.flatMap(i => [i.url, source.name, i.link, i.shared_at ?? i.original_published_at ?? now])));
   }
   if (statements.length) await db.batch(statements);
+  await saveRhythmSignals(db,validItems.map(item=>({...item,source:source.name,source_id:source.id,topic:source.topic,published_at:item.original_published_at??now})),now);
+  return validItems;
 }
 export async function collect(env, now = Date.now()) {
   const db = env.DB;
@@ -147,6 +150,7 @@ export async function collect(env, now = Date.now()) {
   try {
     const { items, etag, modified } = await poll(source, state, now);
     await storeItems(db, source, items, now);
+    await scoreRhythmBacklog(db,now);
     await db.prepare(`INSERT INTO source_state VALUES(?,?,?,?,?,0,?) ON CONFLICT(id) DO UPDATE SET
       etag=excluded.etag,modified=excluded.modified,checked_at=excluded.checked_at,ok_at=excluded.ok_at,failures=0,next_at=excluded.next_at`)
       .bind(source.id, etag, modified, now, now, now + sources.length * 60_000).run();
