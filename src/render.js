@@ -23,6 +23,7 @@ export function searchForm(v) {
     <label for="story-query">${v.t('Search stories')}</label><div><input id="story-query" name="q" type="search" maxlength="120" autocomplete="off" value="${esc(v.url.searchParams.get('q'))}"><button>${v.t('Search')}</button></div>
     ${v.url.searchParams.get('lane')?`<input type="hidden" name="lane" value="${esc(v.url.searchParams.get('lane'))}">`:''}</form></details>`;
 }
+const scout=`<svg class="brand-scout" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path class="scout-shell" d="M8 15 14 6l4 6h12l4-6 6 9v17c0 7-7 11-16 11S8 39 8 32Z"/><path class="scout-brow" d="M11 19q5-5 11-1m4 0q6-4 11 1"/><circle class="scout-human-ring" cx="17" cy="25" r="7"/><circle class="scout-human-pupil" cx="17" cy="25" r="2.6"/><circle class="scout-ai-ring" cx="31" cy="25" r="7"/><path class="scout-scan" d="M27 25h8"/><path class="scout-beak" d="m22 31 2-3 2 3-2 3Z"/></svg>`;
 export function html(v,title,content,{status=200,description,wide=false,edition=false}={}) {
   const siteTitle=v.t('The Bond6 Edit'), heading=title||siteTitle;
   description??=v.t('New writing on culture, creative work, and life with AI.');
@@ -39,9 +40,9 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   <script src="/reader.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=rhythm-2"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
+  <link rel="stylesheet" href="/style.css?v=scout-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
-  <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
+  <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no"><span class="brand-scout">${scout}</span><span class="brand-text">Bond<span>6</span><small>.io</small></span></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">
   <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中文'}</a>
   </div></div></header>
