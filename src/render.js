@@ -43,7 +43,6 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span class="mark-six">6</span><small>.io</small></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">
-  <a class="saved-link" href="${v.local('/saved')}" aria-label="${v.say('Saved stories','已收藏的文章')}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3.75h12v17l-6-3.7-6 3.7z"/></svg><span class="visually-hidden">${v.say('Saved stories','已收藏的文章')}</span></a>
   <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中文'}</a>
   </div></div></header>
   <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(description)}</p>`:''}</div>${searchForm(v)}</div>${content}</main>

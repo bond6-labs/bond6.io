@@ -25,7 +25,7 @@ test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaS
 test('mobile lane and filters survive navigation and language switch',async()=>{
   const db=database();const r=await worker.fetch(new Request('https://bond6.io/?lane=ai&topic=music'),{DB:db});const text=await r.text();
   const primary=text.match(/<nav class="tabs"[^>]*>([\s\S]*?)<\/nav>/)?.[1]??'';
-  assert.match(text,/data-lane="ai"/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);assert.match(text,/aria-label="Saved stories"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.match(text,/<footer[\s\S]*?href="\/edit">Editions/);
+  assert.match(text,/data-lane="ai"/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.doesNotMatch(primary,/aria-label="Saved stories"/);assert.match(text,/<footer[\s\S]*?href="\/edit">Editions/);
 });
 test('live Rhythm ordering and explanations are opt-in',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);
