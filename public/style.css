@@ -32,9 +32,9 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 
 .masthead { border-bottom: 1px solid var(--rule); }
 .masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
-.wordmark { font-weight: 600; font-size: 23px; letter-spacing: -.06em; white-space: nowrap; }
-.wordmark span { color: var(--gold); }
-.wordmark small { color: var(--muted); font-size: .83em; }
+.wordmark { color: #3c2a23; font: italic 700 29px/.78 "Cormorant Garamond", Georgia, serif; letter-spacing: -.075em; white-space: nowrap; }
+.wordmark .mark-six { margin-inline-start: 1px; color: #bf6840; font-style: normal; }
+.wordmark small { margin-inline-start: 2px; color: #23727d; font: 600 12px/1 Inter, system-ui, sans-serif; letter-spacing: -.04em; }
 .tabs { display: flex; align-items: center; gap: clamp(6px, 3vw, 26px); }
 .tabs a { display: flex; align-items: center; min-height: 44px; padding-inline: 4px; font-size: 13px; color: var(--muted); }
 .tabs a[aria-current], .tabs a:hover { color: var(--ink); }
@@ -295,7 +295,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 
 @media (max-width: 570px) {
   .shell { width: calc(100% - 32px); }
-  .wordmark { font-size: 20px; }
+  .wordmark { font-size: 25px; }
   .masthead-inner { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-top: 6px; }
   .tabs { grid-row: 2; grid-column: 1 / -1; margin-inline-start: 0; gap: 10px; }
   .reader-controls { grid-row: 1; grid-column: 2; }
