@@ -16,8 +16,8 @@ const parse=row=>row?{...JSON.parse(row.snapshot),correction:row.correction}:nul
 export async function latestEdition(db,kind) { return parse(await db.prepare('SELECT snapshot,correction FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 1').bind(kind).first()); }
 const laneName=(lane,v)=>v.t(lane==='human'?'Human Voices':'AI & Its Impact');
 const laneSignature=(lane,v)=>lane==='human'
-  ?`<div class="lane-signature human-signature"><span class="lane-signal" aria-hidden="true"></span><span><b>37°C</b> · ${v.say('slow current','缓慢脉动')}</span></div>`
-  :`<div class="lane-signature ai-signature"><span class="lane-signal" aria-hidden="true"></span><span><b>01</b> · ${v.say('fast signal','快速信号')}</span></div>`;
+  ?`<div class="lane-signature human-signature"><span class="heartbeat" aria-hidden="true">♥</span><span><b>37°C</b> · ${v.say('slow current','缓慢脉动')}</span><span class="lane-signal" aria-hidden="true"></span></div>`
+  :`<div class="lane-signature ai-signature"><span class="digital-flow" aria-hidden="true"><span>101001&nbsp;101001&nbsp;101001&nbsp;</span></span><span>${v.say('fast signal','快速信号')}</span></div>`;
 
 function mix(stats,v,lane) {
   const human=stats?.human??0, ai=stats?.ai??0;

@@ -24,7 +24,7 @@ test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaS
 });
 test('mobile lane and filters survive navigation and language switch',async()=>{
   const db=database();const r=await worker.fetch(new Request('https://bond6.io/?lane=ai&topic=music'),{DB:db});const text=await r.text();
-  assert.match(text,/data-lane="ai"/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);
+  assert.match(text,/data-lane="ai"/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);
 });
 test('metadata and story markup escape untrusted source text',async()=>{
   const db=database();await storeItems(db,source,[story(0,{title:'<script>alert(1)</script>',author:'" onclick="bad'})],now);
