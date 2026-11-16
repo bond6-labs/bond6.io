@@ -10,7 +10,7 @@ Use Node 22.13 or newer.
 npm ci
 npx wrangler d1 migrations apply DB --local
 npm test
-npm run dev -- --local --port 8796 --var TRANSLATE_HEADLINES:false --var GENERATED_PUBLISHING:false
+npm run dev -- --local --port 8796 --var TRANSLATE_HEADLINES:false --var GENERATED_PUBLISHING:false --var RHYTHM_SHADOW_MODE:false
 ```
 
 On a restricted Windows workspace, direct development-only Wrangler files into the checkout:
@@ -34,6 +34,7 @@ RSS accepts `kind=live|daily|bond` and optional `lane=human|ai`. The original un
 - Items preserve author, original language, publication date (nullable), first discovery, source ID, type, excerpt, destination and content hash. Shared articles never inherit a social posting date. Distinctive social posts keep their own permalink and byline; reposts/replies are not featured. Known shorteners have a bounded redirect resolver.
 - Source excerpts are untrusted data. AI receives no tools. Topic assignment requires item content, and daily selection further checks the assigned lane. Human Voices is not a claim of certified AI-free authorship.
 - At 12:00 UTC, preparation considers the previous 72 hours, extending to seven days. One publisher/author per edition, no repeat selection within seven days, subject variety, and qualifying Chinese originals are preferred. Each lane holds at most three picks.
+- While `GENERATED_PUBLISHING=false`, `RHYTHM_SHADOW_MODE=true` writes one no-AI, no-publishing selection audit each day between 12:00 and 14:00 UTC. This gives the team a real candidate-pool sample before enabling daily editions.
 - One job step prepares a bilingual note, another compares it with its source. Numbered supporting passages are resolved by the server; unknown references, unsupported numbers, invalid language and other deterministic failures are rejected. The independent comparison also checks meaning, names, dates and attribution. Only finalized validated snapshots are published in a transaction with lease fencing.
 - Daily preparation retries through 14:00 UTC. Fewer qualified picks can publish; an empty or failed preparation preserves the previous dated edition. The Bond creates at most one interpretation daily from the validated stories, with a separate review and a specific question. Older researched Bond editions have stable, explicitly dated field-note URLs.
 - Model: `@cf/qwen/qwen3.8-27b`, structured JSON, low reasoning setting with the documented non-thinking template switch. Testing showed the reasoning output otherwise exhausted the small completion cap before producing JSON. Every request reserves estimated neurons before inference and reconciles reported token usage afterward. Unknown/failed usage remains charged. The hard configured ceiling is 8,000 neurons per UTC day; it includes translation. No inference happens while serving pages.
@@ -49,11 +50,11 @@ Saves (maximum 100) and visit markers stay in browser storage; saves have remove
 
 Push `codex/transmissions` to run **Deploy Bond6 to Cloudflare**. CI installs dependencies, runs tests/syntax checks, applies additive D1 migrations, then deploys. The token needs Workers deployment and D1 edit permissions. Migrations preserve compatibility with the preceding worker; never reset the production DB.
 
-`GENERATED_PUBLISHING=false` pauses daily/Bond creation independently of collection. `TRANSLATE_HEADLINES=false` pauses rolling inference. Disabling publication does not delete editions. Change `wrangler.jsonc` and deploy to persist switches; the next GitHub deployment restores repository configuration.
+`GENERATED_PUBLISHING=false` pauses daily/Bond creation independently of collection. `RHYTHM_SHADOW_MODE=true` keeps the no-AI selection audit running while publishing is paused; set it to `false` to pause that audit too. `TRANSLATE_HEADLINES=false` pauses rolling inference. Disabling publication does not delete editions. Change `wrangler.jsonc` and deploy to persist switches; the next GitHub deployment restores repository configuration.
 
 Before enabling publishing, review at least 30 bilingual source/output cases, inspect accepted and rejected results, and verify the account allowance. Real-world model checks supplement mocked failure/concurrency tests. Do not represent a passing test suite as a factual-accuracy guarantee.
 
-Run `node scripts/ops-report.mjs` for a read-only production report using your Wrangler login. It includes source failures, job errors, daily edition size, AI accounting, source diversity and engagement totals. During the first seven days, check each daily edition after 14:00 UTC, source freshness and Cloudflare CPU/errors. Establish a 14-day baseline, then compare the following 14 days: returning-browser/visit ratio, original opens/saves/shares per visit, successful editions, sources/languages represented and corrections. Seven-day observation and four-week impact results require actual elapsed operation.
+Run `node scripts/ops-report.mjs` for a read-only production report using your Wrangler login. It includes source failures, job errors, daily edition size, Rhythm shadow audits, AI accounting, source diversity and engagement totals. Review at least seven shadow audits for balanced candidates, clear shortfalls and source freshness before enabling publication. During the first seven publishing days, check each daily edition after 14:00 UTC, source freshness and Cloudflare CPU/errors. Establish a 14-day baseline, then compare the following 14 days: returning-browser/visit ratio, original opens/saves/shares per visit, successful editions, sources/languages represented and corrections. Seven-day observation and four-week impact results require actual elapsed operation.
 
 If publishing fails, inspect the leased job's `last_error`, source failures, and daily AI allowance. A lease expires after five minutes, making interrupted work retryable. Reverting the worker to the previous Git revision is possible without reversing additive migrations. Public pages and RSS cache for 60 seconds, so allow a minute when verifying a deployment.
 

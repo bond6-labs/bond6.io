@@ -40,6 +40,13 @@ test('Rhythm audit stores aggregate diversity without story identities',()=>{
   const selected=[story(41,{lane:'human',source:'Studio',author:'Mina',original_lang:'en',subject:'music',rhythm_confidence:.8,rhythm_labels:JSON.stringify(['Creative practice'])}),story(42,{lane:'ai',source:'Lab',author:'Wei',original_lang:'zh',subject:'digital-life',rhythm_confidence:.9,rhythm_labels:JSON.stringify(['AI system','Human consequence'])})];
   const audit=rhythmAudit(selected,selected,now);assert.equal(audit.status,'prepared');assert.deepEqual(audit.selected.lanes,{ai:1,human:1});assert.equal(audit.selected.distinct_publishers,2);assert.equal(JSON.stringify(audit).includes(selected[0].url),false);
 });
+test('shadow mode records one daily Rhythm audit without calling AI or publishing',async()=>{
+  const db=database(),s=story();await storeItems(db,source,[s],now-1000);let calls=0;
+  const env={DB:db,GENERATED_PUBLISHING:'false',RHYTHM_SHADOW_MODE:'true',AI:{run:async()=>{calls++;throw new Error('Must not run');}}};
+  assert.equal(await publishingStep(env,now),true);assert.equal(calls,0);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,0);
+  const audit=JSON.parse(db.sql.prepare('SELECT snapshot FROM rhythm_audits').get().snapshot);assert.equal(audit.status,'shadow');assert.equal(audit.selected.total,1);
+  assert.equal(await publishingStep(env,now+60_000),false);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM rhythm_audits').get().n,1);
+});
 test('concurrent budget reservation never exceeds the configured allowance; provider failures stay charged',async()=>{
   const db=database();let calls=0;const env={DB:db,AI_DAILY_NEURONS:'500',AI:{run:async()=>{calls++;throw new Error('Provider unavailable');}}};
   await Promise.allSettled([runJson(env,'test','Return JSON',{},now,900),runJson(env,'test','Return JSON',{},now,900)]);

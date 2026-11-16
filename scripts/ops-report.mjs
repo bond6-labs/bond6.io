@@ -14,6 +14,7 @@ try {
     sources:`SELECT id,datetime(ok_at/1000,'unixepoch') AS last_success,failures FROM source_state ORDER BY failures DESC,id`,
     jobs:`SELECT id,kind,status,attempts,last_error,datetime(updated_at/1000,'unixepoch') AS updated FROM jobs WHERE kind<>'collect' ORDER BY updated_at DESC LIMIT 30`,
     ai:`SELECT * FROM ai_usage ORDER BY day DESC LIMIT 14`,
+    rhythm:`SELECT edition_date,rhythm_version,snapshot,datetime(updated_at/1000,'unixepoch') AS updated FROM rhythm_audits ORDER BY edition_date DESC LIMIT 14`,
     engagement:`SELECT * FROM metrics ORDER BY day DESC,event LIMIT 180`,
     coverage:`SELECT lane,original_lang,source,count(*) AS items FROM stories WHERE lane IS NOT NULL GROUP BY lane,original_lang,source`
   };

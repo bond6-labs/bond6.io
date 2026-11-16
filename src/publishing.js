@@ -79,6 +79,30 @@ export async function saveRhythmAudit(db,date,audit,now) {
 }
 const completeAudit=(audit,stories,now)=>({...audit,status:'published',published:composition(stories),completed_at:now});
 
+async function rhythmSelection(db,now) {
+  const { results } = await db.prepare(`SELECT s.*, r.rhythm_version, r.human_score AS rhythm_human_score, r.ai_score AS rhythm_ai_score,
+    r.lane_recommendation AS rhythm_lane, r.confidence AS rhythm_confidence, r.labels AS rhythm_labels, r.evidence AS rhythm_evidence
+    FROM stories s JOIN story_signals r ON r.story_url=s.url
+    WHERE s.discovered_at>=? AND s.lane IS NOT NULL AND s.content_hash IS NOT NULL
+      AND r.lane_recommendation=s.lane AND r.confidence>=?
+    ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_MIN_CONFIDENCE).all();
+  const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
+    WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
+  return { eligible:results, selected:rankCandidates(results,used.map(story=>story.url),now) };
+}
+
+/** A no-AI, no-publishing daily dry run. It makes the readiness sample observable. */
+async function shadowRhythmStep(env,now) {
+  const hour=new Date(now).getUTCHours(), date=dayKey(now);
+  if (hour < 12 || hour > 14) return false;
+  const existing=await env.DB.prepare('SELECT edition_date FROM rhythm_audits WHERE edition_date=?').bind(date).first();
+  if (existing) return false;
+  const {eligible,selected}=await rhythmSelection(env.DB,now);
+  const audit=rhythmAudit(eligible,selected,now,selected.length?'shadow':'shadow-awaiting-candidates');
+  await saveRhythmAudit(env.DB,date,audit,now);
+  return true;
+}
+
 export function snapshotStory(story, output, selectedAt = Date.now()) {
   return { url: story.url, canonical_url: story.canonical_url, title: story.title, title_en: output.en.title, title_zh: output.zh.title,
     en: { title: output.en.title, note: output.claims.map(c => c.en).join(' ') },
@@ -114,15 +138,7 @@ export async function publishEdition(db, job, snapshot, now, audit = null) {
 async function dailyStep(env, job, now) {
   const db = env.DB, state = JSON.parse(job.payload);
   if (!state.candidates) {
-    const { results } = await db.prepare(`SELECT s.*, r.rhythm_version, r.human_score AS rhythm_human_score, r.ai_score AS rhythm_ai_score,
-      r.lane_recommendation AS rhythm_lane, r.confidence AS rhythm_confidence, r.labels AS rhythm_labels, r.evidence AS rhythm_evidence
-      FROM stories s JOIN story_signals r ON r.story_url=s.url
-      WHERE s.discovered_at>=? AND s.lane IS NOT NULL AND s.content_hash IS NOT NULL
-        AND r.lane_recommendation=s.lane AND r.confidence>=?
-      ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_MIN_CONFIDENCE).all();
-    const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
-      WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
-    const selected=rankCandidates(results, used.map(s => s.url), now), audit=rhythmAudit(results,selected,now,selected.length?'prepared':'awaiting-candidates');
+    const {eligible,selected}=await rhythmSelection(db,now), audit=rhythmAudit(eligible,selected,now,selected.length?'prepared':'awaiting-candidates');
     await saveRhythmAudit(db,state.date,audit,now);
     const candidates = selected.map(s => ({ url: s.url, hash: s.content_hash }));
     if (!candidates.length) { await saveJob(db, job, state, now, { next: now + 10 * 60_000 }); return; }
@@ -198,7 +214,7 @@ async function bondStep(env,job,now) {
 }
 
 export async function publishingStep(env,now) {
-  if (env.GENERATED_PUBLISHING !== 'true') return false;
+  if (env.GENERATED_PUBLISHING !== 'true') return env.RHYTHM_SHADOW_MODE === 'true'?shadowRhythmStep(env,now):false;
   const hour=new Date(now).getUTCHours(), date=dayKey(now), db=env.DB;
   if (hour < 12 || hour > 14) return false;
   await enqueue(db,'daily:'+date,'daily',{date},now);
