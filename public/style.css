@@ -32,22 +32,9 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 
 .masthead { border-bottom: 1px solid var(--rule); }
 .masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
-.wordmark { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; font-size: 23px; letter-spacing: -.06em; white-space: nowrap; }
+.wordmark { font-weight: 600; font-size: 23px; letter-spacing: -.06em; white-space: nowrap; }
 .wordmark span { color: var(--gold); }
-.wordmark .brand-text { color: var(--ink); }
-.wordmark .brand-text > span { color: var(--gold); }
 .wordmark small { color: var(--muted); font-size: .83em; }
-.brand-scout { display: inline-grid; place-items: center; width: 31px; height: 31px; color: initial; flex: 0 0 auto; }
-.brand-scout svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.scout-shell { fill: #243b3e; stroke: #6b9ca3; stroke-width: 1.25; }
-.scout-brow { fill: none; stroke: #d6edf0; stroke-width: 1.25; stroke-linecap: round; }
-.scout-human-ring { fill: #5a3027; stroke: #efb58e; stroke-width: 1.2; }
-.scout-human-pupil { fill: #ff7368; transform-box: fill-box; transform-origin: center; animation: scout-heart-focus 3.6s ease-in-out infinite; }
-.scout-ai-ring { fill: #123e48; stroke: #a5e1e7; stroke-width: 1.2; }
-.scout-scan { fill: none; stroke: #b9f0f3; stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 2 7; animation: scout-scan 2.8s linear infinite; }
-.scout-beak { fill: #d6a45e; }
-@keyframes scout-heart-focus { 0%,48%,100% { transform:scale(1); opacity:.85; } 12% { transform:scale(1.35); opacity:1; } 25% { transform:scale(.92); } }
-@keyframes scout-scan { to { stroke-dashoffset:-18; } }
 .tabs { display: flex; align-items: center; gap: clamp(6px, 3vw, 26px); }
 .tabs a { display: flex; align-items: center; min-height: 44px; padding-inline: 4px; font-size: 13px; color: var(--muted); }
 .tabs a[aria-current], .tabs a:hover { color: var(--ink); }
@@ -120,6 +107,11 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
   background: linear-gradient(90deg, var(--masthead-detail) 38px, transparent 38px 46px, var(--masthead-rule) 46px);
 }
 .column-masthead::after { inset: 0; }
+.lane-character { position: absolute; inset-block-start: 13px; inset-inline-end: 14px; z-index: 0; width: 104px; height: 104px; pointer-events: none; }
+.lane-character .mascot { width: 100%; height: 100%; }
+.lane-character-human { transform: rotate(-2deg); }
+.lane-character-ai { inset-inline-end: 12px; }
+.column-masthead > :not(.lane-character) { position: relative; z-index: 1; }
 .feed-column:first-child .column-masthead::after {
   background: repeating-radial-gradient(ellipse 180px 74px at 94% 2%, transparent 0 15px, #efb58e27 16px 17px, transparent 18px 24px);
   mask-image: linear-gradient(130deg, transparent 34%, #000 90%);
@@ -398,6 +390,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
   .feed-column:first-child .column-masthead h2 { font-size: 37px; }.feed-column:last-child .column-masthead h2 { font-size: 26px; }
   .feed-column:first-child .column-masthead h2:lang(zh-Hans) { font-size: 29px; }.feed-column:last-child .column-masthead h2:lang(zh-Hans) { font-size: 26px; }
   .column-masthead p { font-size: 11px; }
+  .lane-character { inset-block-start: 8px; inset-inline-end: 7px; width: 78px; height: 78px; }
   .section-label { padding: 4px 0; min-height: 48px; }.daily-pick { padding: 12px 14px 8px; }.daily-pick h3 { font-size: 22px; }
   .pick-note { font-size: 14px; line-height: 1.6; }.edition-columns { grid-template-columns: 1fr; gap: 16px; }
   .search-control summary,.language-link { min-width: 44px; justify-content: center; }.reader-controls { gap: 4px; }
@@ -433,5 +426,138 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 }
 @media(min-width:700px) { .column-masthead { height: clamp(178px,17vw,210px); min-height: 0; } }
 @media(prefers-reduced-motion:reduce) {
-  .heartbeat,.digital-flow > span,.scout-human-pupil,.scout-scan { animation: none; }
+  .heartbeat,.digital-flow > span,.scout-human-pupil,.scout-scan,.owl-head,.owl-eye,.owl-pupil,.robot-head,.robot-screen,.robot-signal,.robot-eye,.owl-turning-head,.owl-eye-disc,.barn-eye,.perch-glass,.owl-pupil-dot,.barn-pupil,.perch-pupil,.perch-front > *,.perch-threequarter > *,.perch-profile > *,.picker-eye,.picker-ping,.picker-arm,.picker-body,.machine-arm,.machine-leg,.rover-track,.rover-wheel,.rover-radar,.rover-claw,.scribe-eye,.scribe-spark,.scribe-arm,.scribe-lines { animation: none !important; }
 }
+
+/* Bond6 mascot illustration system. The live mastheads use the approved Library Owl and Picker. */
+.mascot-intro { max-width: 700px; margin: 34px auto 26px; }
+.mascot-intro h1 { margin: 0; font: 700 clamp(34px,6vw,64px)/1.03 var(--headline-font); text-wrap: balance; }
+.mascot-intro p:last-child { max-width: 62ch; margin: 12px 0 0; color: var(--muted); }
+.eyebrow { margin: 0 0 10px; color: var(--gold); font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.mascot-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+.mascot-option { --owl-shell:#9a563a; --owl-face:#f8dec3; --owl-eye:#fff9ee; --owl-pupil:#32201a; --robot-shell:#174c59; --robot-panel:#0a2831; --robot-signal:#b9f0f3; overflow: hidden; border: 1px solid var(--rule); background: var(--surface); }
+.mascot-option > header { display: flex; align-items: baseline; gap: 10px; padding: 13px 15px; border-bottom: 1px solid var(--rule); }
+.mascot-option h2 { margin: 0; font: 700 21px/1.1 var(--headline-font); }
+.option-number { color: var(--gold); font: 700 11px/1 Inter, sans-serif; letter-spacing: .08em; }
+.mascot-lanes { display: grid; grid-template-columns: 1fr 1fr; }
+.mascot-lane { min-width: 0; padding: 15px 8px 10px; text-align: center; }
+.mascot-human { background: #eee2d2; color: #603222; }
+.mascot-ai { background: #dce9eb; color: #153e48; }
+.mascot-lane > div { display: grid; min-height: 114px; place-items: center; }
+.mascot-lane p { margin: 7px 0 0; font-size: 11px; line-height: 1.35; }
+.mascot-lane p b { font-size: 12px; }
+.mascot-note { margin: 0; padding: 14px 15px 16px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.mascot { display: block; width: min(100%,104px); height: 104px; overflow: visible; }
+.owl-head { transform-box: fill-box; transform-origin: center; transform-style: preserve-3d; animation: owl-turn 9s cubic-bezier(.55,.02,.25,1) infinite; }
+.owl-feathers { fill: var(--owl-shell); stroke: #5b3025; stroke-width: 2; stroke-linejoin: round; }
+.owl-face { fill: var(--owl-face); stroke: #5b3025; stroke-width: 1.8; }
+.owl-eye { fill: var(--owl-eye); stroke: #5b3025; stroke-width: 1.6; transform-box: fill-box; transform-origin: center; animation: owl-blink 5.4s ease-in-out infinite; }
+.owl-eye-right { animation-delay: .04s; }
+.owl-pupil { fill: var(--owl-pupil); transform-box: fill-box; transform-origin: center; animation: owl-look 9s ease-in-out infinite; }
+.owl-beak { fill: #e3aa53; stroke: #80511c; stroke-width: 1; }
+.owl-cheeks,.owl-perch { fill: none; stroke: #7b4832; stroke-width: 2; stroke-linecap: round; }
+@keyframes owl-turn { 0%,39%,100% { transform: perspective(180px) rotateY(0deg); } 47% { transform: perspective(180px) rotateY(90deg) scaleX(.22); } 55% { transform: perspective(180px) rotateY(180deg); } 63% { transform: perspective(180px) rotateY(270deg) scaleX(.22); } 71% { transform: perspective(180px) rotateY(360deg); } }
+@keyframes owl-blink { 0%,44%,48%,100% { transform: scaleY(1); } 46% { transform: scaleY(.06); } }
+@keyframes owl-look { 0%,35%,100% { transform: translateX(0); } 43%,60% { transform: translateX(3px); } 68% { transform: translateX(-2px); } }
+.robot-head { fill: var(--robot-shell); stroke: #123642; stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: robot-bob 2.8s ease-in-out infinite; }
+.robot-ear { fill: var(--robot-shell); stroke: #123642; stroke-width: 1.5; }
+.robot-screen { fill: var(--robot-panel); stroke: var(--robot-signal); stroke-opacity: .6; stroke-width: 1.2; transform-box: fill-box; transform-origin: center; animation: robot-screen 3s ease-in-out infinite; }
+.robot-eye { fill: var(--robot-signal); animation: robot-blink 4.8s ease-in-out infinite; }
+.robot-eye-right { animation-delay: .06s; }
+.robot-mouth,.robot-base,.robot-antenna { fill: none; stroke: var(--robot-signal); stroke-width: 2; stroke-linecap: round; }
+.robot-signal { fill: var(--robot-signal); transform-box: fill-box; transform-origin: center; animation: robot-ping 2s ease-out infinite; }
+@keyframes robot-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes robot-screen { 0%,100% { opacity:.82; } 50% { opacity:1; } }
+@keyframes robot-blink { 0%,65%,69%,100% { opacity:1; } 67% { opacity:.16; } }
+@keyframes robot-ping { 0%,100% { transform: scale(1); opacity:1; } 50% { transform: scale(1.65); opacity:.25; } }
+.mascot-orbit { --owl-shell:#6d436e; --owl-face:#ecdaf1; --robot-shell:#315b76; --robot-panel:#192c4d; --robot-signal:#d4e6ff; }
+.mascot-orbit .owl-head { animation-duration: 7.2s; animation-timing-function: linear; }
+.mascot-orbit .owl-perch { stroke-dasharray: 4 3; }
+.mascot-orbit .robot-head { rx: 8px; animation-duration: 1.85s; }
+.mascot-orbit .robot-screen { animation-name: robot-orbit-scan; }
+@keyframes robot-orbit-scan { 0%,100% { transform: translateX(-2px); } 50% { transform: translateX(2px); } }
+.mascot-lantern { --owl-shell:#725333; --owl-face:#f3e2ba; --robot-shell:#245954; --robot-panel:#103936; --robot-signal:#d4f1c4; }
+.mascot-lantern .owl-head { animation-duration: 13s; }
+.mascot-lantern .owl-eye { animation-duration: 7.5s; }
+.mascot-lantern .robot-head { animation-duration: 4.2s; }
+.mascot-lantern .robot-signal { animation-duration: 3.4s; }
+
+/* Second study: three deliberately different creatures, shaped from owl anatomy rather than colour variants. */
+.mascot-option { --owl-dark:#5d4030; --owl-mid:#9c7259; --owl-light:#f2e1bd; --owl-line:#4b3025; --bot-dark:#164451; --bot-light:#bde9e7; }
+.mascot { width: min(100%,118px); height: 118px; }
+.owl-body,.barn-body,.perch-body { fill: var(--owl-mid); stroke: var(--owl-line); stroke-width: 2.2; }
+.owl-wing,.barn-wing,.perch-wing { fill: var(--owl-dark); stroke: var(--owl-line); stroke-width: 2; stroke-linejoin: round; }
+.owl-belly { fill: var(--owl-light); stroke: var(--owl-line); stroke-width: 1.6; }
+.owl-crown,.perch-head { fill: var(--owl-dark); stroke: var(--owl-line); stroke-width: 2.2; stroke-linejoin: round; }
+.owl-eye-disc { fill: #fff8e3; stroke: var(--owl-line); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: owl-reference-blink 5.8s ease-in-out infinite; }
+.owl-iris { fill: #dcbf72; stroke: #826139; stroke-width: 1.2; }
+.owl-pupil-dot,.barn-pupil,.perch-pupil { fill: #1d1714; transform-box: fill-box; transform-origin: center; animation: owl-pupil-look 8s ease-in-out infinite; }
+.owl-beak { fill: #e2ad55; stroke: #80551d; stroke-width: 1.2; stroke-linejoin: round; }
+.owl-feather-lines,.barn-chest,.owl-feet { fill: none; stroke: var(--owl-line); stroke-width: 2; stroke-linecap: round; }
+.owl-turning-head { transform-box: fill-box; transform-origin: center; transform-style: preserve-3d; animation: owl-true-turn 11s cubic-bezier(.55,.02,.25,1) infinite; }
+@keyframes owl-reference-blink { 0%,45%,49%,100% { transform: scaleY(1); } 47% { transform: scaleY(.07); } }
+@keyframes owl-pupil-look { 0%,34%,100% { transform: translateX(0); } 43%,61% { transform: translateX(3px); } 70% { transform: translateX(-2px); } }
+@keyframes owl-true-turn { 0%,37%,100% { transform: perspective(190px) rotateY(0deg); } 46% { transform: perspective(190px) rotateY(90deg) scaleX(.18); } 54% { transform: perspective(190px) rotateY(180deg); } 62% { transform: perspective(190px) rotateY(270deg) scaleX(.18); } 70% { transform: perspective(190px) rotateY(360deg); } }
+
+.owl-barn { --owl-dark:#695039; --owl-mid:#92775d; --owl-light:#f6e8c9; }
+.barn-face { fill: var(--owl-light); stroke: var(--owl-line); stroke-width: 2.2; }
+.barn-eye { fill: #f4cf70; stroke: var(--owl-line); stroke-width: 1.8; transform-box: fill-box; transform-origin: center; animation: owl-reference-blink 6.7s ease-in-out infinite; }
+.barn-chest { stroke: #d4b181; }
+.owl-barn .owl-turning-head { animation-duration: 13.5s; }
+
+.owl-perch { --owl-dark:#704c35; --owl-mid:#a77854; --owl-light:#f1dfbf; }
+.perch-branch,.perch-bridge,.perch-pages { fill: none; stroke: var(--owl-line); stroke-width: 2.2; stroke-linecap: round; }
+.perch-glass { fill: #eef5e8aa; stroke: #3f4740; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: owl-reference-blink 5.1s ease-in-out infinite; }
+.perch-eye { fill: #e8bf65; }.perch-book { fill: #d8c494; stroke: var(--owl-line); stroke-width: 1.8; }.perch-pages { stroke-width: 1.5; }
+.owl-perch .owl-turning-head { animation: none; }
+.perch-front > * { animation: perch-front-facing 12s ease-in-out infinite; }
+.perch-threequarter > *,.perch-profile > * { opacity: 0; }
+.perch-threequarter-right > * { animation: perch-quarter-right 12s ease-in-out infinite; }
+.perch-profile-right > * { animation: perch-look-right 12s ease-in-out infinite; }
+.perch-threequarter-left > * { animation: perch-quarter-left 12s ease-in-out infinite; }
+.perch-profile-left > * { animation: perch-look-left 12s ease-in-out infinite; }
+.perch-side-head { fill: #704c35; stroke: #4b3025; stroke-width: 2.2; stroke-linejoin: round; }
+.perch-side-glass { fill: #eef5e8aa; stroke: #3f4740; stroke-width: 2.5; }
+.perch-side-eye { fill: #e8bf65; }.perch-side-pupil { fill: #1d1714; }.perch-side-beak { fill: #e2ad55; stroke: #80551d; stroke-width: 1.2; stroke-linejoin: round; }
+.perch-quarter-head { fill:#704c35; stroke:#4b3025; stroke-width:2.2; stroke-linejoin:round; }.perch-quarter-glass { fill:#eef5e8aa; stroke:#3f4740; stroke-width:2.4; }.perch-quarter-eye { fill:#e8bf65; }.perch-quarter-pupil { fill:#1d1714; }.perch-quarter-beak { fill:#e2ad55; stroke:#80551d; stroke-width:1.2; stroke-linejoin:round; }
+@keyframes perch-front-facing { 0%,14%,55%,64%,100% { opacity:1; } 20%,50%,70%,94% { opacity:0; } }
+@keyframes perch-quarter-right { 0%,16%,35%,100% { opacity:0; } 22%,29% { opacity:1; } }
+@keyframes perch-look-right { 0%,31%,45%,100% { opacity:0; } 37%,41% { opacity:1; } }
+@keyframes perch-quarter-left { 0%,68%,88%,100% { opacity:0; } 74%,82% { opacity:1; } }
+@keyframes perch-look-left { 0%,84%,98%,100% { opacity:0; } 90%,94% { opacity:1; } }
+
+.picker-body,.rover-body,.scribe-body { fill: var(--bot-dark); stroke: #102f38; stroke-width: 2.2; }
+.picker-screen,.rover-window,.scribe-screen { fill: #0b2630; stroke: var(--bot-light); stroke-width: 1.5; }
+.picker-eye,.scribe-eye { fill: var(--bot-light); animation: bot-eye-blink 4.7s ease-in-out infinite; }
+.picker-eye:nth-of-type(2),.scribe-eye:nth-of-type(2) { animation-delay: .04s; }
+.picker-antenna,.picker-legs,.picker-mouth,.rover-mast,.rover-claw,.scribe-antenna,.scribe-pen,.scribe-lines { fill: none; stroke: var(--bot-light); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.picker-ping,.scribe-spark { fill: var(--bot-light); transform-box: fill-box; transform-origin: center; animation: bot-ping 1.9s ease-out infinite; }
+.picker-arm { fill: none; stroke: var(--bot-light); stroke-width: 5; stroke-linecap: round; transform-box: fill-box; transform-origin: center; }
+.picker-hand { fill: var(--bot-light); }.picker-lens { fill: #d9f5f388; stroke: var(--bot-light); stroke-width: 3; }
+.picker-arm-left { animation: picker-reach-left 2.4s ease-in-out infinite; }.picker-arm-right { animation: picker-reach-right 3.1s ease-in-out infinite; }
+@keyframes picker-reach-left { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-18deg) translate(-2px,-3px); } }
+@keyframes picker-reach-right { 0%,40%,100% { transform: rotate(0); } 60% { transform: rotate(19deg) translate(4px,-3px); } }
+@keyframes bot-eye-blink { 0%,68%,72%,100% { opacity:1; } 70% { opacity:.15; } }
+@keyframes bot-ping { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.65); opacity:.2; } }
+
+.robot-rover { --bot-dark:#2c5a73; --bot-light:#d1f1fb; }
+.rover-track { fill: #1f3948; stroke: #112a35; stroke-width: 2; animation: rover-roll 1.55s ease-in-out infinite; }.rover-wheel { fill: #99c4d3; stroke: #112a35; stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: rover-wheel 1s linear infinite; }
+.rover-scanline,.rover-radar path,.rover-radar circle { fill: none; stroke: var(--bot-light); stroke-width: 2; stroke-linecap: round; }.rover-radar { transform-box: fill-box; transform-origin: center; animation: radar-sweep 2.3s linear infinite; }.rover-claw { animation: rover-grab 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes rover-roll { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-3px); } } @keyframes rover-wheel { to { transform:rotate(360deg); } } @keyframes radar-sweep { to { transform:rotate(360deg); } } @keyframes rover-grab { 0%,50%,100% { transform:rotate(0); } 72% { transform:rotate(-11deg); } }
+
+.robot-scribe { --bot-dark:#3d4b80; --bot-light:#e2e6ff; }.scribe-ground { fill:none; stroke:#8894c7; stroke-width:2; stroke-dasharray:3 4; }.scribe-neck,.scribe-antenna { fill:none; stroke:var(--bot-light); stroke-width:2.5; stroke-linecap:round; }.scribe-base { fill:#29345d; stroke:#1e284a; stroke-width:2; }.scribe-wheel { fill:#aeb7e0; stroke:#28325a; stroke-width:1.5; }.scribe-paper { fill:#fff8e9; stroke:#536092; stroke-width:1.8; }.scribe-arm { fill:none; stroke:var(--bot-light); stroke-width:5; stroke-linecap:round; transform-box:fill-box; transform-origin:center; }.scribe-arm-left { animation: scribe-left 1.4s ease-in-out infinite; }.scribe-arm-right { animation: scribe-right 1.6s ease-in-out infinite; }.scribe-lines { stroke:#536092; stroke-width:1.5; animation: paper-stream 1.6s linear infinite; }
+.robot-picker-3d { --bot-dark:#365e70; --bot-light:#d8f5f5; }.picker-shadow { fill:#1735412b; }.picker-back { fill:#1f4555; stroke:#102f38; stroke-width:2.2; }.picker-top { fill:#6d9eaa; stroke:#102f38; stroke-width:2; }.picker-side { fill:#214b5c; stroke:#102f38; stroke-width:2; }.robot-picker-3d .picker-body { animation: picker-3d-breathe 3.2s ease-in-out infinite; }.robot-picker-3d .picker-screen { fill:#112f3a; }.robot-picker-3d .picker-lens { fill:#d9f5f388; }
+@keyframes picker-3d-breathe { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
+.robot-picker-machine { --bot-dark:#1d5161; --bot-light:#c8f4f3; }.robot-picker-machine .picker-body { fill:#194a59; stroke:#102f38; stroke-width:2.2; }.robot-picker-machine .picker-screen { fill:#0b2832; stroke:#8bd9df; stroke-width:1.5; }.machine-panel,.machine-link,.machine-grip,.machine-foot { fill:none; stroke:var(--bot-light); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }.machine-panel { stroke-width:1.6; opacity:.8; }.machine-joint { fill:#8bd9df; stroke:#0d3440; stroke-width:1.4; }.machine-arm,.machine-leg { transform-box:fill-box; transform-origin:center; }.machine-arm-left { animation: machine-arm-left 2.1s steps(3,end) infinite; }.machine-arm-right { animation: machine-arm-right 2.6s steps(4,end) infinite; }.machine-leg-left { animation: machine-leg-left 2.8s steps(3,end) infinite; }.machine-leg-right { animation: machine-leg-right 2.8s steps(3,end) .35s infinite; }.robot-picker-machine .picker-lens { fill:#b9f0f366; stroke:var(--bot-light); stroke-width:3; }.robot-picker-machine .picker-ping { animation-duration:1.5s; }
+@keyframes machine-arm-left { 0%,100% { transform:rotate(0); } 50% { transform:rotate(-12deg) translate(-2px,-1px); } } @keyframes machine-arm-right { 0%,40%,100% { transform:rotate(0); } 65% { transform:rotate(13deg) translate(2px,-2px); } } @keyframes machine-leg-left { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } } @keyframes machine-leg-right { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
+
+/* Selected Library Owl: retain the original front-facing illustration until it has a proper 3-D rig. */
+.owl-perch .perch-front > * { animation: none !important; opacity: 1; }
+.owl-perch .perch-threequarter > *,.owl-perch .perch-profile > * { animation: none !important; opacity: 0 !important; }
+.owl-perch .perch-front { transform-box: fill-box; transform-origin: center; animation: owl-library-glance 10s ease-in-out infinite !important; }
+.owl-perch .perch-front :is(.perch-glass,.perch-eye,.perch-pupil) { transform-box: fill-box; transform-origin: center; animation: owl-library-blink 8.5s ease-in-out infinite !important; }
+@keyframes owl-library-glance { 0%,24%,100% { transform: rotateY(0deg); } 38%,50% { transform: rotateY(-10deg) translateX(-1px); } 64%,76% { transform: rotateY(10deg) translateX(1px); } 88% { transform: rotateY(0deg); } }
+@keyframes owl-library-blink { 0%,46%,50%,100% { transform: scaleY(1); } 48% { transform: scaleY(.08); } }
+@media(prefers-reduced-motion:reduce) { .owl-perch .perch-front,.owl-perch .perch-front :is(.perch-glass,.perch-eye,.perch-pupil) { animation: none !important; } }
+@keyframes scribe-left { 0%,100% { transform:rotate(0); } 50% { transform:rotate(-15deg) translate(-1px,4px); } } @keyframes scribe-right { 0%,100% { transform:rotate(0); } 50% { transform:rotate(14deg) translate(1px,4px); } } @keyframes paper-stream { to { transform:translateY(4px); } }
+@media(max-width:760px) { .mascot-options { grid-template-columns: 1fr; } .mascot-option { max-width: 470px; margin-inline: auto; } .mascot-lane > div { min-height: 128px; } }
