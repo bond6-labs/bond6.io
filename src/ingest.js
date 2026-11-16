@@ -88,6 +88,10 @@ export async function poll(source, state, now) {
     && (!i.original_published_at || i.original_published_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY)
     && (!i.original_published_at || i.original_published_at <= now + 300_000)
     && (!i.shared_at || i.shared_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY));
+  // A later, stricter classification must retire an already stored card rather
+  // than leave its former lane visible until retention pruning.
+  const accepted = new Set(items.map(item => item.url));
+  const rejectedUrls = [...new Set(parsed.filter(item => item.url && !accepted.has(item.url)).map(item => item.url))];
   let resolved = 0;
   for (const item of items) {
     if (shortHosts.has(new URL(item.canonical_url).hostname) && resolved++ < 3) {
@@ -97,7 +101,14 @@ export async function poll(source, state, now) {
     }
     item.content_hash = await contentHash(item);
   }
-  return { items, etag: response.headers.get('etag'), modified: response.headers.get('last-modified') };
+  return { items, rejectedUrls, etag: response.headers.get('etag'), modified: response.headers.get('last-modified') };
+}
+export async function suppressItems(db, source, urls, now) {
+  for (let start = 0; start < urls.length; start += 80) {
+    const chunk = urls.slice(start, start + 80);
+    await db.prepare(`UPDATE stories SET lane=NULL,updated_at=? WHERE source_id=? AND url IN(${chunk.map(() => '?').join(',')})`)
+      .bind(now, source.id, ...chunk).run();
+  }
 }
 export async function storeItems(db, source, items, now) {
   const validItems=[];
@@ -148,8 +159,9 @@ export async function collect(env, now = Date.now()) {
   const job = await claim(db, id, now);
   if (!job) return;
   try {
-    const { items, etag, modified } = await poll(source, state, now);
+    const { items, rejectedUrls, etag, modified } = await poll(source, state, now);
     await storeItems(db, source, items, now);
+    await suppressItems(db, source, rejectedUrls, now);
     await scoreRhythmBacklog(db,now);
     await db.prepare(`INSERT INTO source_state VALUES(?,?,?,?,?,0,?) ON CONFLICT(id) DO UPDATE SET
       etag=excluded.etag,modified=excluded.modified,checked_at=excluded.checked_at,ok_at=excluded.ok_at,failures=0,next_at=excluded.next_at`)

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fromRss,fromBluesky,storeItems,resolveShortLink,prune} from '../src/ingest.js';
+import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune} from '../src/ingest.js';
 import {classify,canonical,contentHash,usableText} from '../src/content.js';
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
@@ -34,6 +34,12 @@ test('headlines retain their final word and long social posts are not chopped in
   const post={author:{handle:'writer.test',did:'did:plc:abc',displayName:'A Writer'},uri:'at://did:plc:abc/app.bsky.feed.post/xyz',record:{text:'This is a deliberately long social post without a concluding sentence '.repeat(6),createdAt:'2026-11-13T10:00Z'}};
   const [social]=fromBluesky(JSON.stringify({feed:[{post}]}),{handle:'writer.test'});
   assert.equal(social.title,null);
+});
+test('a stricter re-fetch retires a formerly accepted card from its live lane',async()=>{
+  const db=database(),old=story(81,{source_id:'techdirt',source:'Techdirt',lane:'ai',subject:'digital'});
+  await storeItems(db,{...source,id:'techdirt',name:'Techdirt'},[old],now);
+  await suppressItems(db,{id:'techdirt'},[old.url],now+1);
+  assert.equal((await db.prepare('SELECT lane FROM stories WHERE url=?').bind(old.url).first()).lane,null);
 });
 test('social share date is never an article date; distinctive commentary keeps its own author and permalink',()=>{
   const post={author:{handle:'writer.test',did:'did:plc:abc',displayName:'A Writer'},uri:'at://did:plc:abc/app.bsky.feed.post/xyz',record:{text:'Worth a read',createdAt:'2026-11-13T10:00Z'},embed:{external:{uri:'https://example.org/2020/article',title:'AI and the artist',description:'An account of creative work'}}};
