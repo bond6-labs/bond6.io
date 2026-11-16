@@ -6,6 +6,7 @@ import {enqueue,claim} from '../src/jobs.js';
 import {publishEdition,publishingStep,rankCandidates,rhythmAudit,snapshotStory,validatedBondStories} from '../src/publishing.js';
 import {storeItems} from '../src/ingest.js';
 import {runJson,BudgetError} from '../src/ai.js';
+import {RHYTHM_VERSION} from '../src/rhythm.js';
 import worker from '../src/worker.js';
 test('leases admit one claimant, recover after expiry and fence stale publication',async()=>{
   const db=database();await enqueue(db,'daily:2026-11-13','daily',{},now);
@@ -37,7 +38,7 @@ test('Rhythm rejects weak or mismatched signals and prioritizes strong, fresh ev
   assert.deepEqual(rankCandidates([weak,mismatch,strong],[],now).map(s=>s.url),[strong.url]);
 });
 test('The Bond accepts only bilingual daily stories with high-confidence recorded evidence',()=>{
-  const valid={...snapshotStory(story(33,{rhythm_lane:'human',rhythm_version:1,rhythm_confidence:.83,rhythm_human_score:7,rhythm_ai_score:0,rhythm_labels:'["Creative practice"]',rhythm_evidence:'[{"label":"Creative practice","evidence":"Leah records."}]'}),note(story(33))),lane:'human'};
+  const valid={...snapshotStory(story(33,{rhythm_lane:'human',rhythm_version:RHYTHM_VERSION,rhythm_confidence:.83,rhythm_human_score:7,rhythm_ai_score:0,rhythm_labels:'["Creative practice"]',rhythm_evidence:'[{"label":"Creative practice","evidence":"Leah records."}]'}),note(story(33))),lane:'human'};
   const weak=structuredClone(valid);weak.url='https://example.org/weak';weak.rhythm.confidence=.5;
   const noEvidence=structuredClone(valid);noEvidence.url='https://example.org/no-evidence';noEvidence.rhythm.evidence=[];
   const noChinese=structuredClone(valid);noChinese.url='https://example.org/no-chinese';delete noChinese.zh.note;
@@ -71,7 +72,7 @@ test('daily job publishes only after generation and independent review; retries 
   await publishingStep(env,now+120_000);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,0);
   await publishingStep(env,now+180_000);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,1);
   const published=JSON.parse(db.sql.prepare('SELECT snapshot FROM editions').get().snapshot);assert.equal(published.stories[0].en.note,note(s).claims.map(c=>c.en).join(' '));
-  assert.equal(published.stories[0].rhythm?.version,1);assert.ok(published.stories[0].rhythm?.evidence?.length);
+  assert.equal(published.stories[0].rhythm?.version,RHYTHM_VERSION);assert.ok(published.stories[0].rhythm?.evidence?.length);
   const audit=JSON.parse(db.sql.prepare('SELECT snapshot FROM rhythm_audits').get().snapshot);assert.equal(audit.status,'published');assert.equal(audit.published.total,1);
   await publishingStep(env,now+240_000);assert.equal(db.sql.prepare("SELECT count(*) AS n FROM editions WHERE kind='daily'").get().n,1);
 });
