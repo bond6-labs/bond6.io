@@ -34,6 +34,12 @@ test('live Rhythm ordering and explanations are opt-in',async()=>{
   const ranked=await worker.fetch(new Request('https://bond6.io/'),{DB:db,RHYTHM_LIVE_RANKING:'true'});
   const text=await ranked.text();assert.match(text,/Why this appeared/);assert.match(text,/Human signal/);
 });
+test('stale cards that fail the current lane rule do not render or enter live RSS',async()=>{
+  const db=database();const stale=story(93,{title:'Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App',excerpt:'The case concerns social media companies and government speech policy.',lane:'ai',subject:'digital',source:'Techdirt',source_id:'techdirt'});
+  await storeItems(db,{...source,id:'techdirt',name:'Techdirt'},[stale],now);
+  const page=await worker.fetch(new Request('https://bond6.io/?lane=ai'),{DB:db});assert.doesNotMatch(await page.text(),/Trump DOJ Folds/);
+  const feed=await worker.fetch(new Request('https://bond6.io/feed.xml?lane=ai'),{DB:db});assert.doesNotMatch(await feed.text(),/Trump DOJ Folds/);
+});
 test('metadata and story markup escape untrusted source text',async()=>{
   const db=database();await storeItems(db,source,[story(0,{title:'<script>alert(1)</script>',author:'" onclick="bad'})],now);
   const r=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const text=await r.text();assert.ok(!text.includes('<script>alert(1)</script>'));assert.match(text,/&lt;script&gt;/);

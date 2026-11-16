@@ -1,5 +1,5 @@
 import { html, esc, date, card, qlink, correction, actions } from './render.js';
-import { DAY, conversations, conversationTopic, dayKey, storyTopics, subjects, subjectLabels } from './content.js';
+import { DAY, classify, conversations, conversationTopic, dayKey, storyTopics, subjects, subjectLabels } from './content.js';
 import { sources } from './sources.js';
 import { editions as legacy } from './picks.js';
 
@@ -15,6 +15,7 @@ export const legacyEditions=legacy.map((e,i)=>({id:'field-notes-'+legacySlugs[i]
 const parse=row=>row?{...JSON.parse(row.snapshot),correction:row.correction}:null;
 export async function latestEdition(db,kind) { return parse(await db.prepare('SELECT snapshot,correction FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 1').bind(kind).first()); }
 const laneName=(lane,v)=>v.t(lane==='human'?'Human Pulse':'AI & Its Impact');
+const focusedStories=rows=>rows.filter(story=>classify(story.title??'',story.excerpt??'',sources.find(source=>source.id===story.source_id)).lane===story.lane);
 const laneSignature=(lane,v)=>lane==='human'
   ?`<div class="lane-character lane-character-human" aria-hidden="true">${owl('perch')}</div><div class="lane-signature human-signature"><span class="heartbeat" aria-hidden="true">♥</span><span><b>37°C</b> · ${v.say('slow current','缓慢脉动')}</span></div>`
   :`<div class="lane-character lane-character-ai" aria-hidden="true">${robot('perch')}</div><div class="lane-signature ai-signature"><span class="digital-flow" aria-hidden="true"><span>101001&nbsp;101001&nbsp;101001&nbsp;</span></span><span>${v.say('fast signal','快速信号')}</span></div>`;
@@ -87,13 +88,13 @@ export async function home(env,v,{trending=false}={}) {
     db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120').bind(now-7*DAY)
   ]);
   const edition=await latestEdition(db,'daily');
-  let stories=columns[0].results;
+  let stories=focusedStories(columns[0].results);
   if (archive) {
     const result=trending&&!signal?await db.prepare(`SELECT s.*,count(DISTINCT m.source) AS coverage FROM mentions m JOIN stories s USING(url) WHERE ${where} AND m.published_at>=?
       GROUP BY s.url HAVING count(DISTINCT m.source)>=3 ORDER BY coverage DESC,max(m.published_at) DESC LIMIT 21`).bind(...args,now-DAY).all()
       :signal?await db.prepare(`SELECT s.* FROM stories s WHERE ${where} AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120`).bind(...args,now-7*DAY).all()
       :await db.prepare(`SELECT s.* FROM stories s WHERE ${where} ORDER BY discovered_at DESC,url DESC LIMIT 21 OFFSET ?`).bind(...args,(page-1)*20).all();
-    stories=signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyTopics(story).includes(signal.key)).slice(0,20):result.results;
+    stories=focusedStories(signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyTopics(story).includes(signal.key)).slice(0,20):result.results);
   }
   const {results:mentions}=stories.length?await db.prepare(`SELECT url,link,source FROM mentions WHERE url IN(${stories.map(()=>'?').join(',')}) ORDER BY published_at DESC`).bind(...stories.map(s=>s.url)).all():{results:[]};
   const render=s=>card(s,v,{rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url)});
@@ -117,7 +118,7 @@ export async function home(env,v,{trending=false}={}) {
     :`<div class="feed-columns" data-lane="${lane}">${column('human')}${column('ai')}</div><nav class="pagination"><a href="${esc(qlink(v,{view:'all',page:1}))}">${v.t('Browse all stories')} →</a><a href="${v.local('/edit')}">${v.say('Past daily editions','往期每日精选')} →</a></nav>`;
   const bond=await latestEdition(db,'bond')??legacyEditions[0];
   const last=columns[2].results[0]?.checked;
-  const signalCandidates=columns[3].results;
+  const signalCandidates=focusedStories(columns[3].results);
   const activeConversations=conversations(signalCandidates,now);
   return html(v,trending?(signal?v.zh?signal.zh:signal.en:v.t('Discussed')):null,`${!archive?mix(columns[1].results[0],v,lane):''}${!archive?conversationStrip(activeConversations,v):''}${filters(v)}${main}
     ${!archive?`<aside class="bond-teaser"><span>${v.t('The Bond')}</span><a href="${v.local('/bond/'+bond.id)}">${esc((v.zh?bond.zh:bond.en).title)} <span aria-hidden="true">→</span></a></aside>`:''}

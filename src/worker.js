@@ -3,7 +3,8 @@ import { publishingStep } from './publishing.js';
 import { translateHeadlines } from './rolling.js';
 import { locale, html, esc } from './render.js';
 import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions } from './pages.js';
-import { dayKey } from './content.js';
+import { classify, dayKey } from './content.js';
+import { sources } from './sources.js';
 import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH } from './config.js';
 
 const xml=value=>esc(String(value??'').replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,''));
@@ -13,7 +14,8 @@ async function rss(env,v) {
   let items=[];
   if (kind==='live') {
     const {results}=await env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(...(lane?[lane]:[])).all();
-    items=results.map(s=>({title:(v.zh?s.title_zh:s.title_en)??s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
+    items=results.filter(s=>classify(s.title??'',s.excerpt??'',sources.find(source=>source.id===s.source_id)).lane===s.lane)
+      .map(s=>({title:(v.zh?s.title_zh:s.title_en)??s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
   } else {
     const {results}=await env.DB.prepare('SELECT * FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 50').bind(kind).all();
     const editions=results.map(r=>({...JSON.parse(r.snapshot),published:r.published_at}));
