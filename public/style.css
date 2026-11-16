@@ -395,12 +395,9 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 /* Bond6 Rhythm: warm, organic continuity beside cool, discrete systems. */
 .lane-signature { display: flex; align-items: center; gap: 9px; color: var(--masthead-detail); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
 .lane-signature b { color: var(--masthead-ink); font-size: 11px; }
-.lane-signal { display: inline-block; flex: 0 0 38px; height: 12px; }
 .human-signature { font-family: var(--headline-font); letter-spacing: .14em; }
 .heartbeat { display: inline-grid; place-items: center; width: 15px; height: 18px; color: #ff665f; font-family: Georgia, serif; font-size: 19px; line-height: 1; filter: drop-shadow(0 0 4px #ff665f88); transform-origin: 50% 60%; animation: bond6-heartbeat 2.6s ease-in-out infinite; }
-.human-signature .lane-signal { border-block: 1px solid var(--masthead-detail); border-radius: 50%; background: radial-gradient(ellipse at 50% 50%, var(--masthead-detail) 0 2px, transparent 2.5px) 0 50% / 9px 9px repeat-x; }
 .ai-signature { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; }
-.ai-signature .lane-signal { background: repeating-linear-gradient(90deg, var(--masthead-detail) 0 2px, transparent 2px 6px); box-shadow: inset 0 -1px 0 var(--masthead-rule), inset 0 1px 0 var(--masthead-rule); }
 .digital-flow { display: inline-block; width: 52px; overflow: hidden; color: var(--masthead-ink); font: 700 10px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 12%, #000 86%, transparent); }
 .digital-flow > span { display: inline-block; padding-inline-end: 1ch; animation: bond6-bit-flow 4.8s linear infinite; }
 @keyframes bond6-heartbeat { 0%, 36%, 100% { transform: scale(1); } 8% { transform: scale(1.18); } 18% { transform: scale(.98); } 26% { transform: scale(1.1); } }
@@ -416,11 +413,12 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .rhythm-reason a { color: var(--column-accent); text-decoration: underline; text-underline-offset: 3px; }
 @media(width < 700px) {
   .lane-signature { gap: 7px; font-size: 9px; }
-  .lane-signal { flex-basis: 32px; }
   .digital-flow { width: 44px; }
-  .column-masthead { padding-top: 17px; }
+  .column-masthead { height: 120px; min-height: 120px; padding-top: 17px; }
+  .feed-column:last-child .column-masthead h2 { font-size: 24px; }
   .rhythm-reason summary { font-size: 10px; }
 }
+@media(min-width:700px) { .column-masthead { height: clamp(178px,17vw,210px); min-height: 0; } }
 @media(prefers-reduced-motion:reduce) {
   .heartbeat,.digital-flow > span { animation: none; }
 }

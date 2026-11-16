@@ -2,7 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { sources } from './sources.js';
 import { DAY, canonical, cleanAuthor, cleanPostText, plain, language, classify, contentHash } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
-import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS } from './config.js';
+import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
 import { saveRhythmSignals, scoreRhythmBacklog } from './rhythm.js';
 
@@ -175,6 +175,7 @@ export async function prune(env, now) {
     env.DB.prepare(`DELETE FROM jobs WHERE kind<>'collect' AND updated_at < ?`).bind(now - 8 * DAY),
     env.DB.prepare(`DELETE FROM ai_reservations WHERE created_at < ?`).bind(now - 8 * DAY),
     env.DB.prepare(`DELETE FROM ai_usage WHERE day < ?`).bind(new Date(now - 35 * DAY).toISOString().slice(0,10)),
-    env.DB.prepare(`DELETE FROM metrics WHERE day < ?`).bind(new Date(now - 60 * DAY).toISOString().slice(0,10))
+    env.DB.prepare(`DELETE FROM metrics WHERE day < ?`).bind(new Date(now - 60 * DAY).toISOString().slice(0,10)),
+    env.DB.prepare(`DELETE FROM rhythm_audits WHERE edition_date IN (SELECT edition_date FROM rhythm_audits ORDER BY edition_date DESC LIMIT -1 OFFSET ?)`).bind(RHYTHM_AUDIT_RETENTION)
   ]);
 }

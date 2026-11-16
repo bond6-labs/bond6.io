@@ -30,6 +30,7 @@ export const RHYTHM_MIN_CONFIDENCE = 0.6;
 export const RHYTHM_FRESH_WINDOW_DAYS = 3;
 export const RHYTHM_FALLBACK_WINDOW_DAYS = 7;
 export const RHYTHM_DAILY_MAX_PER_LANE = 3;
+export const RHYTHM_AUDIT_RETENTION = 50;
 
 // Network and redirect configuration
 export const REDIRECT_TIMEOUT_MS = 3000; // 3 seconds per redirect

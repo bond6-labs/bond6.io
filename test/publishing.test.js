@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {database} from './db.js';
 import {story,source,now,note,review} from './fixtures.js';
 import {enqueue,claim} from '../src/jobs.js';
-import {publishEdition,publishingStep,rankCandidates,snapshotStory} from '../src/publishing.js';
+import {publishEdition,publishingStep,rankCandidates,rhythmAudit,snapshotStory} from '../src/publishing.js';
 import {storeItems} from '../src/ingest.js';
 import {runJson,BudgetError} from '../src/ai.js';
 import worker from '../src/worker.js';
@@ -36,6 +36,10 @@ test('Rhythm rejects weak or mismatched signals and prioritizes strong, fresh ev
   const mismatch=story(32,{lane:'ai',author:'Wrong lane',rhythm_lane:'human',rhythm_confidence:.9,rhythm_human_score:9,rhythm_ai_score:0,rhythm_labels:'[]',rhythm_evidence:'[]'});
   assert.deepEqual(rankCandidates([weak,mismatch,strong],[],now).map(s=>s.url),[strong.url]);
 });
+test('Rhythm audit stores aggregate diversity without story identities',()=>{
+  const selected=[story(41,{lane:'human',source:'Studio',author:'Mina',original_lang:'en',subject:'music',rhythm_confidence:.8,rhythm_labels:JSON.stringify(['Creative practice'])}),story(42,{lane:'ai',source:'Lab',author:'Wei',original_lang:'zh',subject:'digital-life',rhythm_confidence:.9,rhythm_labels:JSON.stringify(['AI system','Human consequence'])})];
+  const audit=rhythmAudit(selected,selected,now);assert.equal(audit.status,'prepared');assert.deepEqual(audit.selected.lanes,{ai:1,human:1});assert.equal(audit.selected.distinct_publishers,2);assert.equal(JSON.stringify(audit).includes(selected[0].url),false);
+});
 test('concurrent budget reservation never exceeds the configured allowance; provider failures stay charged',async()=>{
   const db=database();let calls=0;const env={DB:db,AI_DAILY_NEURONS:'500',AI:{run:async()=>{calls++;throw new Error('Provider unavailable');}}};
   await Promise.allSettled([runJson(env,'test','Return JSON',{},now,900),runJson(env,'test','Return JSON',{},now,900)]);
@@ -54,6 +58,7 @@ test('daily job publishes only after generation and independent review; retries 
   await publishingStep(env,now+180_000);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,1);
   const published=JSON.parse(db.sql.prepare('SELECT snapshot FROM editions').get().snapshot);assert.equal(published.stories[0].en.note,note(s).claims.map(c=>c.en).join(' '));
   assert.equal(published.stories[0].rhythm?.version,1);assert.ok(published.stories[0].rhythm?.evidence?.length);
+  const audit=JSON.parse(db.sql.prepare('SELECT snapshot FROM rhythm_audits').get().snapshot);assert.equal(audit.status,'published');assert.equal(audit.published.total,1);
   await publishingStep(env,now+240_000);assert.equal(db.sql.prepare("SELECT count(*) AS n FROM editions WHERE kind='daily'").get().n,1);
 });
 test('failed model, exhausted quota and publishing disabled leave prepared reading available',async()=>{

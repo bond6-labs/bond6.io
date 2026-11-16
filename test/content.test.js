@@ -55,5 +55,6 @@ test('unsupported notes fail deterministic validation and source comparison',()=
 test('retention bounds stories and edition snapshots independently',async()=>{
   const db=database();await storeItems(db,source,[story(1),story(2,{lane:'ai'})],now-8*86400000);
   for(let i=0;i<55;i++)db.sql.prepare('INSERT INTO editions VALUES(?,?,?,?,?,NULL)').run(String(i),'daily',String(i).padStart(3,'0'),now,'{}');
-  await prune({DB:db,MAX_STORIES:'1000'},now);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM stories').get().n,1);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,50);
+  for(let i=0;i<55;i++)db.sql.prepare('INSERT INTO rhythm_audits VALUES(?,?,?,?,?)').run(String(i).padStart(3,'0'),1,'{}',now,now);
+  await prune({DB:db,MAX_STORIES:'1000'},now);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM stories').get().n,1);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,50);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM rhythm_audits').get().n,50);
 });

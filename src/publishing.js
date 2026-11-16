@@ -2,6 +2,7 @@ import { DAY, dayKey, usableText } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
 import { runJson, notePrompt, reviewPrompt, validateNote, normalizeNote, approved, sourceData, BudgetError, checkLanguage } from './ai.js';
 import { RHYTHM_DAILY_MAX_PER_LANE, RHYTHM_FALLBACK_WINDOW_DAYS, RHYTHM_FRESH_WINDOW_DAYS, RHYTHM_MIN_CONFIDENCE } from './config.js';
+import { RHYTHM_VERSION } from './rhythm.js';
 
 const rhythmLabels = story => {
   if (Array.isArray(story.rhythm_labels)) return story.rhythm_labels;
@@ -48,6 +49,36 @@ export function rankCandidates(stories, used = [], now = Date.now()) {
   return queue;
 }
 
+const counted = (items, value) => Object.fromEntries([...items.reduce((map,item)=>{
+  const key=value(item); if (key) map.set(key,(map.get(key)??0)+1); return map;
+},new Map()).entries()].sort(([a],[b])=>String(a).localeCompare(String(b))));
+const average = values => values.length?Number((values.reduce((total,value)=>total+value,0)/values.length).toFixed(2)):0;
+const composition = stories => ({
+  total:stories.length,
+  lanes:counted(stories,story=>story.lane),
+  languages:counted(stories,story=>story.original_lang),
+  subjects:counted(stories,story=>story.subject),
+  labels:counted(stories.flatMap(story=>rhythmLabels(story).map(label=>({label}))),item=>item.label),
+  distinct_publishers:new Set(stories.map(story=>story.source).filter(Boolean)).size,
+  distinct_authors:new Set(stories.map(story=>story.author?.toLowerCase()).filter(Boolean)).size,
+  mean_confidence:average(stories.map(story=>Number(story.rhythm_confidence??story.rhythm?.confidence??0)))
+});
+
+/** Aggregate only: no reader data, URLs, excerpts or author/publisher identities. */
+export function rhythmAudit(eligible, selected, now = Date.now(), status = 'prepared') {
+  const byLane=composition(selected).lanes;
+  return { version:RHYTHM_VERSION, status, generated_at:now,
+    window_hours:RHYTHM_FALLBACK_WINDOW_DAYS*24,
+    eligible:composition(eligible), selected:composition(selected),
+    shortfall:{human:Math.max(0,RHYTHM_DAILY_MAX_PER_LANE-(byLane.human??0)),ai:Math.max(0,RHYTHM_DAILY_MAX_PER_LANE-(byLane.ai??0))} };
+}
+export async function saveRhythmAudit(db,date,audit,now) {
+  await db.prepare(`INSERT INTO rhythm_audits(edition_date,rhythm_version,snapshot,created_at,updated_at) VALUES(?,?,?,?,?)
+    ON CONFLICT(edition_date) DO UPDATE SET rhythm_version=excluded.rhythm_version,snapshot=excluded.snapshot,updated_at=excluded.updated_at`)
+    .bind(date,audit.version,JSON.stringify(audit),now,now).run();
+}
+const completeAudit=(audit,stories,now)=>({...audit,status:'published',published:composition(stories),completed_at:now});
+
 export function snapshotStory(story, output, selectedAt = Date.now()) {
   return { url: story.url, canonical_url: story.canonical_url, title: story.title, title_en: output.en.title, title_zh: output.zh.title,
     en: { title: output.en.title, note: output.claims.map(c => c.en).join(' ') },
@@ -60,16 +91,21 @@ export function snapshotStory(story, output, selectedAt = Date.now()) {
       labels: rhythmLabels(story), evidence: rhythmEvidence(story), priority: rhythmPriority(story,selectedAt) } : undefined };
 }
 
-export async function publishEdition(db, job, snapshot, now) {
+export async function publishEdition(db, job, snapshot, now, audit = null) {
   // INSERT, attribution index and job completion share one D1 transaction.
   // Lease token fencing prevents an expired worker publishing after another claim.
+  const snapshotJson=JSON.stringify(snapshot);
   const statements = [db.prepare(`INSERT INTO editions(id,kind,edition_date,published_at,snapshot)
     SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM jobs WHERE id=? AND lease_token=? AND lease_until>?)
-    ON CONFLICT DO NOTHING`).bind(snapshot.id, snapshot.kind, snapshot.date, now, JSON.stringify(snapshot), job.id, job.lease_token, now)];
+    ON CONFLICT DO NOTHING`).bind(snapshot.id, snapshot.kind, snapshot.date, now, snapshotJson, job.id, job.lease_token, now)];
   for (const story of snapshot.stories) statements.push(db.prepare(`INSERT INTO edition_stories(edition_id,url,publisher,author)
     SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM editions WHERE id=? AND snapshot=?)
     AND EXISTS(SELECT 1 FROM jobs WHERE id=? AND lease_token=? AND lease_until>?) ON CONFLICT DO NOTHING`)
-    .bind(snapshot.id,story.url,story.source,story.author,snapshot.id,JSON.stringify(snapshot),job.id,job.lease_token,now));
+    .bind(snapshot.id,story.url,story.source,story.author,snapshot.id,snapshotJson,job.id,job.lease_token,now));
+  if (audit && snapshot.kind==='daily') statements.push(db.prepare(`INSERT INTO rhythm_audits(edition_date,rhythm_version,snapshot,created_at,updated_at)
+    SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM editions WHERE id=? AND snapshot=?)
+    ON CONFLICT(edition_date) DO UPDATE SET rhythm_version=excluded.rhythm_version,snapshot=excluded.snapshot,updated_at=excluded.updated_at`)
+    .bind(snapshot.date,audit.version,JSON.stringify(audit),now,now,snapshot.id,snapshotJson));
   statements.push(db.prepare(`UPDATE jobs SET status='done',payload='{}',lease_until=0,lease_token=NULL,updated_at=?
     WHERE id=? AND lease_token=? AND EXISTS(SELECT 1 FROM editions WHERE id=?)`).bind(now,job.id,job.lease_token,snapshot.id));
   await db.batch(statements);
@@ -86,14 +122,16 @@ async function dailyStep(env, job, now) {
       ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_MIN_CONFIDENCE).all();
     const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
       WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
-    const candidates = rankCandidates(results, used.map(s => s.url), now).map(s => ({ url: s.url, hash: s.content_hash }));
+    const selected=rankCandidates(results, used.map(s => s.url), now), audit=rhythmAudit(results,selected,now,selected.length?'prepared':'awaiting-candidates');
+    await saveRhythmAudit(db,state.date,audit,now);
+    const candidates = selected.map(s => ({ url: s.url, hash: s.content_hash }));
     if (!candidates.length) { await saveJob(db, job, state, now, { next: now + 10 * 60_000 }); return; }
-    Object.assign(state, { candidates, cursor: 0, stories: [], phase: 'generate' });
+    Object.assign(state, { candidates, cursor: 0, stories: [], phase: 'generate', audit });
     await saveJob(db,job,state,now); return;
   }
   const deadline = Date.parse(state.date + 'T14:00:00Z');
   if (state.cursor >= state.candidates.length || state.stories.length >= 6 || now >= deadline) {
-    if (state.stories.length) await publishEdition(db,job,{ id: state.date, kind: 'daily', date: state.date, stories: state.stories },now);
+    if (state.stories.length) await publishEdition(db,job,{ id: state.date, kind: 'daily', date: state.date, stories: state.stories },now,completeAudit(state.audit??rhythmAudit([],[],now),state.stories,now));
     else await saveJob(db,job,state,now,{done:true,error:'No fully validated candidates; prior edition retained'});
     return;
   }
@@ -176,7 +214,7 @@ export async function publishingStep(env,now) {
   catch(error) {
     const state=JSON.parse((await db.prepare('SELECT payload FROM jobs WHERE id=?').bind(job.id).first()).payload);
     if (error instanceof BudgetError && job.kind==='daily' && state.stories?.length) {
-      await publishEdition(db,job,{id:state.date,kind:'daily',date:state.date,stories:state.stories},now);
+      await publishEdition(db,job,{id:state.date,kind:'daily',date:state.date,stories:state.stories},now,completeAudit(state.audit??rhythmAudit([],[],now),state.stories,now));
     } else await saveJob(db,job,state,now,{next:now+5*60_000,done:error instanceof BudgetError,error:error.message});
     console.warn('Publishing step deferred',job.id,error.message);
   }
