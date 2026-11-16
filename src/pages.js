@@ -1,5 +1,5 @@
 import { html, esc, date, card, qlink, correction, actions } from './render.js';
-import { DAY, dayKey, subjects, subjectLabels } from './content.js';
+import { DAY, conversations, conversationTopic, dayKey, storyTopics, subjects, subjectLabels } from './content.js';
 import { sources } from './sources.js';
 import { editions as legacy } from './picks.js';
 
@@ -21,9 +21,14 @@ function filters(v) {
   const selected=v.url.searchParams.get('topic')??'';
   return `<nav class="topic-filters" aria-label="${v.say('Filter by subject','按主题筛选')}">${[['',v.say('All','全部')],...subjects.map(s=>[s,v.t(subjectLabels[s])])].map(([s,label])=>`<a href="${esc(qlink(v,{topic:s||null,page:null}))}"${selected===s?' aria-current="true"':''}>${label}</a>`).join('')}</nav>`;
 }
+function conversationStrip(topics,v) {
+  if (!topics.length) return '';
+  return `<section class="conversation-strip" aria-labelledby="conversation-heading"><div><h2 id="conversation-heading">${v.say('In conversation','正在讨论')}</h2><p>${v.say('Themes appearing across independent sources we follow this week. Not a measure of global popularity.','过去一周在多个本站关注来源中出现的主题，并非全网热度排行。')}</p></div><nav aria-label="${v.say('Topics in conversation','正在讨论的主题')}">${topics.map(topic=>`<a href="${esc(qlink(v,{signal:topic.key,view:'all',page:null,q:null},'/trending'))}">${v.zh?topic.zh:topic.en}<span>${topic.sources}</span></a>`).join('')}</nav></section>`;
+}
 export async function home(env,v,{trending=false}={}) {
   const db=env.DB, now=Date.now(), search=(v.url.searchParams.get('q')??'').trim().slice(0,120);
   const subject=subjects.includes(v.url.searchParams.get('topic'))?v.url.searchParams.get('topic'):null;
+  const signal=conversationTopic(v.url.searchParams.get('signal'));
   const lane=v.url.searchParams.get('lane')==='ai'?'ai':'human';
   const page=Math.max(1,Number(v.url.searchParams.get('page'))||1);
   if (!Number.isSafeInteger(page)||page>50) return html(v,v.t('Page unavailable'),`<p>${v.t('This page is outside the current feed.')}</p>`,{status:404});
@@ -35,15 +40,17 @@ export async function home(env,v,{trending=false}={}) {
       SELECT * FROM (SELECT diverse.*,ROW_NUMBER() OVER(PARTITION BY lane ORDER BY discovered_at DESC,url DESC) AS lane_rank FROM diverse WHERE publisher_rank<=2)
       WHERE lane_rank<=10 ORDER BY discovered_at DESC,url DESC`).bind(...args),
     db.prepare(`SELECT count(CASE WHEN lane='human' THEN 1 END) AS human,count(CASE WHEN lane='ai' THEN 1 END) AS ai FROM stories WHERE discovered_at>=?`).bind(now-7*DAY),
-    db.prepare('SELECT max(ok_at) AS checked FROM source_state')
+    db.prepare('SELECT max(ok_at) AS checked FROM source_state'),
+    db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120').bind(now-7*DAY)
   ]);
   const edition=await latestEdition(db,'daily');
   let stories=columns[0].results;
   if (archive) {
-    const result=trending?await db.prepare(`SELECT s.*,count(DISTINCT m.source) AS coverage FROM mentions m JOIN stories s USING(url) WHERE ${where} AND m.published_at>=?
+    const result=trending&&!signal?await db.prepare(`SELECT s.*,count(DISTINCT m.source) AS coverage FROM mentions m JOIN stories s USING(url) WHERE ${where} AND m.published_at>=?
       GROUP BY s.url ORDER BY coverage DESC,max(m.published_at) DESC LIMIT 21`).bind(...args,now-DAY).all()
+      :signal?await db.prepare(`SELECT s.* FROM stories s WHERE ${where} AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120`).bind(...args,now-7*DAY).all()
       :await db.prepare(`SELECT s.* FROM stories s WHERE ${where} ORDER BY discovered_at DESC,url DESC LIMIT 21 OFFSET ?`).bind(...args,(page-1)*20).all();
-    stories=result.results;
+    stories=signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyTopics(story).includes(signal.key)).slice(0,20):result.results;
   }
   const {results:mentions}=stories.length?await db.prepare(`SELECT url,link,source FROM mentions WHERE url IN(${stories.map(()=>'?').join(',')}) ORDER BY published_at DESC`).bind(...stories.map(s=>s.url)).all():{results:[]};
   const render=s=>card(s,v,{mentions:mentions.filter(m=>m.url===s.url)});
@@ -60,12 +67,15 @@ export async function home(env,v,{trending=false}={}) {
     <div class="section-label arrivals-label"><h3>${v.say('Latest arrivals','最新发现')}</h3><span class="new-count" hidden></span></div>
     <div class="stories">${arrivals.length?arrivals.map(render).join(''):`<p class="notice">${v.t('No recent stories in this section yet.')}</p>`}</div></div></section>`;
   };
-  const main=archive?`<p class="feed-note">${search?v.say('Search results for “','搜索结果：“')+esc(search)+'”':trending?v.t('Most discussed among tracked sources in the past 24 hours.'):v.say('All recent arrivals','所有近期发现')}</p><div class="stories archive-stories">${stories.length?stories.slice(0,20).map(render).join(''):`<p class="notice">${v.t('No recent stories match your search. Try another word or phrase.')}</p>`}</div>
+  const topicResults=signal?v.say('Stories in “','「')+(v.zh?signal.zh:signal.en)+v.say('” across sources we follow this week.','」：过去一周多个关注来源都在讨论。'):null;
+  const main=archive?`<p class="feed-note">${search?v.say('Search results for “','搜索结果：“')+esc(search)+'”':topicResults??(trending?v.t('Most discussed among tracked sources in the past 24 hours.'):v.say('All recent arrivals','所有近期发现'))}</p><div class="stories archive-stories">${stories.length?stories.slice(0,20).map(render).join(''):`<p class="notice">${v.t('No recent stories match your search. Try another word or phrase.')}</p>`}</div>
     <nav class="pagination" aria-label="${v.t('Story pages')}">${page>1?`<a href="${esc(qlink(v,{page:page-1,view:'all'}))}">← ${v.say('Previous','上一页')}</a>`:''}${!trending&&stories.length>20?`<a href="${esc(qlink(v,{page:page+1,view:'all'}))}">${v.t('Older stories')} →</a>`:''}<a href="${esc(qlink(v,{page:null,view:null,q:null},'/'))}">${v.t('Back to latest')}</a></nav>`
     :`<div class="feed-columns" data-lane="${lane}">${column('human')}${column('ai')}</div><nav class="pagination"><a href="${esc(qlink(v,{view:'all',page:1}))}">${v.t('Browse all stories')} →</a><a href="${v.local('/edit')}">${v.say('Past daily editions','往期每日精选')} →</a></nav>`;
   const bond=await latestEdition(db,'bond')??legacyEditions[0];
   const last=columns[2].results[0]?.checked;
-  return html(v,trending?v.t('Trending'):null,`${!archive?mix(columns[1].results[0],v,lane):''}${filters(v)}${main}
+  const signalCandidates=columns[3].results;
+  const activeConversations=conversations(signalCandidates,now);
+  return html(v,trending?(signal?v.zh?signal.zh:signal.en:v.t('Trending')):null,`${!archive?mix(columns[1].results[0],v,lane):''}${!archive?conversationStrip(activeConversations,v):''}${filters(v)}${main}
     ${!archive?`<aside class="bond-teaser"><span>${v.t('The Bond')}</span><a href="${v.local('/bond/'+bond.id)}">${esc((v.zh?bond.zh:bond.en).title)} <span aria-hidden="true">→</span></a></aside>`:''}
     <p class="feed-note feed-status">${last?v.say('Sources last checked: ','上次检查来源：')+date(last,v)+' · '+new Date(last).toISOString().slice(11,16)+' UTC':v.t('Awaiting the first source check')}</p>`,{wide:!archive});
 }
@@ -107,7 +117,8 @@ export function about(v) {
 }
 export async function sourcesPage(env,v) {
   const {results}=await env.DB.prepare('SELECT id,ok_at,failures FROM source_state').all();
-  return html(v,v.t('Sources'),`<p class="feed-note">${v.t('Bond6 follows publishers, independent writers, and public accounts that cover writing, creative work, and life with AI. This list changes as we find new sources.')}</p><p><a class="text-link" href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion">${v.t('Suggest a source')}</a></p><ul class="sources">${sources.map(s=>{const state=results.find(r=>r.id===s.id);return `<li><a href="${esc(s.site)}">${esc(s.name)}</a><span>${s.kind==='rss'?'RSS / Atom':'Bluesky'} · ${state?.ok_at?date(state.ok_at,v):v.say('Awaiting check','等待检查')}${state?.failures?' · '+v.say('Retrying','重试中'):''}</span></li>`;}).join('')}</ul>`);
+  const request=encodeURIComponent(v.say('Publication / account name:\nWebsite or feed URL:\nPrimary language:\nWhat it covers:\nWhy it belongs on Bond6:\n','媒体或账号名称：\n网站或订阅地址：\n主要语言：\n内容主题：\n为什么适合 Bond6：\n'));
+  return html(v,v.t('Sources'),`<p class="feed-note">${v.t('Bond6 follows publishers, independent writers, and public accounts that cover writing, creative work, and life with AI. This list changes as we find new sources.')}</p><section class="source-invitation"><div><h2>${v.say('Help widen the reading','一起拓宽阅读范围')}</h2><p>${v.say('Know a publication, writer, newsletter, podcast, or public account worth following? Send its public URL, language, and a sentence on what makes it useful. We review suggestions before adding anything.','知道值得关注的媒体、作者、通讯、播客或公开账号？请发送公开链接、主要语言和一句推荐理由。所有建议都会经过审核，不会自动加入。')}</p></div><a class="text-link" href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion&body=${request}">${v.say('Suggest a source','推荐来源')} <span aria-hidden="true">→</span></a></section><ul class="sources">${sources.map(s=>{const state=results.find(r=>r.id===s.id);return `<li><a href="${esc(s.site)}">${esc(s.name)}</a><span>${s.kind==='rss'?'RSS / Atom':'Bluesky'} · ${state?.ok_at?date(state.ok_at,v):v.say('Awaiting check','等待检查')}${state?.failures?' · '+v.say('Retrying','重试中'):''}</span></li>`;}).join('')}</ul>`);
 }
 export function subscribe(v) {
   const links=[['daily',null,v.say('Daily picks','每日精选')],['live','human',v.t('Human Voices')],['live','ai',v.t('AI & Its Impact')],['bond',null,v.t('The Bond')],['live',null,v.say('All arrivals','全部新发现')]];

@@ -4,6 +4,32 @@ import { validateLanguage, validateURL } from './validation.js';
 export const DAY = 86_400_000;
 export const subjects = ['music', 'art', 'writing', 'practice', 'digital'];
 export const subjectLabels = { music: 'Music', art: 'Art & Design', writing: 'Writing', practice: 'Creative Practice', digital: 'Digital Life' };
+// These are transparent editorial topic definitions, not a measure of global popularity.
+// A topic appears only when it is present in more than one tracked source.
+export const conversationTopics = [
+  { key: 'creative-ai', en: 'AI & creative work', zh: 'AI 与创作', match: /\b(ai|artificial intelligence|generative|llms?|chatgpt|machine learning)\b.*\b(art|artist|music|musician|writ\w*|design|film|creative|creator)\b|\b(art|artist|music|musician|writ\w*|design|film|creative|creator)\b.*\b(ai|artificial intelligence|generative|llms?|chatgpt|machine learning)\b|人工智能.{0,32}(创作|艺术|音乐|写作|设计)|(?:创作|艺术|音乐|写作|设计).{0,32}人工智能/i },
+  { key: 'ai-work', en: 'AI, work & labour', zh: 'AI、工作与劳动', match: /\b(ai|artificial intelligence|automation|algorithmic)\b.*\b(work|worker|job|labou?r|employment|pay|wage|union)\b|\b(work|worker|job|labou?r|employment|pay|wage|union)\b.*\b(ai|artificial intelligence|automation|algorithmic)\b|人工智能.{0,32}(工作|劳动|就业|薪酬)|(?:工作|劳动|就业|薪酬).{0,32}人工智能/i },
+  { key: 'platform-power', en: 'Platforms & public life', zh: '平台与公共生活', match: /\b(social media|platforms?|content moderation|algorithmic feed|tiktok|instagram|youtube|bluesky|creator economy)\b|社交媒体|数字平台|内容审核|算法推荐|创作者经济/i },
+  { key: 'rights-attribution', en: 'Copyright & attribution', zh: '版权与署名', match: /\b(copyright|licen[cs]e|attribution|authors?[’']? rights|intellectual property|piracy)\b|版权|著作权|署名|授权|知识产权/i },
+  { key: 'digital-rights', en: 'Privacy & digital rights', zh: '隐私与数字权利', match: /\b(privacy|surveillance|digital rights|data protection|facial recognition|encryption)\b|隐私|监控|数字权利|数据保护|加密/i },
+  { key: 'independent-music', en: 'Independent music', zh: '独立音乐', match: /\b(independent music|record label|musician|album|songwriter|band|concert|touring)\b|独立音乐|唱片|音乐人|乐队|专辑|巡演/i },
+  { key: 'books-writing', en: 'Books & writing', zh: '书籍与写作', match: /\b(book|books|poetry|poet|novel|fiction|essay|writer|writing|publishing)\b|书籍|诗歌|小说|散文|作家|写作|出版/i },
+  { key: 'visual-culture', en: 'Art & design', zh: '艺术与设计', match: /\b(art|artist|exhibition|museum|painting|photography|illustration|design|designer|architecture)\b|艺术|画家|展览|博物馆|绘画|摄影|插画|设计|建筑/i }
+];
+export const conversationTopic = key => conversationTopics.find(topic => topic.key === key) ?? null;
+export function storyTopics(story) {
+  const text = `${story.title ?? ''} ${story.title_en ?? ''} ${story.title_zh ?? ''} ${story.excerpt ?? ''}`;
+  return conversationTopics.filter(topic => topic.match.test(text)).map(topic => topic.key);
+}
+export function conversations(stories, now = Date.now()) {
+  const active = stories.filter(story => (story.discovered_at ?? 0) >= now - 7 * DAY);
+  return conversationTopics.map(topic => {
+    const matches = active.filter(story => storyTopics(story).includes(topic.key));
+    const sources = new Set(matches.map(story => story.source_id ?? story.source));
+    return { ...topic, stories: matches.length, sources: sources.size, latest: Math.max(0, ...matches.map(story => story.discovered_at ?? 0)) };
+  }).filter(topic => topic.stories >= 2 && topic.sources >= 2)
+    .sort((a, b) => b.sources - a.sources || b.stories - a.stories || b.latest - a.latest).slice(0, 5);
+}
 /** Normalize untrusted feed text into plain text before it reaches storage. */
 export const plain = (value, limit = 5000) => {
   const decoded = decodeHeadline(String(value?.['#text'] ?? value ?? ''));

@@ -27,7 +27,6 @@ export const chinese = {
   'The Bond6 Edit': 'Bond6 精选', 'Main navigation': '主导航', Subscribe: '订阅', 'Page unavailable': '页面不存在', 'Feed unavailable': '资讯暂不可用',
   'New writing on culture, creative work, and life with AI.': '关于文化、创意工作和 AI 时代生活的新文章。',
   'Skip to content': '跳到正文', 'Bond6.io home': 'Bond6.io 首页',
-  'Dark mode': '深色模式',
   'Contact and subscriptions': '联系与订阅', Contact: '联系我们', 'Subscribe via RSS': '通过 RSS 订阅',
   'Search stories': '搜索资讯', Search: '搜索', 'Story pages': '资讯分页',
   'Life online': '网络生活', 'Writing & publishing': '写作与出版', 'First-person accounts': '亲历者说',
