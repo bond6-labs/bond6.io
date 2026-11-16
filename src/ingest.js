@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { sources } from './sources.js';
-import { DAY, canonical, cleanAuthor, cleanPostText, plain, language, classify, contentHash } from './content.js';
+import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, plain, language, classify, contentHash } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
@@ -35,7 +35,7 @@ export function fromRss(body, source) {
   return [items].flat().filter(Boolean).slice(0, FEED_ITEM_LIMIT).map(item => {
     const link = [item.link].flat().find(e => e && (!e['@_rel'] || e['@_rel'] === 'alternate'));
     const url = canonical(link?.['@_href'] ?? link?.['#text'] ?? link);
-    const title = cleanPostText(item.title, 240);
+    const title = cleanHeadline(item.title);
     const excerpt = plain(item['content:encoded'] ?? item.content ?? item.description ?? item.summary, 2200);
     const date = Date.parse(item.pubDate ?? item.published);
     const author = cleanAuthor(item['dc:creator'] ?? item.author?.name ?? item.author);
@@ -52,7 +52,7 @@ export function fromBluesky(body, source) {
     const article = canonical(external?.uri);
     const text = cleanPostText(post.record?.text, 2200);
     const distinctive = text.replace(/https?:\/\/\S+/g, '').length >= 100;
-    const title = cleanPostText(article && !distinctive ? external.title : text, 240);
+    const title = article && !distinctive ? cleanHeadline(external.title) : cleanPostText(text, 220);
     const excerpt = distinctive || !article ? text : plain(external.description, 2200);
     const posted = Date.parse(post.record?.createdAt);
     return { url: distinctive ? link : article ?? link, link, title, excerpt,

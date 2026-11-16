@@ -1,5 +1,5 @@
-/** Bond6 Rhythm v1: deterministic, inspectable selection signals. */
-export const RHYTHM_VERSION = 1;
+/** Bond6 Rhythm v2: deterministic, inspectable selection signals. */
+export const RHYTHM_VERSION = 2;
 
 const signals = {
   firsthand: { lane: 'human', score: 3, label: 'First-person process', pattern: /\b(i|my|we|our|me)\b|我|我们|我的|亲身|经历/i },
@@ -7,7 +7,7 @@ const signals = {
   community: { lane: 'human', score: 2, label: 'Community & care', pattern: /\b(community|collective|co-?op|neighbou?rhood|friend|family|care|love|together|local|farm|garden)\b|社区|社群|合作社|朋友|家人|关怀|爱|一起|本地|农场|花园/i },
   embodied: { lane: 'human', score: 1, label: 'Place & lived time', pattern: /\b(body|health|weather|season|home|land|rural|walk|sleep|birth|death|memory)\b|身体|健康|天气|季节|家|土地|乡村|散步|睡眠|记忆/i },
   aiSystem: { lane: 'ai', score: 3, label: 'AI system', pattern: /\b(ai|artificial intelligence|llms?|large language model|chatgpt|openai|anthropic|generative ai|machine learning|deepfake|model training|data cent(?:er|re))\b|人工智能|大模型|生成式|机器学习|深度伪造|训练模型|数据中心/i },
-  platform: { lane: 'ai', score: 2, label: 'Platform power', pattern: /\b(platform|social media|content moderation|algorithmic feed|surveillance|facial recognition|tiktok|instagram|youtube|bluesky)\b|数字平台|社交媒体|内容审核|算法推荐|监控|人脸识别/i },
+  automatedSystem: { lane: 'ai', score: 2, label: 'Automated system', pattern: /\b(algorithmic (?:feed|ranking|recommendation)|recommender system|automated decision(?:-making)?|facial recognition|biometric (?:system|surveillance))\b|算法推荐|自动化决策|人脸识别|生物识别/i },
   consequence: { lane: 'ai', score: 3, label: 'Human consequence', pattern: /\b(work|worker|job|labou?r|wage|union|artist|writer|teacher|student|rights|privacy|copyright|culture|community|environment|energy)\b|工作|劳动|就业|薪酬|工会|艺术家|作者|教师|学生|权利|隐私|版权|文化|社区|环境|能源/i },
   evidence: { lane: 'ai', score: 1, label: 'Reported specificity', pattern: /\b(report|research|data|policy|law|court|study|investigation|documents?)\b|报告|研究|数据|政策|法律|法院|调查|文件/i }
 };
@@ -27,7 +27,7 @@ export function scoreRhythm(story) {
   }
   const human=matched.filter(match=>match.lane==='human'), ai=matched.filter(match=>match.lane==='ai');
   const humanScore=Math.min(12,human.reduce((total,match)=>total+match.score,0));
-  const hasSystem=matched.some(match=>match.key==='aiSystem'||match.key==='platform');
+  const hasSystem=matched.some(match=>match.key==='aiSystem'||match.key==='automatedSystem');
   const hasConsequence=matched.some(match=>match.key==='consequence');
   const aiScore=Math.min(12,ai.reduce((total,match)=>total+match.score,0));
   const laneRecommendation=hasSystem&&hasConsequence&&aiScore>=5?'ai':humanScore>=2?'human':null;

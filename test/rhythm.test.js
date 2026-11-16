@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreRhythm, saveRhythmSignals } from '../src/rhythm.js';
+import { RHYTHM_VERSION, scoreRhythm, saveRhythmSignals } from '../src/rhythm.js';
 import { database } from './db.js';
 import { story, now } from './fixtures.js';
 
@@ -16,5 +16,5 @@ test('Rhythm signals are stored with labels and evidence',async()=>{
   const db=database(),item=story(4);db.sql.prepare(`INSERT INTO stories(url,title,source,topic,published_at,is_article) VALUES(?,?,?,?,?,?)`).run(item.url,item.title,item.source,'Music',now,1);
   await saveRhythmSignals(db,[item],now);
   const signal=await db.prepare('SELECT * FROM story_signals WHERE story_url=?').bind(item.url).first();
-  assert.equal(signal.rhythm_version,1);assert.ok(JSON.parse(signal.labels).length);assert.ok(JSON.parse(signal.evidence)[0].evidence);
+  assert.equal(signal.rhythm_version,RHYTHM_VERSION);assert.ok(JSON.parse(signal.labels).length);assert.ok(JSON.parse(signal.evidence)[0].evidence);
 });

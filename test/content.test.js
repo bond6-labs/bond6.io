@@ -24,6 +24,16 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('大模型怎样影响小说写作','作者们讨论人工智能对创作的影响').lane,'ai');
   assert.deepEqual(classify('Meet the National Book Award finalists','A short announcement.',{id:'literary-hub'}),{lane:'human',subject:'writing'});
   assert.deepEqual(classify('Tara Cunningham – Warm Ground','A record review.',{id:'quietus'}),{lane:'human',subject:'music'});
+  assert.equal(classify('Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App','The case concerns social media companies and government speech policy.',{id:'techdirt'}).lane,null);
+  assert.equal(classify('The End Of Copyright-Locked Software','AI clean-room tools and Claude change how software can be rebuilt, with consequences for copyright.',{id:'techdirt'}).lane,'ai');
+  assert.equal(classify('A facial recognition system changes public workers’ privacy','The automated decision affects workers and privacy rights.',{id:'techdirt'}).lane,'ai');
+});
+test('headlines retain their final word and long social posts are not chopped into headlines',()=>{
+  const [rss]=fromRss('<rss><channel><item><title>Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App</title><link>https://example.org/a</link><description>AI policy and the impact on people and culture gives this feed item enough source text for a focused classification.</description></item></channel></rss>',source);
+  assert.equal(rss.title,'Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App');
+  const post={author:{handle:'writer.test',did:'did:plc:abc',displayName:'A Writer'},uri:'at://did:plc:abc/app.bsky.feed.post/xyz',record:{text:'This is a deliberately long social post without a concluding sentence '.repeat(6),createdAt:'2026-11-13T10:00Z'}};
+  const [social]=fromBluesky(JSON.stringify({feed:[{post}]}),{handle:'writer.test'});
+  assert.equal(social.title,null);
 });
 test('social share date is never an article date; distinctive commentary keeps its own author and permalink',()=>{
   const post={author:{handle:'writer.test',did:'did:plc:abc',displayName:'A Writer'},uri:'at://did:plc:abc/app.bsky.feed.post/xyz',record:{text:'Worth a read',createdAt:'2026-11-13T10:00Z'},embed:{external:{uri:'https://example.org/2020/article',title:'AI and the artist',description:'An account of creative work'}}};

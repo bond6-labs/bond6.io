@@ -11,13 +11,19 @@ const sourceSubjects = {
   gcores: 'practice', chuapp: 'practice', 'appleton-social': 'practice',
   sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', 'markup-social': 'digital', '404': 'digital', '404-social': 'digital', techdirt: 'digital', 'eff-social': 'digital', 'ed-social': 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', 'dash-social': 'digital'
 };
-const sentenceEnd = text => {
-  const match = text.match(/^(.{1,230}?[.!?。！？])(?:\s|$)/);
-  return match?.[1] ?? (text.slice(0, 240).replace(/\s+\S*$/, '').trim() || text.slice(0, 240).trim());
+const sentenceEnd = (text, limit = 240) => {
+  if (text.length <= limit) return text.trim();
+  const match = text.slice(0, limit + 1).match(/^(.{1,230}?[.!?。！？])(?:\s|$)/);
+  return match?.[1] ?? null;
 };
 export function cleanPostText(value, limit = 2200) {
   const text = plain(value, limit + 300).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/gi, ' ').replace(/\s+/g, ' ').trim();
-  return limit < 500 ? sentenceEnd(text) : text.slice(0, limit).trim();
+  return limit < 500 ? sentenceEnd(text, limit) : text.slice(0, limit).trim();
+}
+/** Preserve a publisher-supplied headline whole; never manufacture a chopped one. */
+export function cleanHeadline(value, limit = 500) {
+  const text = plain(value, limit + 1);
+  return text && text.length <= limit ? text : null;
 }
 export function cleanAuthor(value) {
   return plain(value, 160).replace(/\s*\(GPG[^)]*\)/i, '').replace(/\s+@[^\s]+$/, '').trim() || null;
@@ -57,19 +63,20 @@ export const plain = (value, limit = 5000) => {
 export const canonical = validateURL;
 export const language = validateLanguage;
 export function classify(title, excerpt, source = {}) {
-  // Require a subject connection in the item, never infer AI from its publisher.
+  // Require an item-level subject signal. A publisher cannot make unrelated news relevant.
   const text = `${title} ${excerpt.slice(0, 1400)}`;
-  const ai = /\b(ai|artificial intelligence|llms?|chatgpt|openai|anthropic|deepfakes?|generative(?: ai)?|machine learning|large language model|data centers?)\b|人工智能|生成式|大模型|深度伪造|机器学习/i.test(text);
-  const platform = /\b(social media|surveillance|digital rights|content moderation|platform(?:s)?|tiktok|instagram|youtube|bluesky)\b|社交媒体|数字平台|内容审核|网络隐私/i.test(text)
-    && /\b(work|creat\w*|artist\w*|people|writ\w*|rights|privacy|community|culture|labor|music|pay|job\w*)\b|创作|作者|用户|劳动|隐私|音乐|文化|工作/i.test(text);
+  const ai = /\b(ai|artificial intelligence|llms?|chatgpt|openai|anthropic|deepfakes?|generative(?: ai)?|machine learning|large language model|data cent(?:er|re)s?)\b|人工智能|生成式|大模型|深度伪造|机器学习/i.test(text);
+  // Digital policy alone is not AI coverage. These are concrete automated systems,
+  // retained for cases where their effects on people are the actual subject.
+  const automatedSystem = /\b(algorithmic (?:feed|ranking|recommendation)|recommender system|automated decision(?:-making)?|facial recognition|biometric (?:system|surveillance))\b|算法推荐|自动化决策|人脸识别|生物识别/i.test(text);
+  const consequence = /\b(work|worker|job|labou?r|wage|union|artist|writer|teacher|student|rights|privacy|copyright|culture|community|environment|energy)\b|工作|劳动|就业|薪酬|工会|艺术家|作者|教师|学生|权利|隐私|版权|文化|社区|环境|能源/i.test(text);
   let subject = /\b(music|song\w*|album\w*|musician\w*|band|jazz|guitar|concert)\b|音乐|歌曲|专辑|乐队|作曲/i.test(text) ? 'music'
     : /\b(art|artist\w*|paint\w*|sculpt\w*|photograph\w*|illustrat\w*|design\w*|exhibition|cinema|films?|filmmaking)\b|绘画|画家|摄影|设计|艺术|插画|展览|电影|剧集/i.test(text) ? 'art'
     : /\b(books?|poems?|poetry|literature|literary|novels?|writers?|writing|fiction|essays?)\b|文学|写作|小说|诗歌|书籍|读书/i.test(text) ? 'writing'
     : /\b(crafts?|crafting|craftsmanship|creative practice|creative process|pottery|ceramics|woodworking|video games?|game design|gaming)\b|手工|创意|游戏|创作|制作/i.test(text) ? 'practice' : sourceSubjects[source.id] ?? 'digital';
   const cultural = subject !== 'digital' || source.essays && /\b(I|my|we|our|life|experience)\b|我|生活|体验/.test(text);
-  // Controlled sources may supply digital-life reporting; bare unrelated text still stays out.
-  const relevant = cultural || platform || ai || Boolean(source.id && sourceSubjects[source.id] === 'digital');
-  return { lane: relevant ? (ai || platform ? 'ai' : 'human') : null, subject };
+  const aiRelevant = ai || (automatedSystem && consequence);
+  return { lane: aiRelevant ? 'ai' : cultural ? 'human' : null, subject };
 }
 export async function contentHash(story) {
   const value = JSON.stringify([story.url, story.title, story.author, story.excerpt, story.parent_context, story.original_published_at, story.original_lang, story.lane]);

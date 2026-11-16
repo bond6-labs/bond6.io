@@ -58,8 +58,8 @@ export function validateStorySchema(story) {
   if (!validateURL(story.url) || !validateURL(story.canonical_url)) throw new Error('Invalid public story URL');
   
   // Title validation
-  if (typeof story.title !== 'string' || story.title.length === 0 || story.title.length > 260) {
-    throw new Error('Invalid title: must be non-empty string under 260 characters');
+  if (typeof story.title !== 'string' || story.title.length === 0 || story.title.length > 500) {
+    throw new Error('Invalid title: must be non-empty string under 500 characters');
   }
   
   // Source validation
