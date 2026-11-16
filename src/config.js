@@ -24,6 +24,13 @@ export const AI_DAILY_BUDGET = 8000; // Max neurons per day
 export const AI_RETENTION_DAYS = 7; // Days to retain AI-lane content
 export const CULTURE_RETENTION_DAYS = 30; // Days to retain culture content
 
+// Bond6 Rhythm selection. These are deliberately conservative: stories without
+// a strong, recorded reason to belong in a lane stay in the live feed only.
+export const RHYTHM_MIN_CONFIDENCE = 0.6;
+export const RHYTHM_FRESH_WINDOW_DAYS = 3;
+export const RHYTHM_FALLBACK_WINDOW_DAYS = 7;
+export const RHYTHM_DAILY_MAX_PER_LANE = 3;
+
 // Network and redirect configuration
 export const REDIRECT_TIMEOUT_MS = 3000; // 3 seconds per redirect
 export const REDIRECT_MAX_HOPS = 3; // Max redirect chain length

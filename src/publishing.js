@@ -1,20 +1,45 @@
 import { DAY, dayKey, usableText } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
 import { runJson, notePrompt, reviewPrompt, validateNote, normalizeNote, approved, sourceData, BudgetError, checkLanguage } from './ai.js';
+import { RHYTHM_DAILY_MAX_PER_LANE, RHYTHM_FALLBACK_WINDOW_DAYS, RHYTHM_FRESH_WINDOW_DAYS, RHYTHM_MIN_CONFIDENCE } from './config.js';
+
+const rhythmLabels = story => {
+  if (Array.isArray(story.rhythm_labels)) return story.rhythm_labels;
+  try { return JSON.parse(story.rhythm_labels ?? '[]'); } catch { return []; }
+};
+const rhythmEvidence = story => {
+  if (Array.isArray(story.rhythm_evidence)) return story.rhythm_evidence;
+  try { return JSON.parse(story.rhythm_evidence ?? '[]'); } catch { return []; }
+};
+
+/**
+ * A deterministic priority for the daily edit, not a claim of importance.
+ * The components are intentionally small and inspectable: strong lane evidence,
+ * useful source text, freshness, and a little credit for a named author.
+ */
+export function rhythmPriority(story, now = Date.now()) {
+  const laneScore = story.lane === 'ai' ? Number(story.rhythm_ai_score) : Number(story.rhythm_human_score);
+  const age = Math.max(0, now - Number(story.discovered_at));
+  const freshness = age <= DAY ? 1.2 : age <= RHYTHM_FRESH_WINDOW_DAYS * DAY ? .8 : .25;
+  const depth = Math.min(1, (story.excerpt?.length ?? 0) / 700);
+  const labels = rhythmLabels(story);
+  const firsthand = labels.includes('First-person process') ? .7 : 0;
+  const specificity = labels.includes('Reported specificity') ? .45 : 0;
+  return Number((Number(story.rhythm_confidence) * 4 + laneScore * .35 + freshness + depth + firsthand + specificity + (story.author ? .2 : 0)).toFixed(3));
+}
 
 export function rankCandidates(stories, used = [], now = Date.now()) {
-  const seen = new Set(used);
-  const score = s => (s.author ? 3 : 0) + (s.content_type === 'post' ? 1 : 0)
-    + (/\b(I|my|we|our)\b|我|我们/.test(s.excerpt) ? 3 : 0)
-    + Math.min(3, s.excerpt.length / 600) + (s.original_lang === 'zh' ? 1 : 0);
-  const ranked = stories.filter(s => s.lane && usableText(s) && !seen.has(s.url) && !seen.has(s.canonical_url))
-    .sort((a,b) => Number(b.discovered_at >= now - 3 * DAY) - Number(a.discovered_at >= now - 3 * DAY) || score(b) - score(a) || b.discovered_at - a.discovered_at || a.url.localeCompare(b.url));
+  const seen = new Set(used), minimumDate = now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY;
+  const ranked = stories.filter(s => s.lane && usableText(s) && !seen.has(s.url) && !seen.has(s.canonical_url)
+    && s.rhythm_lane === s.lane && Number(s.rhythm_confidence) >= RHYTHM_MIN_CONFIDENCE && Number(s.discovered_at) >= minimumDate)
+    .sort((a,b) => rhythmPriority(b,now) - rhythmPriority(a,now) || b.discovered_at - a.discovered_at || a.url.localeCompare(b.url));
   const queue = [], publishers = new Set(), authors = new Set(), topics = new Set(), destinations = new Set();
   let chinese = false;
-  for (let round = 0; round < 6; round++) for (const lane of ['human','ai']) {
+  for (let round = 0; round < RHYTHM_DAILY_MAX_PER_LANE; round++) for (const lane of ['human','ai']) {
     const options = ranked.filter(s => s.lane === lane && !publishers.has(s.source) && (!s.author || !authors.has(s.author.toLowerCase())) && !destinations.has(s.canonical_url));
     options.sort((a,b) => (lane === 'human' ? Number(!topics.has(b.subject)) - Number(!topics.has(a.subject)) : 0)
-      || (!chinese ? Number(b.original_lang === 'zh') - Number(a.original_lang === 'zh') : 0));
+      || (!chinese ? Number(b.original_lang === 'zh') - Number(a.original_lang === 'zh') : 0)
+      || rhythmPriority(b,now) - rhythmPriority(a,now) || b.discovered_at - a.discovered_at || a.url.localeCompare(b.url));
     const s = options[0];
     if (!s) continue;
     queue.push(s); publishers.add(s.source); if (s.author) authors.add(s.author.toLowerCase());
@@ -23,13 +48,16 @@ export function rankCandidates(stories, used = [], now = Date.now()) {
   return queue;
 }
 
-export function snapshotStory(story, output) {
+export function snapshotStory(story, output, selectedAt = Date.now()) {
   return { url: story.url, canonical_url: story.canonical_url, title: story.title, title_en: output.en.title, title_zh: output.zh.title,
     en: { title: output.en.title, note: output.claims.map(c => c.en).join(' ') },
     zh: { title: output.zh.title, note: output.claims.map(c => c.zh).join('') },
     source: story.source, source_id: story.source_id, author: story.author, lane: story.lane, subject: story.subject,
     original_lang: story.original_lang, original_published_at: story.original_published_at, discovered_at: story.discovered_at,
-    content_type: story.content_type, content_hash: story.content_hash };
+    content_type: story.content_type, content_hash: story.content_hash,
+    rhythm: story.rhythm_lane ? { version: story.rhythm_version, confidence: Number(story.rhythm_confidence),
+      human_score: Number(story.rhythm_human_score), ai_score: Number(story.rhythm_ai_score),
+      labels: rhythmLabels(story), evidence: rhythmEvidence(story), priority: rhythmPriority(story,selectedAt) } : undefined };
 }
 
 export async function publishEdition(db, job, snapshot, now) {
@@ -50,8 +78,12 @@ export async function publishEdition(db, job, snapshot, now) {
 async function dailyStep(env, job, now) {
   const db = env.DB, state = JSON.parse(job.payload);
   if (!state.candidates) {
-    const { results } = await db.prepare(`SELECT * FROM stories WHERE discovered_at>=? AND lane IS NOT NULL AND content_hash IS NOT NULL
-      ORDER BY discovered_at DESC LIMIT 160`).bind(now - 7 * DAY).all();
+    const { results } = await db.prepare(`SELECT s.*, r.rhythm_version, r.human_score AS rhythm_human_score, r.ai_score AS rhythm_ai_score,
+      r.lane_recommendation AS rhythm_lane, r.confidence AS rhythm_confidence, r.labels AS rhythm_labels, r.evidence AS rhythm_evidence
+      FROM stories s JOIN story_signals r ON r.story_url=s.url
+      WHERE s.discovered_at>=? AND s.lane IS NOT NULL AND s.content_hash IS NOT NULL
+        AND r.lane_recommendation=s.lane AND r.confidence>=?
+      ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_MIN_CONFIDENCE).all();
     const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
       WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
     const candidates = rankCandidates(results, used.map(s => s.url), now).map(s => ({ url: s.url, hash: s.content_hash }));
@@ -66,9 +98,12 @@ async function dailyStep(env, job, now) {
     return;
   }
   const candidate = state.candidates[state.cursor];
-  const story = await db.prepare('SELECT * FROM stories WHERE url=? AND content_hash=?').bind(candidate.url,candidate.hash).first();
+  const story = await db.prepare(`SELECT s.*, r.rhythm_version, r.human_score AS rhythm_human_score, r.ai_score AS rhythm_ai_score,
+    r.lane_recommendation AS rhythm_lane, r.confidence AS rhythm_confidence, r.labels AS rhythm_labels, r.evidence AS rhythm_evidence
+    FROM stories s JOIN story_signals r ON r.story_url=s.url WHERE s.url=? AND s.content_hash=?`)
+    .bind(candidate.url,candidate.hash).first();
   const advance = async error => { state.cursor++; state.phase='generate'; delete state.draft; await saveJob(db,job,state,now,{error}); };
-  if (!story || !usableText(story) || state.stories.filter(s => s.lane === story.lane).length >= 3) return advance(null);
+  if (!story || !usableText(story) || state.stories.filter(s => s.lane === story.lane).length >= RHYTHM_DAILY_MAX_PER_LANE) return advance(null);
   if (state.phase === 'generate') {
     if (story.content_type === 'post') {
       // Recheck public post existence immediately before featuring it; deleted posts fail closed.
@@ -81,7 +116,7 @@ async function dailyStep(env, job, now) {
     const cached = await db.prepare('SELECT output FROM generated_notes WHERE content_hash=?').bind(story.content_hash).first();
     if (cached) {
       const output=JSON.parse(cached.output);
-      if (validateNote(output,story)) { state.stories.push(snapshotStory(story,output)); return advance(null); }
+      if (validateNote(output,story)) { state.stories.push(snapshotStory(story,output,now)); return advance(null); }
       await db.prepare('DELETE FROM generated_notes WHERE content_hash=?').bind(story.content_hash).run();
     }
     const output = normalizeNote(await runJson(env,'daily-note',notePrompt,sourceData(story),now,800),story);
@@ -94,7 +129,7 @@ async function dailyStep(env, job, now) {
     .bind(story.content_hash,story.url,JSON.stringify(state.draft),now,JSON.stringify({claims:state.draft.claims,review})).run();
   await db.prepare('UPDATE stories SET title_en=?, title_zh=? WHERE url=? AND content_hash=?')
     .bind(state.draft.en.title,state.draft.zh.title,story.url,story.content_hash).run();
-  state.stories.push(snapshotStory(story,state.draft)); await advance(null);
+  state.stories.push(snapshotStory(story,state.draft,now)); await advance(null);
 }
 
 export function validateBond(draft, stories) {

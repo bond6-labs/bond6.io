@@ -23,11 +23,18 @@ test('publication rolls back all writes when attribution cannot be written',asyn
   assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,0);assert.equal(db.sql.prepare('SELECT status FROM jobs').get().status,'pending');
 });
 test('candidate selection diversifies topics, languages, authors and publishers and avoids repeats',()=>{
-  const stories=Array.from({length:12},(_,i)=>story(i,{author:'Author '+i,lane:i%2?'ai':'human',subject:i%3?'writing':'music',original_lang:i===4?'zh':'en'}));
+  const stories=Array.from({length:12},(_,i)=>story(i,{author:'Author '+i,lane:i%2?'ai':'human',subject:i%3?'writing':'music',original_lang:i===4?'zh':'en',
+    rhythm_lane:i%2?'ai':'human',rhythm_confidence:.8,rhythm_human_score:i%2?0:6,rhythm_ai_score:i%2?7:0,rhythm_labels:JSON.stringify(i%2?['AI system','Human consequence','Reported specificity']:['First-person process','Creative practice']),rhythm_evidence:'[]'}));
   stories.push({...stories[0],url:'https://example.org/duplicate',canonical_url:'https://example.org/duplicate'});
   const picks=rankCandidates(stories,[stories[2].url],now).slice(0,6);
   assert.equal(new Set(picks.map(s=>s.source)).size,picks.length);assert.equal(new Set(picks.map(s=>s.author)).size,picks.length);
   assert.ok(picks.some(s=>s.original_lang==='zh'));assert.ok(new Set(picks.filter(s=>s.lane==='human').map(s=>s.subject)).size>=2);assert.ok(!picks.some(s=>s.url===stories[2].url));
+});
+test('Rhythm rejects weak or mismatched signals and prioritizes strong, fresh evidence',()=>{
+  const strong=story(30,{lane:'human',author:'Mina',discovered_at:now-20*60_000,rhythm_lane:'human',rhythm_confidence:.92,rhythm_human_score:8,rhythm_ai_score:0,rhythm_labels:JSON.stringify(['First-person process','Creative practice']),rhythm_evidence:'[]'});
+  const weak=story(31,{lane:'human',author:'Weak',rhythm_lane:'human',rhythm_confidence:.4,rhythm_human_score:3,rhythm_ai_score:0,rhythm_labels:'[]',rhythm_evidence:'[]'});
+  const mismatch=story(32,{lane:'ai',author:'Wrong lane',rhythm_lane:'human',rhythm_confidence:.9,rhythm_human_score:9,rhythm_ai_score:0,rhythm_labels:'[]',rhythm_evidence:'[]'});
+  assert.deepEqual(rankCandidates([weak,mismatch,strong],[],now).map(s=>s.url),[strong.url]);
 });
 test('concurrent budget reservation never exceeds the configured allowance; provider failures stay charged',async()=>{
   const db=database();let calls=0;const env={DB:db,AI_DAILY_NEURONS:'500',AI:{run:async()=>{calls++;throw new Error('Provider unavailable');}}};
@@ -46,6 +53,7 @@ test('daily job publishes only after generation and independent review; retries 
   await publishingStep(env,now+120_000);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,0);
   await publishingStep(env,now+180_000);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,1);
   const published=JSON.parse(db.sql.prepare('SELECT snapshot FROM editions').get().snapshot);assert.equal(published.stories[0].en.note,note(s).claims.map(c=>c.en).join(' '));
+  assert.equal(published.stories[0].rhythm?.version,1);assert.ok(published.stories[0].rhythm?.evidence?.length);
   await publishingStep(env,now+240_000);assert.equal(db.sql.prepare("SELECT count(*) AS n FROM editions WHERE kind='daily'").get().n,1);
 });
 test('failed model, exhausted quota and publishing disabled leave prepared reading available',async()=>{
