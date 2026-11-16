@@ -505,7 +505,15 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .barn-chest { stroke: #d4b181; }
 .owl-barn .owl-turning-head { animation-duration: 13.5s; }
 
-.owl-perch { --owl-dark:#704c35; --owl-mid:#a77854; --owl-light:#f1dfbf; }
+.owl-perch {
+  /* The Library Owl needs to be a small warm beacon in the Human panel—not
+     another brown shape against paper. */
+  --owl-dark:#d8a640;
+  --owl-mid:#f4d571;
+  --owl-light:#fff2bd;
+  --owl-line:#67452a;
+  filter: drop-shadow(0 3px 0 #8d622733);
+}
 .perch-branch,.perch-bridge,.perch-pages { fill: none; stroke: var(--owl-line); stroke-width: 2.2; stroke-linecap: round; }
 .perch-glass { fill: #eef5e8aa; stroke: #3f4740; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: owl-reference-blink 5.1s ease-in-out infinite; }
 .perch-eye { fill: #e8bf65; }.perch-book { fill: #d8c494; stroke: var(--owl-line); stroke-width: 1.8; }.perch-pages { stroke-width: 1.5; }
@@ -516,10 +524,10 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .perch-profile-right > * { animation: perch-look-right 12s ease-in-out infinite; }
 .perch-threequarter-left > * { animation: perch-quarter-left 12s ease-in-out infinite; }
 .perch-profile-left > * { animation: perch-look-left 12s ease-in-out infinite; }
-.perch-side-head { fill: #704c35; stroke: #4b3025; stroke-width: 2.2; stroke-linejoin: round; }
+.perch-side-head { fill: #d8a640; stroke: #67452a; stroke-width: 2.2; stroke-linejoin: round; }
 .perch-side-glass { fill: #eef5e8aa; stroke: #3f4740; stroke-width: 2.5; }
 .perch-side-eye { fill: #e8bf65; }.perch-side-pupil { fill: #1d1714; }.perch-side-beak { fill: #e2ad55; stroke: #80551d; stroke-width: 1.2; stroke-linejoin: round; }
-.perch-quarter-head { fill:#704c35; stroke:#4b3025; stroke-width:2.2; stroke-linejoin:round; }.perch-quarter-glass { fill:#eef5e8aa; stroke:#3f4740; stroke-width:2.4; }.perch-quarter-eye { fill:#e8bf65; }.perch-quarter-pupil { fill:#1d1714; }.perch-quarter-beak { fill:#e2ad55; stroke:#80551d; stroke-width:1.2; stroke-linejoin:round; }
+.perch-quarter-head { fill:#d8a640; stroke:#67452a; stroke-width:2.2; stroke-linejoin:round; }.perch-quarter-glass { fill:#eef5e8aa; stroke:#3f4740; stroke-width:2.4; }.perch-quarter-eye { fill:#e8bf65; }.perch-quarter-pupil { fill:#1d1714; }.perch-quarter-beak { fill:#e2ad55; stroke:#80551d; stroke-width:1.2; stroke-linejoin:round; }
 @keyframes perch-front-facing { 0%,14%,55%,64%,100% { opacity:1; } 20%,50%,70%,94% { opacity:0; } }
 @keyframes perch-quarter-right { 0%,16%,35%,100% { opacity:0; } 22%,29% { opacity:1; } }
 @keyframes perch-look-right { 0%,31%,45%,100% { opacity:0; } 37%,41% { opacity:1; } }
@@ -548,7 +556,13 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .robot-scribe { --bot-dark:#3d4b80; --bot-light:#e2e6ff; }.scribe-ground { fill:none; stroke:#8894c7; stroke-width:2; stroke-dasharray:3 4; }.scribe-neck,.scribe-antenna { fill:none; stroke:var(--bot-light); stroke-width:2.5; stroke-linecap:round; }.scribe-base { fill:#29345d; stroke:#1e284a; stroke-width:2; }.scribe-wheel { fill:#aeb7e0; stroke:#28325a; stroke-width:1.5; }.scribe-paper { fill:#fff8e9; stroke:#536092; stroke-width:1.8; }.scribe-arm { fill:none; stroke:var(--bot-light); stroke-width:5; stroke-linecap:round; transform-box:fill-box; transform-origin:center; }.scribe-arm-left { animation: scribe-left 1.4s ease-in-out infinite; }.scribe-arm-right { animation: scribe-right 1.6s ease-in-out infinite; }.scribe-lines { stroke:#536092; stroke-width:1.5; animation: paper-stream 1.6s linear infinite; }
 .robot-picker-3d { --bot-dark:#365e70; --bot-light:#d8f5f5; }.picker-shadow { fill:#1735412b; }.picker-back { fill:#1f4555; stroke:#102f38; stroke-width:2.2; }.picker-top { fill:#6d9eaa; stroke:#102f38; stroke-width:2; }.picker-side { fill:#214b5c; stroke:#102f38; stroke-width:2; }.robot-picker-3d .picker-body { animation: picker-3d-breathe 3.2s ease-in-out infinite; }.robot-picker-3d .picker-screen { fill:#112f3a; }.robot-picker-3d .picker-lens { fill:#d9f5f388; }
 @keyframes picker-3d-breathe { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
-.robot-picker-machine { --bot-dark:#1d5161; --bot-light:#c8f4f3; }.robot-picker-machine .picker-body { fill:#194a59; stroke:#102f38; stroke-width:2.2; }.robot-picker-machine .picker-screen { fill:#0b2832; stroke:#8bd9df; stroke-width:1.5; }.machine-panel,.machine-link,.machine-grip,.machine-foot { fill:none; stroke:var(--bot-light); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }.machine-panel { stroke-width:1.6; opacity:.8; }.machine-joint { fill:#8bd9df; stroke:#0d3440; stroke-width:1.4; }.machine-arm,.machine-leg { transform-box:fill-box; transform-origin:center; }.machine-arm-left { animation: machine-arm-left 2.1s steps(3,end) infinite; }.machine-arm-right { animation: machine-arm-right 2.6s steps(4,end) infinite; }.machine-leg-left { animation: machine-leg-left 2.8s steps(3,end) infinite; }.machine-leg-right { animation: machine-leg-right 2.8s steps(3,end) .35s infinite; }.robot-picker-machine .picker-lens { fill:#b9f0f366; stroke:var(--bot-light); stroke-width:3; }.robot-picker-machine .picker-ping { animation-duration:1.5s; }
+/* This is the approved Group 3 Picker: its SVG is shared by the lab and the
+   masthead so shape, machine limbs, gripper and magnifier cannot drift. */
+.robot-picker-machine { --bot-dark:#8e9ba1; --bot-light:#f5fbfb; filter:drop-shadow(0 3px 0 #36515a2b); }
+.robot-picker-machine .picker-body { fill:#aeb9bd; stroke:#405057; stroke-width:2.2; }
+.robot-picker-machine .picker-screen { fill:#26383f; stroke:#e8f4f5; stroke-width:1.5; }
+.machine-panel,.machine-link,.machine-grip,.machine-foot { fill:none; stroke:var(--bot-light); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+.machine-panel { stroke-width:1.6; opacity:.9; }.machine-joint { fill:#dce6e7; stroke:#405057; stroke-width:1.4; }.machine-arm,.machine-leg { transform-box:fill-box; transform-origin:center; }.machine-arm-left { animation: machine-arm-left 2.1s steps(3,end) infinite; }.machine-arm-right { animation: machine-arm-right 2.6s steps(4,end) infinite; }.machine-leg-left { animation: machine-leg-left 2.8s steps(3,end) infinite; }.machine-leg-right { animation: machine-leg-right 2.8s steps(3,end) .35s infinite; }.robot-picker-machine .picker-lens { fill:#ddecf088; stroke:var(--bot-light); stroke-width:3; }.robot-picker-machine .picker-ping { fill:#fff; animation-duration:1.5s; }
 @keyframes machine-arm-left { 0%,100% { transform:rotate(0); } 50% { transform:rotate(-12deg) translate(-2px,-1px); } } @keyframes machine-arm-right { 0%,40%,100% { transform:rotate(0); } 65% { transform:rotate(13deg) translate(2px,-2px); } } @keyframes machine-leg-left { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } } @keyframes machine-leg-right { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
 
 /* Selected Library Owl: retain the original front-facing illustration until it has a proper 3-D rig. */
