@@ -391,3 +391,27 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
   .arrivals-label { padding-top: 12px; }.feed-column .story h3 { font-size: 21px; }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior: auto !important; } }
+
+/* Bond6 Rhythm: warm, organic continuity beside cool, discrete systems. */
+.lane-signature { display: flex; align-items: center; gap: 9px; color: var(--masthead-detail); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
+.lane-signature b { color: var(--masthead-ink); font-size: 11px; }
+.lane-signal { display: inline-block; flex: 0 0 38px; height: 12px; }
+.human-signature { font-family: var(--headline-font); letter-spacing: .14em; }
+.human-signature .lane-signal { border-block: 1px solid var(--masthead-detail); border-radius: 50%; background: radial-gradient(ellipse at 50% 50%, var(--masthead-detail) 0 2px, transparent 2.5px) 0 50% / 9px 9px repeat-x; }
+.ai-signature { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; }
+.ai-signature .lane-signal { background: repeating-linear-gradient(90deg, var(--masthead-detail) 0 2px, transparent 2px 6px); box-shadow: inset 0 -1px 0 var(--masthead-rule), inset 0 1px 0 var(--masthead-rule); }
+.rhythm-reason { margin: 9px 0 2px; border-top: 1px solid color-mix(in srgb, var(--column-accent) 35%, transparent); color: var(--muted); }
+.rhythm-reason summary { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; min-height: 44px; cursor: pointer; font-size: 11px; list-style: none; }
+.rhythm-reason summary::-webkit-details-marker { display: none; }
+.rhythm-reason summary::after { content: '+'; color: var(--column-accent); font-size: 15px; line-height: 1; }
+.rhythm-reason[open] summary::after { content: '−'; }
+.rhythm-kicker { display: inline-flex; align-items: center; min-height: 21px; padding: 0 7px; border: 1px solid currentColor; border-radius: 999px; color: var(--column-accent); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.rhythm-reason.ai .rhythm-kicker { border-radius: 2px; font-family: ui-monospace, Consolas, monospace; }
+.rhythm-reason p { max-width: 58ch; margin: -2px 0 10px; font-size: 12px; line-height: 1.55; }
+.rhythm-reason a { color: var(--column-accent); text-decoration: underline; text-underline-offset: 3px; }
+@media(width < 700px) {
+  .lane-signature { gap: 7px; font-size: 9px; }
+  .lane-signal { flex-basis: 32px; }
+  .column-masthead { padding-top: 17px; }
+  .rhythm-reason summary { font-size: 10px; }
+}

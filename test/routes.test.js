@@ -7,13 +7,18 @@ import {story,source,now,note} from './fixtures.js';
 import {snapshotStory} from '../src/publishing.js';
 test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaScript or AI',async()=>{
   const db=database();const s=story();await storeItems(db,source,[s],now);
-  db.sql.prepare('INSERT INTO editions VALUES(?,?,?,?,?,NULL)').run('2026-11-13','daily','2026-11-13',now,JSON.stringify({id:'2026-11-13',kind:'daily',date:'2026-11-13',stories:[snapshotStory(s,note(s))]}));
+  const picked=await db.prepare(`SELECT s.*,r.rhythm_version,r.human_score AS rhythm_human_score,r.ai_score AS rhythm_ai_score,
+    r.lane_recommendation AS rhythm_lane,r.confidence AS rhythm_confidence,r.labels AS rhythm_labels,r.evidence AS rhythm_evidence
+    FROM stories s JOIN story_signals r ON r.story_url=s.url WHERE s.url=?`).bind(s.url).first();
+  db.sql.prepare('INSERT INTO editions VALUES(?,?,?,?,?,NULL)').run('2026-11-13','daily','2026-11-13',now,JSON.stringify({id:'2026-11-13',kind:'daily',date:'2026-11-13',stories:[snapshotStory(picked,note(s),now)]}));
   for(const prefix of ['','/zh']) for(const path of ['/','/about','/sources','/saved','/subscribe','/edit','/edit/2026-11-13','/bond','/bond/field-notes-making-and-proof','/feed.xml','/feed.xml?kind=daily&lane=human','/feed.xml?kind=bond']){
     const r=await worker.fetch(new Request('https://bond6.io'+prefix+path),{DB:db});assert.equal(r.status,200,prefix+path);
     const text=await r.text();assert.ok(!text.includes('undefined'),path);if(!path.includes('.xml')){assert.match(text,/rel="canonical"/);assert.match(text,/hreflang="zh-Hans"/);}
   }
   assert.equal((await worker.fetch(new Request('https://bond6.io/feed.xml?kind=wrong'),{DB:db})).status,400);
   assert.equal((await worker.fetch(new Request('https://bond6.io/edit/1999-01-01'),{DB:db})).status,404);
+  const about=await worker.fetch(new Request('https://bond6.io/about'),{DB:db});assert.match(await about.text(),/Bond6 Rhythm/);
+  const edition=await worker.fetch(new Request('https://bond6.io/edit/2026-11-13'),{DB:db});assert.match(await edition.text(),/Human signal/);
   const head=await worker.fetch(new Request('https://bond6.io/',{method:'HEAD'}),{DB:db});assert.equal(await head.text(),'');
   const sitemap=await worker.fetch(new Request('https://bond6.io/sitemap.xml'),{DB:db});assert.match(await sitemap.text(),/zh\/edit\/2026-11-13/);
 });

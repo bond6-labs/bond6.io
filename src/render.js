@@ -39,7 +39,7 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   <script src="/reader.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=daily-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
+  <link rel="stylesheet" href="/style.css?v=rhythm-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">
@@ -58,6 +58,24 @@ export function actions(story,v,shareUrl) {
   return `<div class="story-actions"><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc((v.zh?data.zh:data.en).title)}" hidden>${v.say('Share','分享')}</button></div>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
+const rhythmLabel=(label,v)=>({
+  'First-person process':v.say('First-person process','第一人称过程'),
+  'Creative practice':v.say('Creative practice','创作实践'),
+  'Community & care':v.say('Community & care','社区与关怀'),
+  'Place & lived time':v.say('Place & lived time','地点与生活时间'),
+  'AI system':v.say('AI system','AI 系统'),
+  'Platform power':v.say('Platform power','平台权力'),
+  'Human consequence':v.say('Human consequence','对人的影响'),
+  'Reported specificity':v.say('Reported specificity','报道中的具体性')
+}[label]??label);
+function rhythmReason(story,v) {
+  const labels=Array.isArray(story.rhythm?.labels)?story.rhythm.labels:[];
+  if (!labels.length) return '';
+  const selected=labels.slice(0,3).map(label=>rhythmLabel(label,v));
+  const lane=story.lane==='ai'?'ai':'human';
+  const title=lane==='human'?v.say('Human signal','人的信号'):v.say('AI signal','AI 信号');
+  return `<details class="rhythm-reason ${lane}"><summary><span class="rhythm-kicker">${title}</span><span>${esc(selected.join(' · '))}</span></summary><p>${v.say('Selected from the available source excerpt for these signals.','根据可获取的来源摘录，以这些信号入选。')} <a href="${v.local('/about')}#rhythm">${v.say('About Bond6 Rhythm','了解 Bond6 节奏')}</a></p></details>`;
+}
 export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
   const copy=v.zh?s.zh:s.en, title=copy?.title??(v.zh?s.title_zh:s.title_en)??s.title;
   const untranslated=v.zh?!s.title_zh&&!s.zh:s.original_lang==='zh'&&!s.title_en&&!s.en;
@@ -72,6 +90,6 @@ export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
     ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
     ${untranslated?`<p class="source-context">${s.original_lang==='zh'?'中文原文':'EN original'}</p>`:''}
-    ${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
+    ${pick?`${rhythmReason(s,v)}<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
     ${actions(s,v,share)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
 }
