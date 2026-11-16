@@ -24,7 +24,7 @@ export function searchForm(v) {
     ${v.url.searchParams.get('lane')?`<input type="hidden" name="lane" value="${esc(v.url.searchParams.get('lane'))}">`:''}</form></details>`;
 }
 export function html(v,title,content,{status=200,description,wide=false,edition=false}={}) {
-  const siteTitle=v.t('The Bond6 Edit'), heading=title||siteTitle;
+  const siteTitle=v.t('The Bond6 Flow'), heading=title||siteTitle;
   description??=v.t('New writing on culture, creative work, and life with AI.');
   const canonical=new URL(v.local(v.path),'https://bond6.io').href;
   const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;

@@ -1,4 +1,4 @@
-# The Bond6 Edit
+# The Bond6 Flow
 
 A bilingual daily reading site about culture, creative work and life with AI. Cloudflare Worker + D1, server-rendered HTML, progressively enhanced with browser-local saves. The original display site and the earlier clean design remain in Git history; `1acf1bb` preserves the pre-daily-edition work.
 
