@@ -196,11 +196,19 @@ export function validateBond(draft, stories) {
   const words = draft.en.note.split(/\s+/).length;
   return words>=80 && words<=120;
 }
+/** Only completed daily notes with recorded, strong Rhythm evidence may seed The Bond. */
+export function validatedBondStories(stories) {
+  return stories.filter(story => story?.en?.note && story?.zh?.note
+    && Number(story.rhythm?.confidence) >= RHYTHM_MIN_CONFIDENCE
+    && Array.isArray(story.rhythm?.labels) && story.rhythm.labels.length
+    && Array.isArray(story.rhythm?.evidence) && story.rhythm.evidence.length);
+}
 async function bondStep(env,job,now) {
   const state=JSON.parse(job.payload), db=env.DB;
   const edition=await db.prepare(`SELECT snapshot FROM editions WHERE kind='daily' AND edition_date=?`).bind(state.date).first();
   if (!edition) return saveJob(db,job,state,now,{done:true,error:'No daily edition to connect'});
-  const stories=JSON.parse(edition.snapshot).stories;
+  const stories=validatedBondStories(JSON.parse(edition.snapshot).stories);
+  if (new Set(stories.map(story=>story.lane)).size!==2) return saveJob(db,job,state,now,{done:true,error:'No high-confidence validated pair for The Bond'});
   if (!state.draft) {
     const {results:recent}=await db.prepare(`SELECT snapshot FROM editions WHERE kind='bond' ORDER BY edition_date DESC LIMIT 7`).all();
     const draft=await runJson(env,'bond',`Find one substantive connection between a Human Voices item and an AI & Its Impact item. Use ONLY these validated notes. Return {urls:[two exact source URLs],en:{title,note,question},zh:{title,note,question}}. The English connecting note must be 80-120 words; Chinese 140-350 characters, with equivalent meaning. Frame the connection as Bond6's interpretation, not as an author's view. Ask ONE specific question. Avoid connections or questions from the recent editions. If the relation is superficial, return {reject:true}.`,{stories,recent:recent.map(r=>JSON.parse(r.snapshot).en?.title)},now,1400);

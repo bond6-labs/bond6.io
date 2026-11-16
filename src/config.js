@@ -31,6 +31,10 @@ export const RHYTHM_FRESH_WINDOW_DAYS = 3;
 export const RHYTHM_FALLBACK_WINDOW_DAYS = 7;
 export const RHYTHM_DAILY_MAX_PER_LANE = 3;
 export const RHYTHM_AUDIT_RETENTION = 50;
+// The live feed remains chronological until a bilingual review has approved
+// the current signal quality. This is deliberately an environment gate, not a
+// deploy-time behaviour change.
+export const RHYTHM_REVIEW_SAMPLE_SIZE = 60;
 
 // Network and redirect configuration
 export const REDIRECT_TIMEOUT_MS = 3000; // 3 seconds per redirect

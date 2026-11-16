@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {database} from './db.js';
 import {story,source,now,note,review} from './fixtures.js';
 import {enqueue,claim} from '../src/jobs.js';
-import {publishEdition,publishingStep,rankCandidates,rhythmAudit,snapshotStory} from '../src/publishing.js';
+import {publishEdition,publishingStep,rankCandidates,rhythmAudit,snapshotStory,validatedBondStories} from '../src/publishing.js';
 import {storeItems} from '../src/ingest.js';
 import {runJson,BudgetError} from '../src/ai.js';
 import worker from '../src/worker.js';
@@ -35,6 +35,13 @@ test('Rhythm rejects weak or mismatched signals and prioritizes strong, fresh ev
   const weak=story(31,{lane:'human',author:'Weak',rhythm_lane:'human',rhythm_confidence:.4,rhythm_human_score:3,rhythm_ai_score:0,rhythm_labels:'[]',rhythm_evidence:'[]'});
   const mismatch=story(32,{lane:'ai',author:'Wrong lane',rhythm_lane:'human',rhythm_confidence:.9,rhythm_human_score:9,rhythm_ai_score:0,rhythm_labels:'[]',rhythm_evidence:'[]'});
   assert.deepEqual(rankCandidates([weak,mismatch,strong],[],now).map(s=>s.url),[strong.url]);
+});
+test('The Bond accepts only bilingual daily stories with high-confidence recorded evidence',()=>{
+  const valid={...snapshotStory(story(33,{rhythm_lane:'human',rhythm_version:1,rhythm_confidence:.83,rhythm_human_score:7,rhythm_ai_score:0,rhythm_labels:'["Creative practice"]',rhythm_evidence:'[{"label":"Creative practice","evidence":"Leah records."}]'}),note(story(33))),lane:'human'};
+  const weak=structuredClone(valid);weak.url='https://example.org/weak';weak.rhythm.confidence=.5;
+  const noEvidence=structuredClone(valid);noEvidence.url='https://example.org/no-evidence';noEvidence.rhythm.evidence=[];
+  const noChinese=structuredClone(valid);noChinese.url='https://example.org/no-chinese';delete noChinese.zh.note;
+  assert.deepEqual(validatedBondStories([valid,weak,noEvidence,noChinese]).map(item=>item.url),[valid.url]);
 });
 test('Rhythm audit stores aggregate diversity without story identities',()=>{
   const selected=[story(41,{lane:'human',source:'Studio',author:'Mina',original_lang:'en',subject:'music',rhythm_confidence:.8,rhythm_labels:JSON.stringify(['Creative practice'])}),story(42,{lane:'ai',source:'Lab',author:'Wei',original_lang:'zh',subject:'digital-life',rhythm_confidence:.9,rhythm_labels:JSON.stringify(['AI system','Human consequence'])})];

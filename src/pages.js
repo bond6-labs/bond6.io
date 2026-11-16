@@ -61,12 +61,27 @@ export async function home(env,v,{trending=false}={}) {
   const page=Math.max(1,Number(v.url.searchParams.get('page'))||1);
   if (!Number.isSafeInteger(page)||page>50) return html(v,v.t('Page unavailable'),`<p>${v.t('This page is outside the current feed.')}</p>`,{status:404});
   const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending;
+  const rhythmLive=env.RHYTHM_LIVE_RANKING==='true';
   const where=`s.lane IS NOT NULL AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || coalesce(s.title_en,'') || ' ' || coalesce(s.title_zh,'') || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
   const args=[...(subject?[subject]:[]),...(search?[search]:[])];
-  const columns=await db.batch([
-    db.prepare(`WITH diverse AS (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY s.lane,s.source ORDER BY discovered_at DESC,url DESC) AS publisher_rank FROM stories s WHERE ${where})
+  // Joining signals only behind the gate lets a deploy calculate and audit
+  // Rhythm without changing the chronological public feed.
+  const liveCandidates=rhythmLive?`WITH candidates AS (
+      SELECT s.*,r.rhythm_version,r.human_score AS rhythm_human_score,r.ai_score AS rhythm_ai_score,
+        r.lane_recommendation AS rhythm_lane,r.confidence AS rhythm_confidence,r.labels AS rhythm_labels,r.evidence AS rhythm_evidence,
+        CASE WHEN r.lane_recommendation=s.lane AND r.confidence>=0.6
+          THEN r.confidence*100 + CASE WHEN s.lane='ai' THEN r.ai_score ELSE r.human_score END ELSE 0 END AS rhythm_live_score
+      FROM stories s LEFT JOIN story_signals r ON r.story_url=s.url WHERE ${where}
+    ), diverse AS (
+      SELECT candidates.*,ROW_NUMBER() OVER(PARTITION BY lane,source ORDER BY rhythm_live_score DESC,discovered_at DESC,url DESC) AS publisher_rank FROM candidates
+    )
+    SELECT * FROM (SELECT diverse.*,ROW_NUMBER() OVER(PARTITION BY lane ORDER BY rhythm_live_score DESC,discovered_at DESC,url DESC) AS lane_rank FROM diverse WHERE publisher_rank<=2)
+    WHERE lane_rank<=10 ORDER BY rhythm_live_score DESC,discovered_at DESC,url DESC`
+    :`WITH diverse AS (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY s.lane,s.source ORDER BY discovered_at DESC,url DESC) AS publisher_rank FROM stories s WHERE ${where})
       SELECT * FROM (SELECT diverse.*,ROW_NUMBER() OVER(PARTITION BY lane ORDER BY discovered_at DESC,url DESC) AS lane_rank FROM diverse WHERE publisher_rank<=2)
-      WHERE lane_rank<=10 ORDER BY discovered_at DESC,url DESC`).bind(...args),
+      WHERE lane_rank<=10 ORDER BY discovered_at DESC,url DESC`;
+  const columns=await db.batch([
+    db.prepare(liveCandidates).bind(...args),
     db.prepare(`SELECT count(CASE WHEN lane='human' THEN 1 END) AS human,count(CASE WHEN lane='ai' THEN 1 END) AS ai FROM stories WHERE discovered_at>=?`).bind(now-7*DAY),
     db.prepare('SELECT max(ok_at) AS checked FROM source_state'),
     db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120').bind(now-7*DAY)
@@ -81,7 +96,7 @@ export async function home(env,v,{trending=false}={}) {
     stories=signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyTopics(story).includes(signal.key)).slice(0,20):result.results;
   }
   const {results:mentions}=stories.length?await db.prepare(`SELECT url,link,source FROM mentions WHERE url IN(${stories.map(()=>'?').join(',')}) ORDER BY published_at DESC`).bind(...stories.map(s=>s.url)).all():{results:[]};
-  const render=s=>card(s,v,{mentions:mentions.filter(m=>m.url===s.url)});
+  const render=s=>card(s,v,{rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url)});
   const picks=(edition?.stories??[]).filter(s=>!subject||s.subject===subject);
   const caption=edition?`<a class="edition-date" href="${v.local('/edit/'+edition.id)}">${date(Date.parse(edition.date+'T12:00:00Z'),v)} <span aria-hidden="true">↗</span></a>`:'';
   const dailyLive=env.GENERATED_PUBLISHING === 'true', showDaily=Boolean(edition) || dailyLive;

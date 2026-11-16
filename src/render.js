@@ -69,14 +69,15 @@ const rhythmLabel=(label,v)=>({
   'Reported specificity':v.say('Reported specificity','报道中的具体性')
 }[label]??label);
 function rhythmReason(story,v) {
-  const labels=Array.isArray(story.rhythm?.labels)?story.rhythm.labels:[];
+  let labels=Array.isArray(story.rhythm?.labels)?story.rhythm.labels:[];
+  if (!labels.length && story.rhythm_labels) try { labels=JSON.parse(story.rhythm_labels); } catch { labels=[]; }
   if (!labels.length) return '';
   const selected=labels.slice(0,3).map(label=>rhythmLabel(label,v));
   const lane=story.lane==='ai'?'ai':'human';
-  const title=lane==='human'?v.say('Human signal','人的信号'):v.say('AI signal','AI 信号');
-  return `<details class="rhythm-reason ${lane}"><summary><span class="rhythm-kicker">${title}</span><span>${esc(selected.join(' · '))}</span></summary><p>${v.say('Selected from the available source excerpt for these signals.','根据可获取的来源摘录，以这些信号入选。')} <a href="${v.local('/about')}#rhythm">${v.say('About Bond6 Rhythm','了解 Bond6 节奏')}</a></p></details>`;
+  const signal=lane==='human'?v.say('Human signal','人的信号'):v.say('AI signal','AI 信号');
+  return `<details class="rhythm-reason ${lane}"><summary><span class="rhythm-kicker">${v.say('Why this appeared','为何出现')}</span><span>${esc(signal+' · '+selected.join(' · '))}</span></summary><p>${v.say('Ranked from the available source excerpt for these signals.','根据可获取的来源摘录，按这些信号排序。')} <a href="${v.local('/about')}#rhythm">${v.say('About Bond6 Rhythm','了解 Bond6 节奏')}</a></p></details>`;
 }
-export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
+export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[]}={}) {
   const copy=v.zh?s.zh:s.en, title=copy?.title??(v.zh?s.title_zh:s.title_en)??s.title;
   const untranslated=v.zh?!s.title_zh&&!s.zh:s.original_lang==='zh'&&!s.title_en&&!s.en;
   const publication=s.original_published_at?`<time datetime="${new Date(s.original_published_at).toISOString()}">${date(s.original_published_at,v)}</time>`:`<span>${v.say('Publication date unavailable','发表日期未知')}</span>`;
@@ -90,6 +91,6 @@ export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
     ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
     ${untranslated?`<p class="source-context">${s.original_lang==='zh'?'中文原文':'EN original'}</p>`:''}
-    ${pick?`${rhythmReason(s,v)}<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
+    ${pick||rhythm?rhythmReason(s,v):''}${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
     ${actions(s,v,share)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
 }

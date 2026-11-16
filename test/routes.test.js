@@ -26,6 +26,13 @@ test('mobile lane and filters survive navigation and language switch',async()=>{
   const db=database();const r=await worker.fetch(new Request('https://bond6.io/?lane=ai&topic=music'),{DB:db});const text=await r.text();
   assert.match(text,/data-lane="ai"/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);
 });
+test('live Rhythm ordering and explanations are opt-in',async()=>{
+  const db=database();await storeItems(db,source,[story(90)],now);
+  const chronological=await worker.fetch(new Request('https://bond6.io/'),{DB:db});
+  assert.doesNotMatch(await chronological.text(),/Why this appeared/);
+  const ranked=await worker.fetch(new Request('https://bond6.io/'),{DB:db,RHYTHM_LIVE_RANKING:'true'});
+  const text=await ranked.text();assert.match(text,/Why this appeared/);assert.match(text,/Human signal/);
+});
 test('metadata and story markup escape untrusted source text',async()=>{
   const db=database();await storeItems(db,source,[story(0,{title:'<script>alert(1)</script>',author:'" onclick="bad'})],now);
   const r=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const text=await r.text();assert.ok(!text.includes('<script>alert(1)</script>'));assert.match(text,/&lt;script&gt;/);
