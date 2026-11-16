@@ -1,5 +1,5 @@
 export const sources = [
-  { id: 'bandcamp', name: 'Bandcamp Daily', kind: 'rss', url: 'https://daily.bandcamp.com/feed', site: 'https://daily.bandcamp.com/', topic: 'Music', essays: true },
+  { id: 'bandcamp', name: 'Bandcamp Daily', kind: 'rss', url: 'https://daily.bandcamp.com/feed/', site: 'https://daily.bandcamp.com/', topic: 'Music', essays: true },
   { id: 'sspai', name: '少数派', kind: 'rss', url: 'https://sspai.com/feed', site: 'https://sspai.com/', topic: 'Life online', essays: true },
   { id: 'gcores', name: '机核', kind: 'rss', url: 'https://www.gcores.com/rss', site: 'https://www.gcores.com/', topic: 'Creative Practice', essays: true },
   { id: 'chuapp', name: '触乐', kind: 'rss', url: 'https://www.chuapp.com/feed', site: 'https://www.chuapp.com/', topic: 'Creative Practice', essays: true },

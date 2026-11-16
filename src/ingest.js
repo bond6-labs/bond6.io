@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { sources } from './sources.js';
-import { DAY, canonical, plain, language, classify, contentHash } from './content.js';
+import { DAY, canonical, cleanAuthor, cleanPostText, plain, language, classify, contentHash } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS } from './config.js';
 import { validateStorySchema } from './validation.js';
@@ -34,10 +34,10 @@ export function fromRss(body, source) {
   return [items].flat().filter(Boolean).slice(0, FEED_ITEM_LIMIT).map(item => {
     const link = [item.link].flat().find(e => e && (!e['@_rel'] || e['@_rel'] === 'alternate'));
     const url = canonical(link?.['@_href'] ?? link?.['#text'] ?? link);
-    const title = plain(item.title, 240);
+    const title = cleanPostText(item.title, 240);
     const excerpt = plain(item['content:encoded'] ?? item.content ?? item.description ?? item.summary, 2200);
     const date = Date.parse(item.pubDate ?? item.published);
-    const author = plain(item['dc:creator'] ?? item.author?.name ?? item.author, 160) || null;
+    const author = cleanAuthor(item['dc:creator'] ?? item.author?.name ?? item.author);
     return { url, link: url, title, excerpt, author, original_lang: language(title + ' ' + excerpt), original_published_at: Number.isFinite(date) ? date : null,
       content_type: 'article', canonical_url: url, ...classify(title, excerpt, source) };
   });
@@ -49,13 +49,13 @@ export function fromBluesky(body, source) {
     const link = canonical('https://bsky.app/profile/' + post.author.did + '/post/' + post.uri.split('/').at(-1));
     const external = post.embed?.external;
     const article = canonical(external?.uri);
-    const text = plain(post.record?.text, 2200);
+    const text = cleanPostText(post.record?.text, 2200);
     const distinctive = text.replace(/https?:\/\/\S+/g, '').length >= 100;
-    const title = plain(article && !distinctive ? external.title : text, 240);
+    const title = cleanPostText(article && !distinctive ? external.title : text, 240);
     const excerpt = distinctive || !article ? text : plain(external.description, 2200);
     const posted = Date.parse(post.record?.createdAt);
     return { url: distinctive ? link : article ?? link, link, title, excerpt,
-      author: distinctive || !article ? plain(post.author.displayName || post.author.handle, 160) : null,
+      author: distinctive || !article ? cleanAuthor(post.author.displayName || post.author.handle) : null,
       original_lang: language(title + ' ' + excerpt), original_published_at: distinctive || !article ? (Number.isFinite(posted) ? posted : null) : null,
       shared_at: Number.isFinite(posted) ? posted : null, content_type: distinctive || !article ? 'post' : 'shared-article',
       canonical_url: article ?? link, ...classify(title, excerpt, source) };
@@ -82,7 +82,8 @@ export async function poll(source, state, now) {
   if (!response.ok) throw new Error('Upstream HTTP ' + response.status);
   const body = await readBody(response);
   const parsed = source.kind === 'rss' ? fromRss(body, source) : fromBluesky(body, source);
-  const items = parsed.filter(i => i.url && i.title && i.lane && !/^daily deal:/i.test(i.title)
+  const excluded = /\b(vip|raffle|giveaway|tickets?|sale|discount|new low price|daily deals?|this week in|weekly roundup|lit hub daily|podcast episode|excerpt)\b|抽\s*vip|新史低|\d+\s*折/i;
+  const items = parsed.filter(i => i.url && i.title && i.lane && i.excerpt.length >= 80 && !excluded.test(i.title)
     && (!i.original_published_at || i.original_published_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY)
     && (!i.original_published_at || i.original_published_at <= now + 300_000)
     && (!i.shared_at || i.shared_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY));
@@ -128,7 +129,7 @@ export async function storeItems(db, source, items, now) {
     const chunk = validItems.slice(start, start + 20);
     statements.push(db.prepare(`INSERT INTO mentions(url,source,link,published_at) VALUES ${chunk.map(() => '(?,?,?,?)').join(',')}
       ON CONFLICT(url,source) DO UPDATE SET link=excluded.link,published_at=excluded.published_at`)
-      .bind(...chunk.flatMap(i => [i.url, source.name + (source.kind === 'bluesky' ? ' · Bluesky' : ''), i.link, i.shared_at ?? i.original_published_at ?? now])));
+      .bind(...chunk.flatMap(i => [i.url, source.name, i.link, i.shared_at ?? i.original_published_at ?? now])));
   }
   if (statements.length) await db.batch(statements);
 }

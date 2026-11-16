@@ -4,6 +4,24 @@ import { validateLanguage, validateURL } from './validation.js';
 export const DAY = 86_400_000;
 export const subjects = ['music', 'art', 'writing', 'practice', 'digital'];
 export const subjectLabels = { music: 'Music', art: 'Art & Design', writing: 'Writing', practice: 'Creative Practice', digital: 'Digital Life' };
+const sourceSubjects = {
+  bandcamp: 'music', 'aquarium-drunkard': 'music', quietus: 'music',
+  'literary-hub': 'writing', kleon: 'writing', appleton: 'writing', dash: 'writing', 'doctorow-social': 'writing', 'nieman-social': 'writing',
+  colossal: 'art', hyperallergic: 'art', 'creative-boom': 'art',
+  gcores: 'practice', chuapp: 'practice', 'appleton-social': 'practice',
+  sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', 'markup-social': 'digital', '404': 'digital', '404-social': 'digital', techdirt: 'digital', 'eff-social': 'digital', 'ed-social': 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', 'dash-social': 'digital'
+};
+const sentenceEnd = text => {
+  const match = text.match(/^(.{1,230}?[.!?。！？])(?:\s|$)/);
+  return match?.[1] ?? (text.slice(0, 240).replace(/\s+\S*$/, '').trim() || text.slice(0, 240).trim());
+};
+export function cleanPostText(value, limit = 2200) {
+  const text = plain(value, limit + 300).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/gi, ' ').replace(/\s+/g, ' ').trim();
+  return limit < 500 ? sentenceEnd(text) : text.slice(0, limit).trim();
+}
+export function cleanAuthor(value) {
+  return plain(value, 160).replace(/\s*\(GPG[^)]*\)/i, '').replace(/\s+@[^\s]+$/, '').trim() || null;
+}
 // These are transparent editorial topic definitions, not a measure of global popularity.
 // A topic appears only when it is present in more than one tracked source.
 export const conversationTopics = [
@@ -41,15 +59,17 @@ export const language = validateLanguage;
 export function classify(title, excerpt, source = {}) {
   // Require a subject connection in the item, never infer AI from its publisher.
   const text = `${title} ${excerpt.slice(0, 1400)}`;
-  const ai = /\b(ai|artificial intelligence|llms?|chatgpt|openai|anthropic|nvidia|deepfakes?|generative|machine learning|algorithmic|automated|automation|data centers?)\b|人工智能|生成式|大模型|深度伪造|机器学习|算法推荐/i.test(text);
+  const ai = /\b(ai|artificial intelligence|llms?|chatgpt|openai|anthropic|deepfakes?|generative(?: ai)?|machine learning|large language model|data centers?)\b|人工智能|生成式|大模型|深度伪造|机器学习/i.test(text);
   const platform = /\b(social media|surveillance|digital rights|content moderation|platform(?:s)?|tiktok|instagram|youtube|bluesky)\b|社交媒体|数字平台|内容审核|网络隐私/i.test(text)
     && /\b(work|creat\w*|artist\w*|people|writ\w*|rights|privacy|community|culture|labor|music|pay|job\w*)\b|创作|作者|用户|劳动|隐私|音乐|文化|工作/i.test(text);
   let subject = /\b(music|song\w*|album\w*|musician\w*|band|jazz|guitar|concert)\b|音乐|歌曲|专辑|乐队|作曲/i.test(text) ? 'music'
     : /\b(art|artist\w*|paint\w*|sculpt\w*|photograph\w*|illustrat\w*|design\w*|exhibition|cinema|films?|filmmaking)\b|绘画|画家|摄影|设计|艺术|插画|展览|电影|剧集/i.test(text) ? 'art'
     : /\b(books?|poems?|poetry|literature|literary|novels?|writers?|writing|fiction|essays?)\b|文学|写作|小说|诗歌|书籍|读书/i.test(text) ? 'writing'
-    : /\b(crafts?|crafting|craftsmanship|creative practice|creative process|pottery|ceramics|woodworking|video games?|game design|gaming)\b|手工|创意|游戏|创作|制作/i.test(text) ? 'practice' : 'digital';
+    : /\b(crafts?|crafting|craftsmanship|creative practice|creative process|pottery|ceramics|woodworking|video games?|game design|gaming)\b|手工|创意|游戏|创作|制作/i.test(text) ? 'practice' : sourceSubjects[source.id] ?? 'digital';
   const cultural = subject !== 'digital' || source.essays && /\b(I|my|we|our|life|experience)\b|我|生活|体验/.test(text);
-  return { lane: ai || platform ? 'ai' : cultural ? 'human' : null, subject };
+  // Controlled sources may supply digital-life reporting; bare unrelated text still stays out.
+  const relevant = cultural || platform || ai || Boolean(source.id && sourceSubjects[source.id] === 'digital');
+  return { lane: relevant ? (ai || platform ? 'ai' : 'human') : null, subject };
 }
 export async function contentHash(story) {
   const value = JSON.stringify([story.url, story.title, story.author, story.excerpt, story.parent_context, story.original_published_at, story.original_lang, story.lane]);

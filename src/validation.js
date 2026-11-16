@@ -15,6 +15,7 @@ export function validateURL(value, maxLength = 2048) {
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.href.length > maxLength) return null;
     if (url.hostname === 'localhost' || !url.hostname.includes('.') || /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url.hostname) || url.hostname.includes(':')) return null;
     url.hash = '';
+    if (url.hostname.startsWith('www.')) url.hostname = url.hostname.slice(4);
     for (const key of [...url.searchParams.keys()]) if (/^utm_|^(fbclid|gclid|mc_cid|mc_eid)$/i.test(key)) url.searchParams.delete(key);
     return url.href;
   } catch {

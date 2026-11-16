@@ -13,17 +13,18 @@ async function rss(env,v) {
   let items=[];
   if (kind==='live') {
     const {results}=await env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(...(lane?[lane]:[])).all();
-    items=results.map(s=>({title:(v.zh?s.title_zh:s.title_en)??s.title,link:s.url,id:s.url,date:s.original_published_at,author:s.author,description:s.source}));
+    items=results.map(s=>({title:(v.zh?s.title_zh:s.title_en)??s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
   } else {
     const {results}=await env.DB.prepare('SELECT * FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 50').bind(kind).all();
     const editions=results.map(r=>({...JSON.parse(r.snapshot),published:r.published_at}));
     if (kind==='bond') editions.push(...legacyEditions);
     items=editions.slice(0,50).flatMap(e=>{
-      if(kind==='bond') return [{title:(v.zh?e.zh:e.en).title,link:'https://bond6.io'+v.local('/bond/'+e.id),id:'bond:'+e.id,date:e.published??Date.parse(e.date+'T12:00Z'),description:(v.zh?e.zh:e.en).note,author:'Bond6'}];
-      return e.stories.filter(s=>!lane||s.lane===lane).map(s=>({title:(v.zh?s.zh:s.en).title,link:'https://bond6.io'+v.local('/edit/'+e.id)+'#story-'+s.content_hash.slice(0,12),id:'daily:'+e.id+':'+s.url,date:e.published,author:s.author??s.source,description:(v.zh?s.zh:s.en).note+' · '+v.say('Original: ','原文：')+s.url}));
+      if(kind==='bond') return [{title:(v.zh?e.zh:e.en).title,link:'https://bond6.io'+v.local('/bond/'+e.id),id:'bond:'+e.id,date:e.published??Date.parse(e.date+'T12:00Z'),description:(v.zh?e.zh:e.en).note,author:'Bond6',category:'bond'}];
+      return e.stories.filter(s=>!lane||s.lane===lane).map(s=>({title:(v.zh?s.zh:s.en).title,link:'https://bond6.io'+v.local('/edit/'+e.id)+'#story-'+s.content_hash.slice(0,12),id:'daily:'+e.id+':'+s.url,date:e.published,author:s.author??s.source,description:(v.zh?s.zh:s.en).note+' · '+v.say('Original: ','原文：')+s.url,category:s.subject}));
     }).slice(0,50);
   }
-  return new Response(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${xml(v.t('The Bond6 Edit'))} · ${kind}${lane?' · '+lane:''}</title><link>https://bond6.io${v.local('/')}</link><description>${xml(v.t('New writing on culture, creative work, and life with AI.'))}</description><language>${v.lang}</language><atom:link href="${xml('https://bond6.io'+v.url.pathname+v.url.search)}" rel="self" type="application/rss+xml"/>${items.map(i=>`<item><title>${xml(i.title)}</title><link>${xml(i.link)}</link><guid isPermaLink="false">${xml(i.id)}</guid>${i.date?`<pubDate>${new Date(i.date).toUTCString()}</pubDate>`:''}${i.author?`<dc:creator>${xml(i.author)}</dc:creator>`:''}<description>${xml(i.description)}</description></item>`).join('')}</channel></rss>`,{headers:{'Content-Type':'application/rss+xml; charset=utf-8','Cache-Control':CACHE_CONTROL.public}});
+  const built=Math.max(Date.now(),...items.map(item=>Number(item.date)||0));
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${xml(v.t('The Bond6 Edit'))} · ${kind}${lane?' · '+lane:''}</title><link>https://bond6.io${v.local('/')}</link><description>${xml(v.t('New writing on culture, creative work, and life with AI.'))}</description><language>${v.lang}</language><lastBuildDate>${new Date(built).toUTCString()}</lastBuildDate><atom:link href="${xml('https://bond6.io'+v.url.pathname+v.url.search)}" rel="self" type="application/rss+xml"/>${items.map(i=>`<item><title>${xml(i.title)}</title><link>${xml(i.link)}</link><guid isPermaLink="false">${xml(i.id)}</guid>${i.date?`<pubDate>${new Date(i.date).toUTCString()}</pubDate>`:''}${i.author?`<dc:creator>${xml(i.author)}</dc:creator>`:''}${i.category?`<category>${xml(i.category)}</category>`:''}<description>${xml(i.description)}</description></item>`).join('')}</channel></rss>`,{headers:{'Content-Type':'application/rss+xml; charset=utf-8','Cache-Control':CACHE_CONTROL.public}});
 }
 async function sitemap(env) {
   const {results}=await env.DB.prepare('SELECT id,kind FROM editions ORDER BY edition_date DESC LIMIT 100').all();
@@ -55,7 +56,7 @@ async function route(request,env,v) {
   if(path==='/about')return about(v);
   if(path==='/about.html')return Response.redirect(new URL(v.local('/about'),v.url),301);
   if(path==='/sources')return sourcesPage(env,v);
-  if(path==='/subscribe')return subscribe(v);
+  if(path==='/subscribe')return subscribe(env,v);
   if(path==='/feed.xml')return rss(env,v);
   if(path==='/sitemap.xml')return sitemap(env);
   return html(v,v.t('Page unavailable'),`<p class="notice"><a href="${v.local('/')}">${v.t('Go to homepage')}</a></p>`,{status:404});
@@ -69,13 +70,8 @@ export default {
     });
     if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
     if(url.search.length>MAX_QUERY_LENGTH)return new Response('Query too long',{status:400});
-    const cache=globalThis.caches?.default;
-    const key=new Request(url.href,{method:'GET'});
-    let response=cache?await cache.match(key):null;
-    if(!response) {
-      try {response=await route(request,env,v);}catch(error){console.error('Page query failed',{message:error.message,stack:error.stack,path:v.path,timestamp:Date.now()});response=html(v,v.t('Feed unavailable'),`<p class="notice">${v.t('The feed is temporarily unavailable. Please try again shortly.')}</p>`,{status:503});}
-      if(response.status===200&&cache&&ctx)ctx.waitUntil(cache.put(key,response.clone()));
-    }
+    let response;
+    try {response=await route(request,env,v);}catch(error){console.error('Page query failed',{message:error.message,stack:error.stack,path:v.path,timestamp:Date.now()});response=html(v,v.t('Feed unavailable'),`<p class="notice">${v.t('The feed is temporarily unavailable. Please try again shortly.')}</p>`,{status:503});}
     return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;
   },
   scheduled(controller,env,ctx) {

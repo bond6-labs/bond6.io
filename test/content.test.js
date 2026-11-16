@@ -20,8 +20,10 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('Artificial intelligence changes painting','Artists discuss AI',{essays:true}).lane,'ai');
   assert.equal(classify('Office announcements','Company meeting tomorrow',{}).lane,null);
   assert.equal(classify('A deal to make more money','This makes no sense to me',{}).lane,null);
-  assert.equal(classify('NVIDIA financing','The consortium is raising money',{}).lane,'ai');
+  assert.equal(classify('NVIDIA financing','The consortium is raising money',{}).lane,null);
   assert.equal(classify('大模型怎样影响小说写作','作者们讨论人工智能对创作的影响').lane,'ai');
+  assert.deepEqual(classify('Meet the National Book Award finalists','A short announcement.',{id:'literary-hub'}),{lane:'human',subject:'writing'});
+  assert.deepEqual(classify('Tara Cunningham – Warm Ground','A record review.',{id:'quietus'}),{lane:'human',subject:'music'});
 });
 test('social share date is never an article date; distinctive commentary keeps its own author and permalink',()=>{
   const post={author:{handle:'writer.test',did:'did:plc:abc',displayName:'A Writer'},uri:'at://did:plc:abc/app.bsky.feed.post/xyz',record:{text:'Worth a read',createdAt:'2026-11-13T10:00Z'},embed:{external:{uri:'https://example.org/2020/article',title:'AI and the artist',description:'An account of creative work'}}};

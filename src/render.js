@@ -28,7 +28,7 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   description??=v.t('New writing on culture, creative work, and life with AI.');
   const canonical=new URL(v.local(v.path),'https://bond6.io').href;
   const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;
-  const nav=[['/','Latest'],['/bond','The Bond'],['/edit',v.say('Editions','每日精选')],['/saved',v.say('Saved','已收藏')]];
+  const nav=[['/','Latest'],['/trending','Trending'],['/bond','The Bond'],['/edit',v.say('Editions','每日精选')],['/saved',v.say('Saved','已收藏')]];
   const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,page:null,view:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
   const body=`<!doctype html><html lang="${v.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${esc(heading)}${title?' · Bond6.io':''}</title><meta name="description" content="${esc(description)}"><meta name="theme-color" content="#f6f3ec">
@@ -55,14 +55,15 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
 }
 export function actions(story,v,shareUrl) {
   const data={url:story.url,en:story.en??{title:story.title_en??story.title},zh:story.zh??{title:story.title_zh??story.title},source:story.source,author:story.author,date:story.original_published_at,original_lang:story.original_lang};
-  return `<div class="story-actions"><a class="original-link" data-event="original" href="${esc(story.url)}" rel="noopener">${v.say('Read original','阅读原文')} <span aria-hidden="true">↗</span></a><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc((v.zh?data.zh:data.en).title)}" hidden>${v.say('Share','分享')}</button></div>`;
+  return `<div class="story-actions"><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc((v.zh?data.zh:data.en).title)}" hidden>${v.say('Share','分享')}</button></div>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
 export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
   const copy=v.zh?s.zh:s.en, title=copy?.title??(v.zh?s.title_zh:s.title_en)??s.title;
   const untranslated=v.zh?!s.title_zh&&!s.zh:s.original_lang==='zh'&&!s.title_en&&!s.en;
   const publication=s.original_published_at?`<time datetime="${new Date(s.original_published_at).toISOString()}">${date(s.original_published_at,v)}</time>`:`<span>${v.say('Publication date unavailable','发表日期未知')}</span>`;
-  const discussion=mentions.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
+  const evidence=[...new Map(mentions.map(m=>[m.source,m])).values()];
+  const discussion=evidence.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
   const share=editionId?`https://bond6.io${v.local('/edit/'+editionId)}#story-${s.content_hash.slice(0,12)}`:s.url;
   return `<article class="story${pick?' daily-pick':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}">
     <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
@@ -70,7 +71,7 @@ export function card(s,v,{pick=false,editionId,mentions=[]}={}) {
     ${pick?`<p class="pick-note">${esc(copy?.note)}</p>`:''}
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
     ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
-    ${untranslated?`<p class="source-context">${v.say('Original headline · translation pending','原标题 · 译文尚未生成')}</p>`:''}
+    ${untranslated?`<p class="source-context">${s.original_lang==='zh'?'中文原文':'EN original'}</p>`:''}
     ${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
-    ${actions(s,v,share)}${discussion?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
+    ${actions(s,v,share)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
 }

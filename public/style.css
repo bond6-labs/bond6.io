@@ -185,6 +185,9 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .sources li { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0 20px; padding: 4px 0; border-bottom: 1px solid var(--rule); }
 .sources a { display: inline-flex; align-items: center; min-height: 44px; }
 .sources span { font-size: 13px; color: var(--muted); }
+.sources small { display: block; color: var(--muted); font-size: 12px; margin-top: -5px; }
+.source-group { margin-top: 30px; }
+.source-group h2 { margin: 0 0 8px; font: 700 22px/1.3 var(--headline-font); }
 .source-invitation { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 20px 0 28px; padding: 22px 24px; border-left: 3px solid var(--gold); background: var(--panel); }
 .source-invitation h2 { margin: 0 0 6px; font-size: 24px; }
 .source-invitation p { max-width: 680px; margin: 0; color: var(--muted); }
