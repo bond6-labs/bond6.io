@@ -55,3 +55,13 @@ test('failed model, exhausted quota and publishing disabled leave prepared readi
   env.GENERATED_PUBLISHING='true';await publishingStep(env,now);await publishingStep(env,now+60_000);
   const response=await worker.fetch(new Request('https://bond6.io/'),env);assert.equal(response.status,200);assert.match(await response.text(),/Leah recorded/);
 });
+
+test('cached notes are checked against current validation rules before publication',async()=>{
+  const db=database(),s=story();await storeItems(db,source,[s],now-1000);
+  const stale=note(s);stale.claims[0].en='Unsupported 9999 claim.';
+  db.sql.prepare('INSERT INTO generated_notes VALUES(?,?,?,?,?)').run(s.content_hash,s.url,JSON.stringify(stale),now,'{}');
+  let calls=0;const env={DB:db,GENERATED_PUBLISHING:'true',AI:{run:async()=>{calls++;return {response:JSON.stringify(note(s)),usage:{prompt_tokens:100,completion_tokens:100}};}}};
+  await publishingStep(env,now);await publishingStep(env,now+60_000);
+  assert.equal(calls,1);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM generated_notes').get().n,0);
+  assert.equal(db.sql.prepare('SELECT count(*) AS n FROM editions').get().n,0);
+});

@@ -20,7 +20,7 @@ $env:WRANGLER_LOG_PATH = Join-Path (Get-Location) '.wrangler\logs'
 $env:CLOUDFLARE_DEV_REGISTRY_PATH = Join-Path (Get-Location) '.wrangler\registry'
 ```
 
-`node scripts/preview-data.mjs` collects real public feeds into the **local** database. `node scripts/audit-ai.mjs 30` uses the authenticated, remote Workers AI binding, with a local usage ledger and a resumable ignored `.local/ai-audit.json` report. It spends real account AI allowance; do not run independent audit ledgers alongside production inference. `node scripts/preview-edition.mjs` previews successfully checked notes locally. These scripts never publish their preview editions to production.
+`node scripts/preview-data.mjs` collects real public feeds into the **local** database. `node scripts/audit-ai.mjs 30` uses the authenticated, remote Workers AI binding, with a local usage ledger and a resumable ignored `.local/ai-audit-passages.json` report. It spends real account AI allowance; do not run independent audit ledgers alongside production inference. `node scripts/preview-edition.mjs` previews successfully checked notes locally. These scripts never publish their preview editions to production.
 
 ## Routes
 

@@ -1,5 +1,7 @@
 import { chinese } from './chinese.js';
 import { subjectLabels } from './content.js';
+import { CACHE_CONTROL } from './config.js';
+import { getCSPHeader } from './security.js';
 export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 export function locale(url) {
   const zh=url.pathname==='/zh'||url.pathname.startsWith('/zh/');
@@ -27,7 +29,7 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   const canonical=new URL(v.local(v.path),'https://bond6.io').href;
   const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;
   const nav=[['/','Latest'],['/bond','The Bond'],['/edit',v.say('Editions','每日精选')],['/saved',v.say('Saved','已收藏')]];
-  const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,topic:null,page:null,view:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
+  const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,page:null,view:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
   const body=`<!doctype html><html lang="${v.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${esc(heading)}${title?' · Bond6.io':''}</title><meta name="description" content="${esc(description)}"><meta name="theme-color" content="#f6f3ec">
   <link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="en" href="${en}"><link rel="alternate" hreflang="zh-Hans" href="${zh}"><link rel="alternate" hreflang="x-default" href="${en}">
@@ -40,16 +42,16 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   <link rel="stylesheet" href="/style.css?v=daily-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span>6</span><small>.io</small></a>
-  <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
+  <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">
   <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中文'}</a>
   <button type="button" class="theme-toggle" role="switch" aria-checked="false" hidden><span>${v.t('Dark mode')}</span><span class="theme-track" aria-hidden="true"></span></button></div></div></header>
-  <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(description)}</p>`:''}</div></div>${content}</main>
+  <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(description)}</p>`:''}</div>${searchForm(v)}</div>${content}</main>
   <div class="reader-message shell" role="status" aria-live="polite"></div>
   <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
   <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Trending')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
-  return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?'public, max-age=60':'no-store',
+  return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,
     'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin',
-    'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
+    'Content-Security-Policy':getCSPHeader()}});
 }
 export function actions(story,v,shareUrl) {
   const data={url:story.url,en:story.en??{title:story.title_en??story.title},zh:story.zh??{title:story.title_zh??story.title},source:story.source,author:story.author,date:story.original_published_at,original_lang:story.original_lang};

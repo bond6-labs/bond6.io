@@ -1,4 +1,5 @@
 import { dayKey, language, classify } from './content.js';
+import { AI_DAILY_BUDGET } from './config.js';
 export const MODEL = '@cf/qwen/qwen3.8-27b';
 const INPUT_RATE = 40909 / 1_000_000, OUTPUT_RATE = 290909 / 1_000_000;
 export class BudgetError extends Error {}
@@ -13,7 +14,7 @@ export async function runJson(env, purpose, instructions, data, now, maxTokens =
     { role: 'user', content: JSON.stringify(data) }
   ];
   const reserved = estimateNeurons(messages, maxTokens);
-  const limit = Math.min(8000, Math.max(0, Number(env.AI_DAILY_NEURONS ?? 8000)));
+  const limit = Math.min(AI_DAILY_BUDGET, Math.max(0, Number(env.AI_DAILY_NEURONS ?? AI_DAILY_BUDGET)));
   const day = dayKey(now), id = crypto.randomUUID();
   await env.DB.prepare('INSERT INTO ai_usage(day) VALUES(?) ON CONFLICT(day) DO NOTHING').bind(day).run();
   const granted = await env.DB.prepare(`UPDATE ai_usage SET neurons=neurons+?,calls=calls+1 WHERE day=? AND neurons+?<=? RETURNING day`)

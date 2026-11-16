@@ -3,6 +3,7 @@ import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {runJson,notePrompt,reviewPrompt,sourceData,validateNote,normalizeNote,approved,BudgetError} from '../src/ai.js';
 import {usableText,dayKey} from '../src/content.js';
 const limit=Number(process.argv[2]??30);
+const reportPath='.local/ai-audit-passages.json';
 await mkdir('.local',{recursive:true});
 const config=JSON.parse(await readFile('wrangler.jsonc','utf8'));
 config.main='../src/worker.js';config.assets.directory='../public';config.ai.remote=true;
@@ -18,7 +19,7 @@ try {
     const [s]=list.splice(index,1);if(queue.some(q=>q.url===s.url))continue;
     queue.push(s);counts[s.source]=(counts[s.source]??0)+1;
   }
-  let report=[];try{report=JSON.parse(await readFile('.local/ai-audit.json','utf8'));}catch{}
+  let report=[];try{report=JSON.parse(await readFile(reportPath,'utf8'));}catch{}
   for(const story of queue){
     if(report.some(r=>r.story.content_hash===story.content_hash)||report.length>=limit)continue;
     const row={story,checkedAt:new Date().toISOString()};
@@ -27,7 +28,7 @@ try {
       row.deterministic=validateNote(row.output,story);
       if(row.deterministic){row.review=await runJson(proxy.env,'launch-audit-review',reviewPrompt,{source:sourceData(story),proposed:row.output},Date.now(),280);row.passed=approved(row.review);}else row.passed=false;
     }catch(error){if(error instanceof BudgetError){console.log('Budget reached; review can resume tomorrow.');break;}row.error=error.message;row.passed=false;}
-    report.push(row);await writeFile('.local/ai-audit.json',JSON.stringify(report,null,2));
+    report.push(row);await writeFile(reportPath,JSON.stringify(report,null,2));
     console.log(JSON.stringify({number:report.length,source:story.source,language:story.original_lang,passed:row.passed,error:row.error,reason:row.review?.reason}));
   }
   const usage=await proxy.env.DB.prepare('SELECT * FROM ai_usage WHERE day=?').bind(dayKey(Date.now())).first();

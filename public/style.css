@@ -327,7 +327,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .masthead-inner { flex-wrap: wrap; gap: 0 20px; }
 .tabs { gap: 16px; }
 .reader-controls { gap: 10px; }
-.reader-controls .search-control { position: relative; }
+.intro .search-control { position: relative; align-self: center; }
 .search-control summary { border: 0; padding: 10px 4px; }
 .search-control[open] .story-search { position: absolute; right: 0; z-index: 3; width: min(320px,85vw); padding: 14px; border: 1px solid var(--rule); background: var(--ground); box-shadow: 0 5px 24px #0002; }
 .intro { padding: 24px 0 16px; }
@@ -375,7 +375,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .note-method p { margin: 0 0 6px; font-size: 12px; }
 .note-method a,.text-link,.note-disclosure a { text-decoration: underline; text-underline-offset: 3px; }
 .edition-end,.daily-empty { color: var(--muted); font-size: 12px; margin: 10px 0 22px; }
-.daily-empty { padding: 12px 0; max-width: 45ch; }
+.daily-empty { padding: 0; max-width: 45ch; margin: 0 0 12px; }
 .arrivals-label { border-top: 2px solid var(--column-accent,var(--rule)); margin-top: 10px; padding-top: 16px; }
 .new-mark { color: var(--gold); font-weight: 700; font-size: 11px; }
 .new-count { color: var(--muted); font-size: 11px; }

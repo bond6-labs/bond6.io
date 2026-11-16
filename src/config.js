@@ -1,0 +1,38 @@
+/**
+ * Centralized configuration constants for bond6.io
+ * All magic numbers and configuration values should be defined here
+ */
+
+// Storage and content limits
+export const MAX_STORIES = 1000;
+export const FEED_SIZE_LIMIT = 1_000_000; // 1MB max feed size
+export const FEED_ITEM_LIMIT = 40; // Max items to process per feed
+export const MAX_EVENT_BODY_BYTES = 128; // Max size for analytics events
+export const MAX_QUERY_LENGTH = 1500; // Max query string length
+export const HTTP_REQUEST_TIMEOUT_MS = 8_000;
+
+// Cache configuration
+export const CACHE_TTL_SECONDS = 60;
+export const CACHE_CONTROL = {
+  public: `public, max-age=${CACHE_TTL_SECONDS}`,
+  private: 'private, no-cache',
+  none: 'no-store'
+};
+
+// AI configuration
+export const AI_DAILY_BUDGET = 8000; // Max neurons per day
+export const AI_RETENTION_DAYS = 7; // Days to retain AI-lane content
+export const CULTURE_RETENTION_DAYS = 30; // Days to retain culture content
+
+// Network and redirect configuration
+export const REDIRECT_TIMEOUT_MS = 3000; // 3 seconds per redirect
+export const REDIRECT_MAX_HOPS = 3; // Max redirect chain length
+
+// Security configuration
+export const CSRF_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Data retention configuration
+export const SOFT_DELETE_RETENTION_DAYS = 90; // Days before hard delete of soft-deleted records
+export const JOB_RETENTION_DAYS = 8; // Days to keep job records
+export const AI_USAGE_RETENTION_DAYS = 35; // Days to keep AI usage stats
+export const METRICS_RETENTION_DAYS = 60; // Days to keep metrics

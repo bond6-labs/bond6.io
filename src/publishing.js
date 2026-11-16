@@ -79,7 +79,11 @@ async function dailyStep(env, job, now) {
       if (!data?.posts?.length || data.posts[0].record?.text?.replace(/\s+/g,' ').trim() !== story.excerpt) return advance('Post deleted, changed or unavailable');
     }
     const cached = await db.prepare('SELECT output FROM generated_notes WHERE content_hash=?').bind(story.content_hash).first();
-    if (cached) { state.stories.push(snapshotStory(story,JSON.parse(cached.output))); return advance(null); }
+    if (cached) {
+      const output=JSON.parse(cached.output);
+      if (validateNote(output,story)) { state.stories.push(snapshotStory(story,output)); return advance(null); }
+      await db.prepare('DELETE FROM generated_notes WHERE content_hash=?').bind(story.content_hash).run();
+    }
     const output = normalizeNote(await runJson(env,'daily-note',notePrompt,sourceData(story),now,800),story);
     if (!validateNote(output,story)) return advance('Deterministic note validation failed');
     state.draft=output; state.phase='review'; await saveJob(db,job,state,now); return;

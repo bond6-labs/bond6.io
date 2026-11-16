@@ -1,26 +1,17 @@
 import { decodeHeadline } from './headline.js';
+import { validateLanguage, validateURL } from './validation.js';
 
 export const DAY = 86_400_000;
 export const subjects = ['music', 'art', 'writing', 'practice', 'digital'];
 export const subjectLabels = { music: 'Music', art: 'Art & Design', writing: 'Writing', practice: 'Creative Practice', digital: 'Digital Life' };
-export const plain = (value, limit = 5000) => decodeHeadline(String(value?.['#text'] ?? value ?? '')
-  .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' '))
-  .replace(/\s+/g, ' ').trim().slice(0, limit);
-export function canonical(value) {
-  try {
-    const u = new URL(value);
-    if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password || u.href.length > 2048) return null;
-    if (u.hostname === 'localhost' || !u.hostname.includes('.') || /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(u.hostname) || u.hostname.includes(':')) return null;
-    u.hash = '';
-    for (const key of [...u.searchParams.keys()]) if (/^utm_|^(fbclid|gclid|mc_cid|mc_eid)$/i.test(key)) u.searchParams.delete(key);
-    return u.href;
-  } catch { return null; }
-}
-export function language(text) {
-  const han = (text.match(/\p{Script=Han}/gu) || []).length;
-  const latin = (text.match(/[a-z]/gi) || []).length;
-  return han >= 4 && han / Math.max(1, han + latin) > .15 ? 'zh' : 'en';
-}
+/** Normalize untrusted feed text into plain text before it reaches storage. */
+export const plain = (value, limit = 5000) => {
+  const decoded = decodeHeadline(String(value?.['#text'] ?? value ?? ''));
+  return decoded.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ').trim().slice(0, limit);
+};
+export const canonical = validateURL;
+export const language = validateLanguage;
 export function classify(title, excerpt, source = {}) {
   // Require a subject connection in the item, never infer AI from its publisher.
   const text = `${title} ${excerpt.slice(0, 1400)}`;
