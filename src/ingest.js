@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { sources } from './sources.js';
-import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, plain, language, classify, contentHash } from './content.js';
+import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, cleanSocialHeadline, hasLeadingPreviewLabel, plain, language, classify, contentHash } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
@@ -104,7 +104,7 @@ export function fromRss(body, source) {
   return [items].flat().filter(Boolean).slice(0, FEED_ITEM_LIMIT).map(item => {
     const link = [item.link].flat().find(e => e && (!e['@_rel'] || e['@_rel'] === 'alternate'));
     const url = canonical(link?.['@_href'] ?? link?.['#text'] ?? link);
-    const title = cleanHeadline(item.title);
+    const title = cleanHeadline(item.title, 500, source.title_prefixes);
     const rawDescription = item['content:encoded'] ?? item.content ?? item.description ?? item.summary;
     const excerpt = plain(rawDescription, 2200);
     const date = Date.parse(item.pubDate ?? item.published);
@@ -118,11 +118,14 @@ export function fromBluesky(body, source) {
   if (!Array.isArray(feed)) throw new Error('Unrecognized Bluesky feed');
   return feed.filter(({ post, reason, reply }) => !reason && !reply && post?.author?.handle === source.handle).map(({ post }) => {
     const link = canonical('https://bsky.app/profile/' + post.author.did + '/post/' + post.uri.split('/').at(-1));
-    const external = post.embed?.external;
+    // Quote-posts put their link card below `media`; treating that card as a
+    // first-class source avoids turning its shortened domain label into a title.
+    const external = post.embed?.external ?? post.embed?.media?.external;
     const article = canonical(external?.uri);
-    const text = cleanPostText(post.record?.text, 2200);
-    const distinctive = text.replace(/https?:\/\/\S+/g, '').length >= 100;
-    const title = article && !distinctive ? cleanHeadline(external.title) : cleanPostText(text, 220);
+    const rawText = post.record?.text;
+    const text = cleanPostText(rawText, 2200);
+    const distinctive = text.replace(/https?:\/\/\S+/g, '').length >= 100 && !hasLeadingPreviewLabel(rawText);
+    const title = article && !distinctive ? cleanHeadline(external.title, 500, source.title_prefixes) : cleanSocialHeadline(rawText, 180);
     const excerpt = distinctive || !article ? text : plain(external.description, 2200);
     const posted = Date.parse(post.record?.createdAt);
     const image_url = safeMediaUrl(external?.thumb ?? external?.thumbnail);
@@ -163,7 +166,12 @@ export async function poll(source, state, now) {
   // A later, stricter classification must retire an already stored card rather
   // than leave its former lane visible until retention pruning.
   const accepted = new Set(items.map(item => item.url));
-  const rejectedUrls = [...new Set(parsed.filter(item => item.url && !accepted.has(item.url)).map(item => item.url))];
+  // A social post can later resolve to the original article URL. Retire the
+  // former post card as soon as the same feed item is re-read, whether the
+  // corrected article is accepted or rejected by the current lane rules.
+  const retiredUrls = new Set(parsed.filter(item => item.url && !accepted.has(item.url)).flatMap(item => [item.url, item.link].filter(Boolean)));
+  for (const item of parsed) if (item.link && item.link !== item.url) retiredUrls.add(item.link);
+  const rejectedUrls = [...retiredUrls];
   let resolved = 0;
   for (const item of items) {
     if (shortHosts.has(new URL(item.canonical_url).hostname) && resolved++ < 3) {

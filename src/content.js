@@ -20,9 +20,31 @@ export function cleanPostText(value, limit = 2200) {
   const text = plain(value, limit + 300).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/gi, ' ').replace(/\s+/g, ' ').trim();
   return limit < 500 ? sentenceEnd(text, limit) : text.slice(0, limit).trim();
 }
+const leadingPreviewLabel = /^(?:https?:\/\/)?(?:[\p{L}\p{N}-]+\.)+[\p{L}]{2,}(?:\/[^\s]*?)?(?:…|\.\.\.)\s+/iu;
+export const hasLeadingPreviewLabel = value => leadingPreviewLabel.test(plain(value, 500));
+function compactHeadline(text, limit) {
+  if (text.length <= limit) return text;
+  const head = text.slice(0, limit + 1);
+  const endings = [...head.matchAll(/[.!?。！？]+(?=(?:\s|["”’')\]]|$))/g)];
+  const ending = endings.at(-1);
+  if (ending && ending.index >= Math.min(72, Math.floor(limit * .45))) return head.slice(0, ending.index + ending[0].length).trim();
+  const word = head.lastIndexOf(' ');
+  return (word >= Math.floor(limit * .55) ? head.slice(0, word) : head.slice(0, limit)).trim() + '…';
+}
+/** A social post can be shortened visibly, unlike a publisher's canonical title. */
+export function cleanSocialHeadline(value, limit = 180) {
+  const text = cleanPostText(value, 2200).replace(leadingPreviewLabel, '').trim();
+  return text ? compactHeadline(text, limit) : null;
+}
 /** Preserve a publisher-supplied headline whole; never manufacture a chopped one. */
-export function cleanHeadline(value, limit = 500) {
-  const text = plain(value, limit + 1);
+export function cleanHeadline(value, limit = 500, prefixes = []) {
+  let text = plain(value, limit + 1);
+  for (const prefix of prefixes) {
+    if (text.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase()) && /^[\s:：—–-]/.test(text.slice(prefix.length))) {
+      text = text.slice(prefix.length).replace(/^[\s:：—–-]+/, '').trim();
+      break;
+    }
+  }
   return text && text.length <= limit ? text : null;
 }
 export function cleanAuthor(value) {

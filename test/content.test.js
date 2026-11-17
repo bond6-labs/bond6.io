@@ -57,7 +57,14 @@ test('headlines retain their final word and long social posts are not chopped in
   assert.equal(rss.title,'Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App');
   const post={author:{handle:'writer.test',did:'did:plc:abc',displayName:'A Writer'},uri:'at://did:plc:abc/app.bsky.feed.post/xyz',record:{text:'This is a deliberately long social post without a concluding sentence '.repeat(6),createdAt:'2026-11-13T10:00Z'}};
   const [social]=fromBluesky(JSON.stringify({feed:[{post}]}),{handle:'writer.test'});
-  assert.equal(social.title,null);
+  assert.match(social.title,/…$/);assert.ok(social.title.length<=181);
+});
+test('source prefixes and quoted Bluesky link previews use clean publisher headlines',()=>{
+  const [rss]=fromRss('<rss><channel><item><title>Lawfare Daily: Aya Ibrahim on Progressive Priorities for the New Democratic Congress</title><link>https://example.org/lawfare</link><description>A detailed discussion of artificial intelligence policy and public life with enough source text for selection.</description></item></channel></rss>',{...source,title_prefixes:['Lawfare Daily']});
+  assert.equal(rss.title,'Aya Ibrahim on Progressive Priorities for the New Democratic Congress');
+  const post={author:{handle:'anildash.com',did:'did:plc:dash',displayName:'Anil Dash'},uri:'at://did:plc:dash/app.bsky.feed.post/example',record:{text:'sf.gazetteer.co/theyve-pickl... From January: "These guys like Thiel have been fixated for 30 years on trying to normalize slurs."',createdAt:'2026-11-16T17:53:57.950Z'},embed:{media:{external:{uri:'https://sf.gazetteer.co/theyve-pickled-each-others-brains',title:'‘They’ve pickled each others’ brains’',description:'A long interview about technology and culture.',thumb:'https://cdn.bsky.app/img/feed_thumbnail/plain/did:example/thumb'}}}};
+  const [shared]=fromBluesky(JSON.stringify({feed:[{post}]}),{handle:'anildash.com'});
+  assert.equal(shared.title,'‘They’ve pickled each others’ brains’');assert.equal(shared.url,'https://sf.gazetteer.co/theyve-pickled-each-others-brains');assert.match(shared.image_url,/cdn\.bsky\.app/);
 });
 test('a stricter re-fetch retires a formerly accepted card from its live lane',async()=>{
   const db=database(),old=story(81,{source_id:'techdirt',source:'Techdirt',lane:'ai',subject:'digital'});

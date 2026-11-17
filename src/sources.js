@@ -20,7 +20,7 @@ export const sources = [
   { id: 'creative-commons', name: 'Creative Commons', kind: 'rss', url: 'https://creativecommons.org/feed/', site: 'https://creativecommons.org/', topic: 'Writing & publishing' },
   { id: 'platformer', name: 'Platformer', kind: 'rss', url: 'https://www.platformer.news/rss/', site: 'https://www.platformer.news/', topic: 'Life online', poll_minutes: 10 },
   { id: 'mit-tech-review', name: 'MIT Technology Review', kind: 'rss', url: 'https://www.technologyreview.com/feed/', site: 'https://www.technologyreview.com/', topic: 'Life online' },
-  { id: 'ai-now', name: 'AI Now Institute', kind: 'rss', url: 'https://ainowinstitute.org/feed/', site: 'https://ainowinstitute.org/', topic: 'AI & society', poll_minutes: 90 },
+  { id: 'ai-now', name: 'AI Now Institute', kind: 'rss', url: 'https://ainowinstitute.org/feed/', site: 'https://ainowinstitute.org/', topic: 'AI & society', poll_minutes: 90, title_prefixes: ['Lawfare Daily'] },
   { id: 'markup-social', name: 'The Markup', kind: 'bluesky', handle: 'themarkup.org', site: 'https://bsky.app/profile/themarkup.org', topic: 'Life online' },
   { id: '404', name: '404 Media', kind: 'rss', url: 'https://www.404media.co/rss/', site: 'https://www.404media.co/', topic: 'Life online', poll_minutes: 10 },
   { id: 'techdirt', name: 'Techdirt', kind: 'rss', url: 'https://www.techdirt.com/feed/', site: 'https://www.techdirt.com/', topic: 'Life online', poll_minutes: 10 },
