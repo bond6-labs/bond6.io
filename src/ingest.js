@@ -19,8 +19,30 @@ const attr = (node, ...names) => {
 };
 const safeMediaUrl = value => canonical(typeof value === 'string' ? value.trim() : null);
 const mediaNodes = (item, key) => [item[key]].flat().filter(Boolean);
+const isImage = (url, type = '', medium = '') => /^image\//i.test(type) || /^image$/i.test(medium) || /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i.test(url ?? '');
 const isAudio = (url, type = '') => /^audio\//i.test(type) || /\.(?:mp3|m4a|aac|ogg|opus|wav)(?:$|[?#])/i.test(url ?? '');
 const isVideo = (url, type = '') => /^video\//i.test(type) || /\.(?:mp4|webm|ogv|mov)(?:$|[?#])/i.test(url ?? '');
+const tagAttr = (tag, name) => tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i'))?.slice(1).find(value => value != null) ?? null;
+const isTracker = (tag, url) => {
+  const width = Number(tagAttr(tag, 'width'));
+  const height = Number(tagAttr(tag, 'height'));
+  return (width > 0 && width <= 1) || (height > 0 && height <= 1) || /(?:pixel|tracking|spacer|blank)\.(?:gif|png)(?:$|[?#])/i.test(url);
+};
+function embeddedMedia(markup) {
+  if (typeof markup !== 'string') return {};
+  const tags = Array.from(markup.matchAll(/<(img|audio|video|source|iframe)\b[^>]*>/gi)).map(match => ({ name:match[1].toLowerCase(), tag:match[0] }));
+  let image_url, audio_url, video_url;
+  for (const { name, tag } of tags) {
+    const rawUrl = tagAttr(tag, 'src');
+    const url = safeMediaUrl(rawUrl);
+    if (!url) continue;
+    const type = tagAttr(tag, 'type') ?? '';
+    if (!image_url && name === 'img' && !isTracker(tag, url)) image_url = url;
+    if (!audio_url && (name === 'audio' || name === 'source') && isAudio(url, type)) audio_url = url;
+    if (!video_url && (name === 'video' || name === 'source' || name === 'iframe')) video_url = videoPreview(url, type).video_url;
+  }
+  return { image_url, audio_url, video_url };
+}
 function videoPreview(value, type = '') {
   const url = safeMediaUrl(value);
   if (!url) return {};
@@ -43,16 +65,18 @@ function feedMedia(item, description, source) {
   const content = mediaNodes(item, 'media:content');
   const thumbnail = mediaNodes(item, 'media:thumbnail');
   const enclosure = mediaNodes(item, 'enclosure');
-  const imageNode = [...thumbnail, ...mediaNodes(item, 'itunes:image'), ...content.filter(node => /^image\//i.test(attr(node, 'type') ?? ''))]
+  const imageNode = [...thumbnail, ...mediaNodes(item, 'itunes:image'), ...content.filter(node => isImage(attr(node, 'url', 'href'), attr(node, 'type') ?? '', attr(node, 'medium') ?? ''))]
     .find(node => attr(node, 'url', 'href'));
-  // Do not scrape arbitrary HTML image tags: an explicit media field is a
-  // clearer publisher signal and avoids accidentally displaying a tracker.
-  const image_url = safeMediaUrl(attr(imageNode, 'url', 'href'));
+  // Some RSS publishers place a publisher-selected preview only in
+  // content:encoded. We accept a single safe, non-tracker asset from that
+  // feed payload; Bond6 still does not fetch or scrape the article itself.
+  const embedded = embeddedMedia(description);
+  const image_url = safeMediaUrl(attr(imageNode, 'url', 'href')) ?? embedded.image_url ?? null;
   const audioNode = [...enclosure, ...content].find(node => isAudio(attr(node, 'url', 'href'), attr(node, 'type') ?? ''));
-  const audio_url = safeMediaUrl(attr(audioNode, 'url', 'href'));
+  const audio_url = safeMediaUrl(attr(audioNode, 'url', 'href')) ?? embedded.audio_url ?? null;
   const videoNode = [...enclosure, ...content].find(node => isVideo(attr(node, 'url', 'href'), attr(node, 'type') ?? ''));
   const linkedVideo = videoPreview(attr(videoNode, 'url', 'href'), attr(videoNode, 'type') ?? '');
-  return { image_url, audio_url, ...linkedVideo };
+  return { image_url, audio_url, video_url: linkedVideo.video_url ?? embedded.video_url ?? null };
 }
 
 export async function resolveShortLink(value, fetcher = fetch) {

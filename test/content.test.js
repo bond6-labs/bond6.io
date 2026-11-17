@@ -19,6 +19,16 @@ test('RSS media previews retain only public image, audio and video links',()=>{
   const [unsafe]=fromRss('<rss><channel><item><title>A recording at home</title><link>https://example.org/recording</link><description>A long enough description of recording songs at home with friends and trying each arrangement before releasing it.</description><media:thumbnail url="http://127.0.0.1/private.jpg"/></item></channel></rss>',source);
   assert.equal(unsafe.image_url,null);
 });
+test('RSS publisher media supports medium=image and safe embedded feed previews',()=>{
+  const [structured]=fromRss('<rss><channel><item><title>A working artist records music at home</title><link>https://example.org/structured</link><description>A detailed account of recording music with friends and testing arrangements over several evenings.</description><media:content url="https://cdn.example.org/ghost-cover.jpg" medium="image"/></item></channel></rss>',source);
+  assert.equal(structured.image_url,'https://cdn.example.org/ghost-cover.jpg');
+  const [embedded]=fromRss('<rss><channel><item><title>A writer shares a studio session</title><link>https://example.org/embedded</link><content:encoded><![CDATA[<p>A detailed account of music and creative work.</p><img src="https://cdn.example.org/cover.webp" width="1200" height="675"><audio src="https://cdn.example.org/session.mp3"></audio><iframe src="https://www.youtube.com/embed/abcdef12345"></iframe>]]></content:encoded></item></channel></rss>',source);
+  assert.equal(embedded.image_url,'https://cdn.example.org/cover.webp');
+  assert.equal(embedded.audio_url,'https://cdn.example.org/session.mp3');
+  assert.equal(embedded.video_url,'https://www.youtube-nocookie.com/embed/abcdef12345');
+  const [tracker]=fromRss('<rss><channel><item><title>A writer shares a studio session</title><link>https://example.org/tracker</link><content:encoded><![CDATA[<p>A detailed account of music and creative work.</p><img src="https://cdn.example.org/tracking.gif" width="1" height="1"><img src="https://cdn.example.org/cover.jpg"></img>]]></content:encoded></item></channel></rss>',source);
+  assert.equal(tracker.image_url,'https://cdn.example.org/cover.jpg');
+});
 test('unsafe URLs and document declarations are rejected',()=>{
   for(const url of ['javascript:alert(1)','http://127.0.0.1/a','https://name:password@example.org'])assert.equal(canonical(url),null);
   assert.throws(()=>fromRss('<!DOCTYPE x><rss/>',source));
