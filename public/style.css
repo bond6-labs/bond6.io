@@ -122,7 +122,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .lane-character { position: absolute; inset-block-start: 13px; inset-inline-end: 14px; z-index: 0; width: 104px; height: 104px; pointer-events: none; }
 .lane-character .mascot { width: 100%; height: 100%; }
 .lane-character-human { transform: rotate(-2deg); }
-.lane-character-ai { inset-inline-end: 12px; }
+.lane-character-ai { inset-inline-end: 12px; background: radial-gradient(ellipse at center, #ffffffb8 0 43%, #ffffff45 56%, transparent 73%); }
 .column-masthead > :not(.lane-character) { position: relative; z-index: 1; }
 .feed-column:first-child .column-masthead::after {
   background: repeating-radial-gradient(ellipse 180px 74px at 94% 2%, transparent 0 15px, #9d694727 16px 17px, transparent 18px 24px);
@@ -217,6 +217,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .conversation-strip a { display: inline-flex; align-items: baseline; gap: 7px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--rule); background: var(--ground); color: var(--ink); font-size: 12px; }
 .conversation-strip a:hover { border-color: var(--gold); }
 .conversation-strip .signal-count { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.conversation-strip .signal-empty { justify-self: end; max-width: 33ch; font-size: 12px; }
 .footer { border-top: 1px solid var(--rule); margin-top: 45px; padding: 16px 0 23px; color: var(--muted); font-size: 13px; }
 .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 24px; }
 .footer nav { display: flex; flex-wrap: wrap; gap: 0 20px; }
@@ -410,6 +411,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
   .source-invitation { padding: 18px; }
   .conversation-strip { display: flex; align-items: flex-start; flex-direction: column; gap: 12px; margin: 10px 0 4px; padding: 13px; }
   .conversation-strip nav { justify-content: flex-start; }
+  .conversation-strip .signal-empty { max-width: none; }
   .column-masthead { min-height: 88px; padding: 20px 16px 12px; gap: 4px; border-radius: 3px; }
   .column-masthead::before { top: 9px; inset-inline: 16px; }
   .feed-column:first-child .column-masthead h2 { font-size: 37px; }.feed-column:last-child .column-masthead h2 { font-size: 26px; }
@@ -540,7 +542,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
   --owl-line:#61422b;
   filter: drop-shadow(0 3px 0 #8d622733);
 }
-.perch-branch,.perch-bridge,.perch-pages { fill: none; stroke: var(--owl-line); stroke-width: 2.2; stroke-linecap: round; }
+.perch-branch,.perch-bridge,.perch-pages,.perch-feet { fill: none; stroke: var(--owl-line); stroke-width: 2.2; stroke-linecap: round; }
 .perch-glass { fill: #eef5e8aa; stroke: #3f4740; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: owl-reference-blink 5.1s ease-in-out infinite; }
 .perch-eye { fill: #e8bf65; }.perch-book { fill: #d8c494; stroke: var(--owl-line); stroke-width: 1.8; }.perch-pages { stroke-width: 1.5; }
 .owl-perch .owl-turning-head { animation: none; }
@@ -584,11 +586,11 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 @keyframes picker-3d-breathe { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
 /* This is the approved Group 3 Picker: its SVG is shared by the lab and the
    masthead so shape, machine limbs, gripper and magnifier cannot drift. */
-.robot-picker-machine { --bot-dark:#8e9ba1; --bot-light:#f5fbfb; filter:drop-shadow(0 3px 0 #36515a2b); }
-.robot-picker-machine .picker-body { fill:#aeb9bd; stroke:#405057; stroke-width:2.2; }
-.robot-picker-machine .picker-screen { fill:#26383f; stroke:#e8f4f5; stroke-width:1.5; }
+.robot-picker-machine { --bot-dark:#657982; --bot-light:#ffffff; filter:drop-shadow(0 3px 0 #2445504a) drop-shadow(0 1px 8px #ffffffa6); }
+.robot-picker-machine .picker-body { fill:#c8d3d6; stroke:#244550; stroke-width:2.5; }
+.robot-picker-machine .picker-screen { fill:#173b47; stroke:#ffffff; stroke-width:1.7; }
 .machine-panel,.machine-link,.machine-grip,.machine-foot { fill:none; stroke:var(--bot-light); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
-.machine-panel { stroke-width:1.6; opacity:.9; }.machine-joint { fill:#dce6e7; stroke:#405057; stroke-width:1.4; }.machine-arm,.machine-leg { transform-box:fill-box; transform-origin:center; }.machine-arm-left { animation: machine-arm-left 2.1s steps(3,end) infinite; }.machine-arm-right { animation: machine-arm-right 2.6s steps(4,end) infinite; }.machine-leg-left { animation: machine-leg-left 2.8s steps(3,end) infinite; }.machine-leg-right { animation: machine-leg-right 2.8s steps(3,end) .35s infinite; }.robot-picker-machine .picker-lens { fill:#ddecf088; stroke:var(--bot-light); stroke-width:3; }.robot-picker-machine .picker-ping { fill:#fff; animation-duration:1.5s; }
+.machine-panel { stroke-width:1.6; opacity:.9; }.machine-joint { fill:#f3fafa; stroke:#244550; stroke-width:1.6; }.machine-arm,.machine-leg { transform-box:fill-box; transform-origin:center; }.machine-arm-left { animation: machine-arm-left 2.1s steps(3,end) infinite; }.machine-arm-right { animation: machine-arm-right 2.6s steps(4,end) infinite; }.machine-leg-left { animation: machine-leg-left 2.8s steps(3,end) infinite; }.machine-leg-right { animation: machine-leg-right 2.8s steps(3,end) .35s infinite; }.robot-picker-machine .picker-lens { fill:#ddecf088; stroke:var(--bot-light); stroke-width:3; }.robot-picker-machine .picker-ping { fill:#fff; animation-duration:1.5s; }
 @keyframes machine-arm-left { 0%,100% { transform:rotate(0); } 50% { transform:rotate(-12deg) translate(-2px,-1px); } } @keyframes machine-arm-right { 0%,40%,100% { transform:rotate(0); } 65% { transform:rotate(13deg) translate(2px,-2px); } } @keyframes machine-leg-left { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } } @keyframes machine-leg-right { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
 
 /* Selected Library Owl: retain the original front-facing illustration until it has a proper 3-D rig. */
@@ -598,6 +600,15 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .owl-perch .perch-front :is(.perch-glass,.perch-eye,.perch-pupil) { transform-box: fill-box; transform-origin: center; animation: owl-library-blink 8.5s ease-in-out infinite !important; }
 @keyframes owl-library-glance { 0%,24%,100% { transform: rotateY(0deg); } 38%,50% { transform: rotateY(-10deg) translateX(-1px); } 64%,76% { transform: rotateY(10deg) translateX(1px); } 88% { transform: rotateY(0deg); } }
 @keyframes owl-library-blink { 0%,46%,50%,100% { transform: scaleY(1); } 48% { transform: scaleY(.08); } }
-@media(prefers-reduced-motion:reduce) { .owl-perch .perch-front,.owl-perch .perch-front :is(.perch-glass,.perch-eye,.perch-pupil) { animation: none !important; } }
+.lane-character-human .mascot-owl { animation: bond6-owl-step 17s cubic-bezier(.45,.05,.2,1) infinite; }
+.lane-character-ai .mascot-robot { animation: bond6-robot-step 13s cubic-bezier(.45,.05,.2,1) infinite; }
+.owl-perch .perch-feet { transform-box: fill-box; transform-origin: top center; }
+.owl-perch .perch-foot-left { animation: bond6-owl-foot-left 8.5s ease-in-out infinite; }
+.owl-perch .perch-foot-right { animation: bond6-owl-foot-right 8.5s ease-in-out .65s infinite; }
+@keyframes bond6-owl-step { 0%,18%,100% { transform: translateX(0); } 31%,46% { transform: translateX(-4px); } 62%,78% { transform: translateX(4px); } 90% { transform: translateX(1px); } }
+@keyframes bond6-robot-step { 0%,19%,100% { transform: translateX(0) scale(1.05); } 33%,48% { transform: translateX(4px) scale(1.05); } 64%,79% { transform: translateX(-4px) scale(1.05); } 90% { transform: translateX(-1px) scale(1.05); } }
+@keyframes bond6-owl-foot-left { 0%,34%,100% { transform: translateY(0); } 44%,55% { transform: translate(-1px,-2px) rotate(-5deg); } }
+@keyframes bond6-owl-foot-right { 0%,58%,100% { transform: translateY(0); } 68%,79% { transform: translate(1px,-2px) rotate(5deg); } }
+@media(prefers-reduced-motion:reduce) { .owl-perch .perch-front,.owl-perch .perch-front :is(.perch-glass,.perch-eye,.perch-pupil),.lane-character-human .mascot-owl,.lane-character-ai .mascot-robot,.owl-perch .perch-feet { animation: none !important; } }
 @keyframes scribe-left { 0%,100% { transform:rotate(0); } 50% { transform:rotate(-15deg) translate(-1px,4px); } } @keyframes scribe-right { 0%,100% { transform:rotate(0); } 50% { transform:rotate(14deg) translate(1px,4px); } } @keyframes paper-stream { to { transform:translateY(4px); } }
 @media(max-width:760px) { .mascot-options { grid-template-columns: 1fr; } .mascot-option { max-width: 470px; margin-inline: auto; } .mascot-lane > div { min-height: 128px; } }
