@@ -86,6 +86,9 @@ export function validateStorySchema(story) {
   if (story.author && story.author.length > 160) {
     throw new Error('Invalid author: exceeds 160 characters');
   }
+  for (const field of ['image_url', 'audio_url', 'video_url']) {
+    if (story[field] && !validateURL(story[field])) throw new Error(`Invalid public ${field}`);
+  }
   
   // Content hash validation
   if (typeof story.content_hash !== 'string' || story.content_hash.length === 0) {

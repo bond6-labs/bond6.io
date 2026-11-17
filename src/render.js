@@ -48,7 +48,7 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(description)}</p>`:''}</div></div>${content}</main>
   <div class="reader-message shell" role="status" aria-live="polite"></div>
   <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
-  <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Focusing')}</a><a href="${v.local('/edit')}">${v.say('Editions','每日精选')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
+  <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Focusing')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
   return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,
     'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin',
     'Content-Security-Policy':getCSPHeader()}});
@@ -56,6 +56,17 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
 export function actions(story,v,shareUrl) {
   const data={url:story.url,title:story.title,source:story.source,author:story.author,date:story.original_published_at,original_lang:story.original_lang};
   return `<div class="story-actions"><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc(data.title)}" hidden>${v.say('Share','分享')}</button></div>`;
+}
+function mediaPreview(story,v) {
+  const credit=v.say(`Media from ${story.source}`,`媒体来自 ${story.source}`);
+  const image=story.image_url?`<a class="story-image" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span>${esc(credit)}</span></a>`:'';
+  const audio=story.audio_url?`<div class="story-audio"><span>${v.say('Listen from ','收听：')}${esc(story.source)}</span><audio controls preload="none" src="${esc(story.audio_url)}">${v.say('Audio is available at the original source.','音频可在原始来源收听。')}</audio></div>`:'';
+  if (!story.video_url) return image+audio;
+  const title=v.say(`Play video from ${story.source}`,`播放 ${story.source} 的视频`);
+  const video=/^https:\/\/(?:www\.youtube-nocookie\.com|player\.vimeo\.com)\//.test(story.video_url)
+    ? `<iframe src="${esc(story.video_url)}" title="${esc(title)}" loading="lazy" referrerpolicy="no-referrer" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+    : `<video class="story-video-native" controls preload="metadata"${story.image_url?` poster="${esc(story.image_url)}"`:''}><source src="${esc(story.video_url)}">${v.say('Video is available at the original source.','视频可在原始来源观看。')}</video>`;
+  return `${image}${audio}<details class="story-video"><summary>${esc(title)}</summary><div>${video}</div></details>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
 const rhythmLabel=(label,v)=>({
@@ -89,6 +100,7 @@ export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[]}={}) {
     <h3><a href="${esc(s.url)}" data-event="original" lang="${s.original_lang==='zh'?'zh-Hans':'en'}">${esc(title)}</a></h3>
     ${pick?`<p class="pick-note">${esc(copy?.note)}</p>`:''}
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
+    ${mediaPreview(s,v)}
     ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
     ${pick||rhythm?rhythmReason(s,v):''}${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
     ${actions(s,v,share)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;

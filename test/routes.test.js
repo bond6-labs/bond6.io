@@ -25,7 +25,7 @@ test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaS
 test('mobile lane and filters survive navigation and language switch',async()=>{
   const db=database();const r=await worker.fetch(new Request('https://bond6.io/?lane=ai&topic=music'),{DB:db});const text=await r.text();
   const primary=text.match(/<nav class="tabs"[^>]*>([\s\S]*?)<\/nav>/)?.[1]??'';
-  assert.match(text,/data-lane="ai"/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.doesNotMatch(primary,/aria-label="Saved stories"/);assert.match(text,/<footer[\s\S]*?href="\/edit">Editions/);
+  assert.match(text,/data-lane="ai"/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.doesNotMatch(primary,/aria-label="Saved stories"/);assert.doesNotMatch(text,/<footer[\s\S]*?href="\/edit">Editions/);
 });
 test('live Rhythm ordering and explanations are opt-in',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);
@@ -47,6 +47,16 @@ test('language editions show only original-language stories and no translated-ti
   const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();assert.match(enText,/An English original headline/);assert.doesNotMatch(enText,/一条中文原创标题/);assert.doesNotMatch(enText,/A translated headline that must not render/);assert.match(enText,/aria-label="Search stories"/);assert.match(enText,/>简<\/a>/);
   const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();assert.match(zhText,/一条中文原创标题/);assert.doesNotMatch(zhText,/An English original headline/);assert.match(zhText,/>EN<\/a>/);
   const zhFeed=await worker.fetch(new Request('https://bond6.io/zh/feed.xml'),{DB:db});const zhXml=await zhFeed.text();assert.match(zhXml,/一条中文原创标题/);assert.doesNotMatch(zhXml,/An English original headline/);
+});
+test('publisher media previews render in the matching original-language edition',async()=>{
+  const db=database();
+  const en=story(96,{image_url:'https://cdn.example.org/cover.jpg',audio_url:'https://cdn.example.org/listen.mp3',video_url:'https://www.youtube-nocookie.com/embed/abcdef12345'});
+  const zh=story(97,{url:'https://example.org/zh/media',link:'https://example.org/zh/media',canonical_url:'https://example.org/zh/media',title:'一段中文声音记录',original_lang:'zh',image_url:'https://cdn.example.org/zh-cover.jpg',audio_url:'https://cdn.example.org/zh-listen.mp3'});
+  await storeItems(db,source,[en,zh],now);
+  const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();
+  assert.match(enText,/cdn\.example\.org\/cover\.jpg/);assert.match(enText,/<audio controls preload="none" src="https:\/\/cdn\.example\.org\/listen\.mp3">/);assert.match(enText,/youtube-nocookie\.com\/embed\/abcdef12345/);assert.match(english.headers.get('Content-Security-Policy'),/media-src https:/);
+  const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();
+  assert.match(zhText,/zh-cover\.jpg/);assert.match(zhText,/zh-listen\.mp3/);assert.doesNotMatch(zhText,/src="https:\/\/cdn\.example\.org\/cover\.jpg"/);
 });
 test('metadata and story markup escape untrusted source text',async()=>{
   const db=database();await storeItems(db,source,[story(0,{title:'<script>alert(1)</script>',author:'" onclick="bad'})],now);

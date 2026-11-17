@@ -7,8 +7,53 @@ import { validateStorySchema } from './validation.js';
 import { saveRhythmSignals, scoreRhythmBacklog } from './rhythm.js';
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
+export const pollIntervalMs = source => Math.min(180, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
 const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
 const shortHosts = new Set(['t.co', 'bit.ly', 'buff.ly', 'ow.ly', 'tinyurl.com']);
+const attr = (node, ...names) => {
+  for (const value of [node].flat()) for (const name of names) {
+    const candidate = value?.[`@_${name}`] ?? value?.[name];
+    if (typeof candidate === 'string') return candidate;
+  }
+  return null;
+};
+const safeMediaUrl = value => canonical(typeof value === 'string' ? value.trim() : null);
+const mediaNodes = (item, key) => [item[key]].flat().filter(Boolean);
+const isAudio = (url, type = '') => /^audio\//i.test(type) || /\.(?:mp3|m4a|aac|ogg|opus|wav)(?:$|[?#])/i.test(url ?? '');
+const isVideo = (url, type = '') => /^video\//i.test(type) || /\.(?:mp4|webm|ogv|mov)(?:$|[?#])/i.test(url ?? '');
+function videoPreview(value, type = '') {
+  const url = safeMediaUrl(value);
+  if (!url) return {};
+  const parsed = new URL(url), host = parsed.hostname.toLowerCase();
+  if (host === 'youtu.be') {
+    const id = parsed.pathname.slice(1).match(/^[\w-]{6,}$/)?.[0];
+    return id ? { video_url:`https://www.youtube-nocookie.com/embed/${id}` } : {};
+  }
+  if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+    const id = (parsed.pathname.match(/^\/embed\/([\w-]{6,})/)?.[1] ?? parsed.searchParams.get('v'));
+    return id && /^[\w-]{6,}$/.test(id) ? { video_url:`https://www.youtube-nocookie.com/embed/${id}` } : {};
+  }
+  if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) {
+    const id = parsed.pathname.match(/\/(\d+)(?:$|\/)/)?.[1];
+    return id ? { video_url:`https://player.vimeo.com/video/${id}` } : {};
+  }
+  return isVideo(url, type) ? { video_url:url } : {};
+}
+function feedMedia(item, description, source) {
+  const content = mediaNodes(item, 'media:content');
+  const thumbnail = mediaNodes(item, 'media:thumbnail');
+  const enclosure = mediaNodes(item, 'enclosure');
+  const imageNode = [...thumbnail, ...mediaNodes(item, 'itunes:image'), ...content.filter(node => /^image\//i.test(attr(node, 'type') ?? ''))]
+    .find(node => attr(node, 'url', 'href'));
+  // Do not scrape arbitrary HTML image tags: an explicit media field is a
+  // clearer publisher signal and avoids accidentally displaying a tracker.
+  const image_url = safeMediaUrl(attr(imageNode, 'url', 'href'));
+  const audioNode = [...enclosure, ...content].find(node => isAudio(attr(node, 'url', 'href'), attr(node, 'type') ?? ''));
+  const audio_url = safeMediaUrl(attr(audioNode, 'url', 'href'));
+  const videoNode = [...enclosure, ...content].find(node => isVideo(attr(node, 'url', 'href'), attr(node, 'type') ?? ''));
+  const linkedVideo = videoPreview(attr(videoNode, 'url', 'href'), attr(videoNode, 'type') ?? '');
+  return { image_url, audio_url, ...linkedVideo };
+}
 
 export async function resolveShortLink(value, fetcher = fetch) {
   let url = canonical(value);
@@ -36,11 +81,12 @@ export function fromRss(body, source) {
     const link = [item.link].flat().find(e => e && (!e['@_rel'] || e['@_rel'] === 'alternate'));
     const url = canonical(link?.['@_href'] ?? link?.['#text'] ?? link);
     const title = cleanHeadline(item.title);
-    const excerpt = plain(item['content:encoded'] ?? item.content ?? item.description ?? item.summary, 2200);
+    const rawDescription = item['content:encoded'] ?? item.content ?? item.description ?? item.summary;
+    const excerpt = plain(rawDescription, 2200);
     const date = Date.parse(item.pubDate ?? item.published);
     const author = cleanAuthor(item['dc:creator'] ?? item.author?.name ?? item.author);
     return { url, link: url, title, excerpt, author, original_lang: language(title + ' ' + excerpt), original_published_at: Number.isFinite(date) ? date : null,
-      content_type: 'article', canonical_url: url, ...classify(title, excerpt, source) };
+      content_type: 'article', canonical_url: url, ...feedMedia(item, rawDescription, source), ...classify(title, excerpt, source) };
   });
 }
 export function fromBluesky(body, source) {
@@ -55,11 +101,13 @@ export function fromBluesky(body, source) {
     const title = article && !distinctive ? cleanHeadline(external.title) : cleanPostText(text, 220);
     const excerpt = distinctive || !article ? text : plain(external.description, 2200);
     const posted = Date.parse(post.record?.createdAt);
+    const image_url = safeMediaUrl(external?.thumb ?? external?.thumbnail);
+    const video = videoPreview(external?.uri);
     return { url: distinctive ? link : article ?? link, link, title, excerpt,
       author: distinctive || !article ? cleanAuthor(post.author.displayName || post.author.handle) : null,
       original_lang: language(title + ' ' + excerpt), original_published_at: distinctive || !article ? (Number.isFinite(posted) ? posted : null) : null,
       shared_at: Number.isFinite(posted) ? posted : null, content_type: distinctive || !article ? 'post' : 'shared-article',
-      canonical_url: article ?? link, ...classify(title, excerpt, source) };
+      canonical_url: article ?? link, image_url, ...video, ...classify(title, excerpt, source) };
   });
 }
 export async function readBody(response) {
@@ -118,15 +166,17 @@ export async function storeItems(db, source, items, now) {
     catch (error) { console.warn('Story rejected before storage', {source_id:source.id, url:item?.url ?? null, reason:error.message}); }
   }
   const statements = [];
-  // 22 values x 4 rows stays below D1's 100 bound parameter limit.
+  // 25 values x 4 rows stays within D1's 100 bound parameter limit.
   for (let start = 0; start < validItems.length; start += 4) {
     const chunk = validItems.slice(start, start + 4);
     const values = chunk.flatMap(i => [i.url, i.title, source.name, source.topic, i.original_published_at ?? now, Number(source.kind === 'rss'), source.id, i.author,
       i.original_lang, i.content_type, i.original_published_at, now, i.canonical_url, i.excerpt, i.parent_context ?? null, i.lane, i.subject,
-      i.original_lang === 'zh' ? i.title : null, i.original_lang === 'en' ? i.title : null, i.content_hash, now, 0]);
+      i.original_lang === 'zh' ? i.title : null, i.original_lang === 'en' ? i.title : null, i.content_hash, now, 0,
+      i.image_url ?? null, i.audio_url ?? null, i.video_url ?? null]);
     statements.push(db.prepare(`INSERT INTO stories(url,title,source,topic,published_at,is_article,source_id,author,original_lang,content_type,
-      original_published_at,discovered_at,canonical_url,excerpt,parent_context,lane,subject,title_zh,title_en,content_hash,updated_at,translate_after)
-      VALUES ${chunk.map(() => '(' + Array(22).fill('?').join(',') + ')').join(',')}
+      original_published_at,discovered_at,canonical_url,excerpt,parent_context,lane,subject,title_zh,title_en,content_hash,updated_at,translate_after,
+      image_url,audio_url,video_url)
+      VALUES ${chunk.map(() => '(' + Array(25).fill('?').join(',') + ')').join(',')}
       ON CONFLICT(url) DO UPDATE SET title=excluded.title,source=excluded.source,topic=excluded.topic,published_at=excluded.published_at,
       is_article=excluded.is_article,source_id=excluded.source_id,author=excluded.author,original_lang=excluded.original_lang,
       content_type=excluded.content_type,original_published_at=excluded.original_published_at,
@@ -134,7 +184,8 @@ export async function storeItems(db, source, items, now) {
       parent_context=excluded.parent_context,lane=excluded.lane,subject=excluded.subject,content_hash=excluded.content_hash,updated_at=excluded.updated_at,
       title_zh=CASE WHEN stories.title=excluded.title THEN coalesce(stories.title_zh,excluded.title_zh) ELSE excluded.title_zh END,
       title_en=CASE WHEN stories.title=excluded.title THEN coalesce(stories.title_en,excluded.title_en) ELSE excluded.title_en END,
-      translate_after=CASE WHEN stories.title=excluded.title THEN stories.translate_after ELSE 0 END
+      translate_after=CASE WHEN stories.title=excluded.title THEN stories.translate_after ELSE 0 END,
+      image_url=excluded.image_url,audio_url=excluded.audio_url,video_url=excluded.video_url
       WHERE excluded.is_article>=stories.is_article OR stories.source_id IS NULL`).bind(...values));
   }
   for (let start = 0; start < validItems.length; start += 20) {
@@ -151,7 +202,7 @@ export async function collect(env, now = Date.now()) {
   const db = env.DB;
   const { results } = await db.prepare('SELECT * FROM source_state').all();
   const states = new Map(results.map(s => [s.id, s]));
-  const source = [...sources].sort((a,b) => (states.get(a.id)?.next_at ?? 0) - (states.get(b.id)?.next_at ?? 0))[0];
+  const source = [...sources].sort((a,b) => (states.get(a.id)?.next_at ?? 0) - (states.get(b.id)?.next_at ?? 0) || a.id.localeCompare(b.id))[0];
   const state = states.get(source.id);
   if ((state?.next_at ?? 0) > now) return;
   const id = 'collect:' + source.id;
@@ -165,8 +216,8 @@ export async function collect(env, now = Date.now()) {
     await scoreRhythmBacklog(db,now);
     await db.prepare(`INSERT INTO source_state VALUES(?,?,?,?,?,0,?) ON CONFLICT(id) DO UPDATE SET
       etag=excluded.etag,modified=excluded.modified,checked_at=excluded.checked_at,ok_at=excluded.ok_at,failures=0,next_at=excluded.next_at`)
-      .bind(source.id, etag, modified, now, now, now + sources.length * 60_000).run();
-    await saveJob(db, job, {}, now, { next: now + sources.length * 60_000 });
+      .bind(source.id, etag, modified, now, now, now + pollIntervalMs(source)).run();
+    await saveJob(db, job, {}, now, { next: now + pollIntervalMs(source) });
   } catch (error) {
     const failures = (state?.failures ?? 0) + 1;
     const next = now + Math.min(120, 5 * 2 ** Math.min(failures, 5)) * 60_000;

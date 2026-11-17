@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune} from '../src/ingest.js';
+import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,pollIntervalMs} from '../src/ingest.js';
 import {classify,canonical,contentHash,usableText} from '../src/content.js';
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
@@ -11,9 +11,23 @@ test('RSS preserves Chinese, author and publication; Atom updated is not publica
   const [atom]=fromRss('<feed><entry><title>Writing a poem</title><link href="https://example.org/p"/><updated>2026-11-12T00:00Z</updated><author><name>Ada</name></author></entry></feed>',source);
   assert.equal(atom.original_published_at,null);assert.equal(atom.author,'Ada');
 });
+test('RSS media previews retain only public image, audio and video links',()=>{
+  const [s]=fromRss('<rss><channel><item><title>一首歌的现场版本</title><link>https://example.org/live</link><description>一段关于音乐现场录制、听众与创作过程的中文文章。</description><media:thumbnail url="https://cdn.example.org/live.jpg" title="演出现场"/><enclosure url="https://cdn.example.org/live.mp3" type="audio/mpeg"/><media:content url="https://www.youtube.com/watch?v=abcdef12345" type="video/mp4"/></item></channel></rss>',source);
+  assert.equal(s.image_url,'https://cdn.example.org/live.jpg');
+  assert.equal(s.audio_url,'https://cdn.example.org/live.mp3');
+  assert.equal(s.video_url,'https://www.youtube-nocookie.com/embed/abcdef12345');
+  const [unsafe]=fromRss('<rss><channel><item><title>A recording at home</title><link>https://example.org/recording</link><description>A long enough description of recording songs at home with friends and trying each arrangement before releasing it.</description><media:thumbnail url="http://127.0.0.1/private.jpg"/></item></channel></rss>',source);
+  assert.equal(unsafe.image_url,null);
+});
 test('unsafe URLs and document declarations are rejected',()=>{
   for(const url of ['javascript:alert(1)','http://127.0.0.1/a','https://name:password@example.org'])assert.equal(canonical(url),null);
   assert.throws(()=>fromRss('<!DOCTYPE x><rss/>',source));
+});
+test('source polling uses a bounded fast lane without accelerating every feed',()=>{
+  assert.equal(pollIntervalMs({poll_minutes:10}),10*60_000);
+  assert.equal(pollIntervalMs({}),45*60_000);
+  assert.equal(pollIntervalMs({poll_minutes:1}),10*60_000);
+  assert.equal(pollIntervalMs({poll_minutes:999}),180*60_000);
 });
 test('classification follows content, not publication names',()=>{
   assert.equal(classify('The new jazz album','Music and guitar performances',{name:'AI Newspaper'}).lane,'human');

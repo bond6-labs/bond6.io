@@ -81,7 +81,8 @@ export function classify(title, excerpt, source = {}) {
   return { lane: aiRelevant ? 'ai' : cultural ? 'human' : null, subject };
 }
 export async function contentHash(story) {
-  const value = JSON.stringify([story.url, story.title, story.author, story.excerpt, story.parent_context, story.original_published_at, story.original_lang, story.lane]);
+  const value = JSON.stringify([story.url, story.title, story.author, story.excerpt, story.parent_context, story.original_published_at, story.original_lang, story.lane,
+    story.image_url, story.audio_url, story.video_url, story.video_kind]);
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
 }

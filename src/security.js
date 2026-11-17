@@ -54,7 +54,11 @@ export function getCSPHeader() {
     "script-src 'self'",
     "style-src 'self' https://fonts.googleapis.com",
     "font-src https://fonts.gstatic.com",
-    "img-src 'self'",
+    // Publisher media is optional, explicitly parsed from public feeds, and
+    // rendered only as a preview that leads back to the original work.
+    "img-src 'self' https:",
+    "media-src https:",
+    "frame-src https://www.youtube-nocookie.com https://player.vimeo.com",
     "connect-src 'self'",
     "form-action 'self'",
     "base-uri 'none'",
