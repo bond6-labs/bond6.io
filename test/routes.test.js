@@ -40,6 +40,14 @@ test('stale cards that fail the current lane rule do not render or enter live RS
   const page=await worker.fetch(new Request('https://bond6.io/?lane=ai'),{DB:db});assert.doesNotMatch(await page.text(),/Trump DOJ Folds/);
   const feed=await worker.fetch(new Request('https://bond6.io/feed.xml?lane=ai'),{DB:db});assert.doesNotMatch(await feed.text(),/Trump DOJ Folds/);
 });
+test('language editions show only original-language stories and no translated-title fallback',async()=>{
+  const db=database();const en=story(94,{title:'An English original headline',title_zh:'A translated headline that must not render'});
+  const zh=story(95,{url:'https://example.org/zh/95',link:'https://example.org/zh/95',canonical_url:'https://example.org/zh/95',title:'一条中文原创标题',original_lang:'zh',source:'中文工作室'});
+  await storeItems(db,source,[en,zh],now);
+  const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();assert.match(enText,/An English original headline/);assert.doesNotMatch(enText,/一条中文原创标题/);assert.doesNotMatch(enText,/A translated headline that must not render/);assert.match(enText,/aria-label="Search stories"/);assert.match(enText,/>简<\/a>/);
+  const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();assert.match(zhText,/一条中文原创标题/);assert.doesNotMatch(zhText,/An English original headline/);assert.match(zhText,/>EN<\/a>/);
+  const zhFeed=await worker.fetch(new Request('https://bond6.io/zh/feed.xml'),{DB:db});const zhXml=await zhFeed.text();assert.match(zhXml,/一条中文原创标题/);assert.doesNotMatch(zhXml,/An English original headline/);
+});
 test('metadata and story markup escape untrusted source text',async()=>{
   const db=database();await storeItems(db,source,[story(0,{title:'<script>alert(1)</script>',author:'" onclick="bad'})],now);
   const r=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const text=await r.text();assert.ok(!text.includes('<script>alert(1)</script>'));assert.match(text,/&lt;script&gt;/);

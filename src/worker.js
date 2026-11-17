@@ -1,6 +1,5 @@
 import { collect, prune } from './ingest.js';
 import { publishingStep } from './publishing.js';
-import { translateHeadlines } from './rolling.js';
 import { locale, html, esc } from './render.js';
 import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions } from './pages.js';
 import { classify, dayKey } from './content.js';
@@ -13,16 +12,16 @@ async function rss(env,v) {
   if (!['live','daily','bond'].includes(kind)||(lane&&!['human','ai'].includes(lane))) return new Response('Unknown feed filter',{status:400});
   let items=[];
   if (kind==='live') {
-    const {results}=await env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(...(lane?[lane]:[])).all();
+    const {results}=await env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(v.zh?'zh':'en',...(lane?[lane]:[])).all();
     items=results.filter(s=>classify(s.title??'',s.excerpt??'',sources.find(source=>source.id===s.source_id)).lane===s.lane)
-      .map(s=>({title:(v.zh?s.title_zh:s.title_en)??s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
+      .map(s=>({title:s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
   } else {
     const {results}=await env.DB.prepare('SELECT * FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 50').bind(kind).all();
     const editions=results.map(r=>({...JSON.parse(r.snapshot),published:r.published_at}));
     if (kind==='bond') editions.push(...legacyEditions);
     items=editions.slice(0,50).flatMap(e=>{
-      if(kind==='bond') return [{title:(v.zh?e.zh:e.en).title,link:'https://bond6.io'+v.local('/bond/'+e.id),id:'bond:'+e.id,date:e.published??Date.parse(e.date+'T12:00Z'),description:(v.zh?e.zh:e.en).note,author:'Bond6',category:'bond'}];
-      return e.stories.filter(s=>!lane||s.lane===lane).map(s=>({title:(v.zh?s.zh:s.en).title,link:'https://bond6.io'+v.local('/edit/'+e.id)+'#story-'+s.content_hash.slice(0,12),id:'daily:'+e.id+':'+s.url,date:e.published,author:s.author??s.source,description:(v.zh?s.zh:s.en).note+' · '+v.say('Original: ','原文：')+s.url,category:s.subject}));
+      if(kind==='bond') return e.stories?.every(s=>s.original_lang===(v.zh?'zh':'en')) ? [{title:(v.zh?e.zh:e.en).title,link:'https://bond6.io'+v.local('/bond/'+e.id),id:'bond:'+e.id,date:e.published??Date.parse(e.date+'T12:00Z'),description:(v.zh?e.zh:e.en).note,author:'Bond6',category:'bond'}] : [];
+      return e.stories.filter(s=>(!lane||s.lane===lane)&&s.original_lang===(v.zh?'zh':'en')).map(s=>({title:s.title,link:'https://bond6.io'+v.local('/edit/'+e.id)+'#story-'+s.content_hash.slice(0,12),id:'daily:'+e.id+':'+s.url,date:e.published,author:s.author??s.source,description:s.source,category:s.subject}));
     }).slice(0,50);
   }
   const built=Math.max(Date.now(),...items.map(item=>Number(item.date)||0));
@@ -83,8 +82,7 @@ export default {
       if(minute===59){await prune(env,now);return;}
       if(minute%2===0){await collect(env,now);return;}
       const worked=await publishingStep(env,now);
-      if(!worked&&minute%15===1)await translateHeadlines(env,now);
-      else if(!worked)await collect(env,now);
+      if(!worked)await collect(env,now);
     })().catch(error=>console.error('Scheduled work failed',{message:error.message,stack:error.stack,timestamp:Date.now()})));
   }
 };

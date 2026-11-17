@@ -42,7 +42,9 @@ export const conversationTopics = [
 ];
 export const conversationTopic = key => conversationTopics.find(topic => topic.key === key) ?? null;
 export function storyTopics(story) {
-  const text = `${story.title ?? ''} ${story.title_en ?? ''} ${story.title_zh ?? ''} ${story.excerpt ?? ''}`;
+  // Classify from the original item only. Editions are now language-separated,
+  // so stale or generated translations must not influence a story's lane.
+  const text = `${story.title ?? ''} ${story.excerpt ?? ''}`;
   return conversationTopics.filter(topic => topic.match.test(text)).map(topic => topic.key);
 }
 export function conversations(stories, now = Date.now()) {

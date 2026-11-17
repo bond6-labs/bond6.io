@@ -23,7 +23,7 @@ export const chinese = {
   'How AI and digital platforms are changing work and culture.': '关注 AI 和数字平台如何改变工作与文化。',
   'No recent stories in this section yet.': '本栏暂无近期文章。',
   'Browse all stories': '浏览全部资讯',
-  Latest: '最新', Trending: '热门', Discussed: '讨论', Editions: '每日精选', Saved: '已收藏', Sources: '来源', About: '关于',
+  Latest: '最新', Trending: '热门', Discussed: '讨论', Focusing: '关注', Bonding: '连结', Editions: '每日精选', Saved: '已收藏', Sources: '来源', About: '关于',
   'The Bond6 Flow': 'Bond6 动态', 'Main navigation': '主导航', Subscribe: '订阅', 'Page unavailable': '页面不存在', 'Feed unavailable': '资讯暂不可用',
   'New writing on culture, creative work, and life with AI.': '关于文化、创意工作和 AI 时代生活的新文章。',
   'Skip to content': '跳到正文', 'Bond6.io home': 'Bond6.io 首页',

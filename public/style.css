@@ -37,8 +37,8 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .wordmark small { margin-inline-start: 2px; color: #23727d; font: 600 12px/1 Inter, system-ui, sans-serif; letter-spacing: -.04em; }
 .tabs { display: flex; align-items: center; gap: clamp(6px, 3vw, 26px); }
 .tabs a { display: flex; align-items: center; min-height: 44px; padding-inline: 4px; font-size: 13px; color: var(--muted); }
-.tabs a[aria-current], .tabs a:hover { color: var(--ink); }
-.tabs a[aria-current] { box-shadow: inset 0 -2px var(--gold); }
+.tabs a[aria-current] { color: var(--gold); font-weight: 700; letter-spacing: .015em; }
+.tabs a:hover { color: var(--ink); }
 .tabs { margin-inline-start: auto; }
 .reader-controls { display: flex; align-items: center; gap: 12px; }
 .language-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; white-space: nowrap; }
@@ -215,11 +215,14 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .about-copy p { margin: 12px 0; }
 .about-copy a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
 .intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.search-control { margin-inline-start: auto; }
+.search-control { position: relative; }
 .search-control summary {
-  cursor: pointer; min-height: 44px; padding: 10px 12px;
-  border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font-size: 13px;
+  display: inline-grid; place-items: center; cursor: pointer; width: 44px; min-height: 44px; padding: 0;
+  border: 0; color: var(--ink); list-style: none;
 }
+.search-control summary::-webkit-details-marker { display: none; }
+.search-control summary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; }
+.search-control summary:hover { color: var(--gold); }
 .story-search { padding-top: 8px; }
 .activity-bar { margin-top: 18px; padding: 13px 14px; background: var(--surface); }
 .activity-heading, .activity-labels { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }
@@ -304,8 +307,6 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .masthead-inner { flex-wrap: wrap; gap: 0 20px; }
 .tabs { gap: 16px; }
 .reader-controls { gap: 10px; }
-.intro .search-control { position: relative; align-self: center; }
-.search-control summary { border: 0; padding: 10px 4px; }
 .search-control[open] .story-search { position: absolute; right: 0; z-index: 3; width: min(320px,85vw); padding: 14px; border: 1px solid var(--rule); background: var(--ground); box-shadow: 0 5px 24px #0002; }
 .intro { padding: 24px 0 16px; }
 .intro h1 { font-size: clamp(30px,4vw,46px); }

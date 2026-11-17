@@ -43,7 +43,7 @@
     list.replaceChildren();clear.hidden=!storage||!saved.length;
     if(!storage||!saved.length){list.append(element('p',!storage?say('Browser storage is unavailable. Saved stories cannot be read here.','浏览器存储不可用，无法读取收藏。'):say('Nothing saved yet. Use Save beside a story to keep it here.','还没有收藏。在文章旁点击「收藏」，就能保存在这里。'),'notice'));return;}
     for(const s of saved){
-      const article=element('article',null,'story'),h=element('h2'),link=element('a',(zh?s.zh?.title:s.en?.title)??s.title??s.url);
+      const article=element('article',null,'story'),h=element('h2'),link=element('a',s.title??s.url);
       link.href=safeUrl(s.url);link.dataset.event='original';h.append(link);article.append(h);
       const note=(zh?s.zh?.note:s.en?.note);if(note)article.append(element('p',note));
       article.append(element('p',[s.author,s.source].filter(Boolean).join(' · '),'byline'));

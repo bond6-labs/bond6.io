@@ -52,10 +52,10 @@ function filters(v) {
 }
 function conversationStrip(topics,v) {
   if (!topics.length) return '';
-  return `<section class="conversation-strip" aria-labelledby="conversation-heading"><div><h2 id="conversation-heading">${v.say('Discussed','正在讨论')}</h2><p>${v.say('Themes independently present in at least three sources we follow this week. Not a measure of global popularity.','过去一周在至少三个本站关注来源中独立出现的主题，并非全网热度排行。')}</p></div><nav aria-label="${v.say('Discussed topics','正在讨论的主题')}">${topics.map(topic=>`<a href="${esc(qlink(v,{signal:topic.key,view:'all',page:null,q:null},'/trending'))}">${v.zh?topic.zh:topic.en}<span>${v.say(`${topic.sources} sources`,`${topic.sources} 个来源`)}</span></a>`).join('')}</nav></section>`;
+  return `<section class="conversation-strip" aria-labelledby="conversation-heading"><div><h2 id="conversation-heading">${v.t('Focusing')}</h2><p>${v.say('Themes independently present in at least three sources we follow this week. Not a measure of global popularity.','过去一周在至少三个本站关注来源中独立出现的主题，并非全网热度排行。')}</p></div><nav aria-label="${v.say('Focusing topics','关注的主题')}">${topics.map(topic=>`<a href="${esc(qlink(v,{signal:topic.key,view:'all',page:null,q:null},'/trending'))}">${v.zh?topic.zh:topic.en}<span>${v.say(`${topic.sources} sources`,`${topic.sources} 个来源`)}</span></a>`).join('')}</nav></section>`;
 }
 export async function home(env,v,{trending=false}={}) {
-  const db=env.DB, now=Date.now(), search=(v.url.searchParams.get('q')??'').trim().slice(0,120);
+  const db=env.DB, now=Date.now(), search=(v.url.searchParams.get('q')??'').trim().slice(0,120), originalLanguage=v.zh?'zh':'en';
   const subject=subjects.includes(v.url.searchParams.get('topic'))?v.url.searchParams.get('topic'):null;
   const signal=conversationTopic(v.url.searchParams.get('signal'));
   const lane=v.url.searchParams.get('lane')==='ai'?'ai':'human';
@@ -63,8 +63,8 @@ export async function home(env,v,{trending=false}={}) {
   if (!Number.isSafeInteger(page)||page>50) return html(v,v.t('Page unavailable'),`<p>${v.t('This page is outside the current feed.')}</p>`,{status:404});
   const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending;
   const rhythmLive=env.RHYTHM_LIVE_RANKING==='true';
-  const where=`s.lane IS NOT NULL AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || coalesce(s.title_en,'') || ' ' || coalesce(s.title_zh,'') || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
-  const args=[...(subject?[subject]:[]),...(search?[search]:[])];
+  const where=`s.lane IS NOT NULL AND s.original_lang=? AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
+  const args=[originalLanguage,...(subject?[subject]:[]),...(search?[search]:[])];
   // Joining signals only behind the gate lets a deploy calculate and audit
   // Rhythm without changing the chronological public feed.
   const liveCandidates=rhythmLive?`WITH candidates AS (
@@ -83,9 +83,9 @@ export async function home(env,v,{trending=false}={}) {
       WHERE lane_rank<=10 ORDER BY discovered_at DESC,url DESC`;
   const columns=await db.batch([
     db.prepare(liveCandidates).bind(...args),
-    db.prepare(`SELECT count(CASE WHEN lane='human' THEN 1 END) AS human,count(CASE WHEN lane='ai' THEN 1 END) AS ai FROM stories WHERE discovered_at>=?`).bind(now-7*DAY),
+    db.prepare(`SELECT count(CASE WHEN lane='human' THEN 1 END) AS human,count(CASE WHEN lane='ai' THEN 1 END) AS ai FROM stories WHERE original_lang=? AND discovered_at>=?`).bind(originalLanguage,now-7*DAY),
     db.prepare('SELECT max(ok_at) AS checked FROM source_state'),
-    db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120').bind(now-7*DAY)
+    db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120').bind(originalLanguage,now-7*DAY)
   ]);
   const edition=await latestEdition(db,'daily');
   let stories=focusedStories(columns[0].results);
@@ -98,7 +98,7 @@ export async function home(env,v,{trending=false}={}) {
   }
   const {results:mentions}=stories.length?await db.prepare(`SELECT url,link,source FROM mentions WHERE url IN(${stories.map(()=>'?').join(',')}) ORDER BY published_at DESC`).bind(...stories.map(s=>s.url)).all():{results:[]};
   const render=s=>card(s,v,{rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url)});
-  const picks=(edition?.stories??[]).filter(s=>!subject||s.subject===subject);
+  const picks=(edition?.stories??[]).filter(s=>s.original_lang===originalLanguage&&(!subject||s.subject===subject));
   const caption=edition?`<a class="edition-date" href="${v.local('/edit/'+edition.id)}">${date(Date.parse(edition.date+'T12:00:00Z'),v)} <span aria-hidden="true">↗</span></a>`:'';
   const dailyLive=env.GENERATED_PUBLISHING === 'true', showDaily=Boolean(edition) || dailyLive;
   const dailyHeading=edition?.date===dayKey(now)?v.say('Today’s picks','今日精选'):v.say('Daily picks','每日精选');
@@ -116,13 +116,13 @@ export async function home(env,v,{trending=false}={}) {
   const main=archive?`<p class="feed-note">${search?v.say('Search results for “','搜索结果：“')+esc(search)+'”':topicResults??(trending?v.say('Stories independently shared by at least three tracked sources in the past 24 hours.','过去 24 小时内，至少三个本站关注来源独立分享的文章。'):v.say('All recent arrivals','所有近期发现'))}</p><div class="stories archive-stories">${stories.length?stories.slice(0,20).map(render).join(''):`<p class="notice">${v.t('No recent stories match your search. Try another word or phrase.')}</p>`}</div>
     <nav class="pagination" aria-label="${v.t('Story pages')}">${page>1?`<a href="${esc(qlink(v,{page:page-1,view:'all'}))}">← ${v.say('Previous','上一页')}</a>`:''}${!trending&&stories.length>20?`<a href="${esc(qlink(v,{page:page+1,view:'all'}))}">${v.t('Older stories')} →</a>`:''}<a href="${esc(qlink(v,{page:null,view:null,q:null},'/'))}">${v.t('Back to latest')}</a></nav>`
     :`<div class="feed-columns" data-lane="${lane}">${column('human')}${column('ai')}</div><nav class="pagination"><a href="${esc(qlink(v,{view:'all',page:1}))}">${v.t('Browse all stories')} →</a><a href="${v.local('/edit')}">${v.say('Past daily editions','往期每日精选')} →</a></nav>`;
-  const bond=await latestEdition(db,'bond')??legacyEditions[0];
+  const bond=(await latestEdition(db,'bond')??legacyEditions[0]);
   const last=columns[2].results[0]?.checked;
   const signalCandidates=focusedStories(columns[3].results);
   const activeConversations=conversations(signalCandidates,now);
-  return html(v,trending?(signal?v.zh?signal.zh:signal.en:v.t('Discussed')):null,`${!archive?mix(columns[1].results[0],v,lane):''}${!archive?conversationStrip(activeConversations,v):''}${filters(v)}${main}
-    ${!archive?`<aside class="bond-teaser"><span>${v.t('The Bond')}</span><a href="${v.local('/bond/'+bond.id)}">${esc((v.zh?bond.zh:bond.en).title)} <span aria-hidden="true">→</span></a></aside>`:''}
-    <p class="feed-note feed-status">${last?v.say('Sources last checked: ','上次检查来源：')+date(last,v)+' · '+new Date(last).toISOString().slice(11,16)+' UTC':v.t('Awaiting the first source check')}</p>`,{wide:!archive});
+  return html(v,trending?(signal?v.zh?signal.zh:signal.en:v.t('Focusing')):null,`${!archive?mix(columns[1].results[0],v,lane):''}${!archive?conversationStrip(activeConversations,v):''}${filters(v)}${main}
+    ${!archive&&bond.stories?.every(story=>story.original_lang===originalLanguage)?`<aside class="bond-teaser"><span>${v.t('The Bond')}</span><a href="${v.local('/bond/'+bond.id)}">${esc((v.zh?bond.zh:bond.en).title)} <span aria-hidden="true">→</span></a></aside>`:''}
+    <p class="feed-note feed-status">${last?v.say('Sources last checked: ','上次检查来源：')+date(last,v)+' · '+new Date(last).toISOString().slice(11,16)+' UTC':v.t('Awaiting the first source check')}</p>`,{wide:true});
 }
 export async function dailyPage(env,v,id) {
   if (!id) {
@@ -132,28 +132,30 @@ export async function dailyPage(env,v,id) {
   }
   const edition=parse(await env.DB.prepare(`SELECT snapshot,correction FROM editions WHERE kind='daily' AND id=?`).bind(id).first());
   if (!edition) return html(v,v.t('Page unavailable'),`<p>${v.say('This edition is unavailable or has left the 50-edition archive.','这一期不存在，或已超出最近 50 期的保留范围。')}</p>`,{status:404});
-  return html(v,date(Date.parse(edition.date+'T12:00Z'),v),`<p class="feed-note">${v.say('The daily edit · a few things worth your time.','每日精选 · 几篇值得花时间读的文章。')}</p><div class="edition-columns">${['human','ai'].map(l=>`<section><h2 class="lane-title ${l}">${laneName(l,v)}</h2>${edition.stories.filter(s=>s.lane===l).map(s=>card(s,v,{pick:true,editionId:id})).join('')}</section>`).join('')}</div><p class="edition-end">${v.say('You’ve reached the end of this edition.','本期精选读完了。')}</p>${edition.correction?`<p>${esc(edition.correction)}</p>`:''}<p class="bond-link"><a href="${v.local('/edit')}">${v.say('More editions','更多精选')} →</a></p>`,{wide:true,edition:true,description:v.say('A daily selection of culture, creative work, and life with AI.','每天精选文化、创作与 AI 时代生活的好文章。')});
+  const originalLanguage=v.zh?'zh':'en';
+  return html(v,date(Date.parse(edition.date+'T12:00Z'),v),`<p class="feed-note">${v.say('The daily edit · a few things worth your time.','每日精选 · 几篇值得花时间读的文章。')}</p><div class="edition-columns">${['human','ai'].map(l=>`<section><h2 class="lane-title ${l}">${laneName(l,v)}</h2>${edition.stories.filter(s=>s.lane===l&&s.original_lang===originalLanguage).map(s=>card(s,v,{pick:true,editionId:id})).join('')}</section>`).join('')}</div><p class="edition-end">${v.say('You’ve reached the end of this edition.','本期精选读完了。')}</p>${edition.correction?`<p>${esc(edition.correction)}</p>`:''}<p class="bond-link"><a href="${v.local('/edit')}">${v.say('More editions','更多精选')} →</a></p>`,{wide:true,edition:true,description:v.say('A daily selection of culture, creative work, and life with AI.','每天精选文化、创作与 AI 时代生活的好文章。')});
 }
 function participation(v) {
   return `<div class="bond-participation"><div><h3>${v.t('Send us a find')}</h3><p>${v.t('Share a public link and one sentence about what caught your attention. Tell us if you’d like to be credited.')}</p><a href="mailto:info@bond6.io?subject=Bond6%20reader%20find">${v.t('Email a find')}</a></div><div><h3>${v.t('Invite a voice')}</h3><p>${v.t('Suggest a creator and one question you’d ask them. You can also suggest yourself. We ask permission before publishing a response.')}</p><a href="mailto:info@bond6.io?subject=Bond6%20creator%20suggestion">${v.t('Suggest a creator')}</a></div></div>`;
 }
 export async function bondPage(env,v,id) {
   const {results}=await env.DB.prepare(`SELECT snapshot,correction FROM editions WHERE kind='bond' ORDER BY edition_date DESC LIMIT 50`).all();
-  const editions=[...results.map(parse),...legacyEditions].slice(0,50);
+  const originalLanguage=v.zh?'zh':'en';
+  const editions=[...results.map(parse),...legacyEditions].filter(edition=>edition.stories?.length&&edition.stories.every(story=>story.original_lang===originalLanguage)).slice(0,50);
   const edition=id?editions.find(e=>e.id===id):editions[0];
-  if (!edition) return html(v,v.t('Page unavailable'),`<p>${v.t('Go to homepage')}</p>`,{status:404});
+  if (!edition) return html(v,v.t('Bonding'),`<p class="notice">${v.say('No original-language Bonding editions are available yet.','暂时还没有可用的中文原创「连结」。')}</p>`,{wide:true});
   const copy=v.zh?edition.zh:edition.en;
   const pair=edition.stories.map(s=>`<article class="editorial-pick"><p class="pick-label">${laneName(s.lane,v)}</p><h3>${esc((v.zh?s.zh:s.en).title)}</h3><p>${esc((v.zh?s.zh:s.en).note)}</p>${s.quote?`<blockquote><p lang="en">${esc(s.quote)}</p>${v.zh&&s.zh.quote?`<p>${esc(s.zh.quote)} ${v.t('(translated)')}</p>`:''}</blockquote>`:''}<p class="pick-links">${esc(s.author?s.author+' · '+s.source:s.source)}</p>${actions(s,v,'https://bond6.io'+v.local('/bond/'+edition.id))}</article>`).join('');
-  return html(v,id?copy.title:v.t('The Bond'),`<p class="feed-note">${v.say('Connections between creative work and life with AI.','把创作与 AI 时代的生活放在一起读。')} ${date(Date.parse(edition.date+'T12:00Z'),v)}${edition.legacy?' · '+v.say('Archive research edition','研究存档选编'):''}</p>
+  return html(v,id?copy.title:v.t('Bonding'),`<p class="feed-note">${v.say('Connections between creative work and life with AI.','把创作与 AI 时代的生活放在一起读。')} ${date(Date.parse(edition.date+'T12:00Z'),v)}${edition.legacy?' · '+v.say('Archive research edition','研究存档选编'):''}</p>
     <section class="bond-feature">${!id?`<header class="bond-header"><h2><a href="${v.local('/bond/'+edition.id)}">${esc(copy.title)}</a></h2></header>`:''}<div class="bond-pair">${pair}</div><p class="bond-note">${esc(copy.note)}</p>
     <p class="bond-note note-disclosure">${edition.legacy?v.say('A researched editorial connection.','根据来源整理的编辑联想。'):v.say('Bond6’s interpretation · AI-assisted and checked against the selected sources.','Bond6 的联想 · 由 AI 辅助生成，并对照所选来源检查。')} ${correction(v,'https://bond6.io'+v.local('/bond/'+edition.id))}</p>
     ${copy.question?`<div class="bond-response"><p>${esc(copy.question)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('The Bond | '+copy.title)}">${v.t('Share your experience')}</a></div>`:''}${edition.correction?`<p class="bond-note">${esc(edition.correction)}</p>`:''}${participation(v)}</section>
-    <h2>${v.t('More editions')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition.id).map(e=>`<li><a href="${v.local('/bond/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`,{edition:!!id,description:metaSummary(copy.note)});
+    <h2>${v.t('More editions')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition.id).map(e=>`<li><a href="${v.local('/bond/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`,{wide:true,edition:!!id,description:metaSummary(copy.note)});
 }
 export function about(v) {
   return html(v,v.t('About'),`<div class="about-copy"><p>${v.t('The Bond6 Flow brings together writing on culture, creative work, and life with AI. Bond6 takes its name from carbon, the sixth element and the basis of life.')}</p>
   <h2>${v.say('Two ways of looking','两种观察角度')}</h2><p>${v.say('Human Pulse is for culture, creative practice, community and lived experience. It is a subject category, not a certification that a work was made without AI. AI & Its Impact looks at how AI and digital platforms affect people and culture.','「人文脉动」关注文化、创作实践、社区与亲身经历。这是主题分类，并不证明作品没有使用 AI。「AI 与它的影响」关注 AI 和数字平台怎样影响人及文化。')}</p>
-  <h2 id="method">${v.say('How we publish','我们怎样发布')}</h2><p>${v.say('Public RSS/Atom feeds and selected Bluesky accounts supply the live stream. Items are classified by subject; linked articles and original commentary keep separate attribution. Unknown publication dates stay unknown. English and Chinese originals can appear in either edition; translated headlines are shown only when they have passed our automated checks.','实时资讯来自公开的 RSS/Atom 订阅源和选定的 Bluesky 账号。我们按内容主题分类，区分原文作者与转发者；无法确认的发表日期会标为未知。英文和中文原创内容都可出现在两个版本中；只有通过自动检查的标题译文才会显示。')}</p>
+  <h2 id="method">${v.say('How we publish','我们怎样发布')}</h2><p>${v.say('Public RSS/Atom feeds and selected Bluesky accounts supply the live stream. Items are classified by subject; linked articles and original commentary keep separate attribution. Unknown publication dates stay unknown. The English edition shows English originals only; the Simplified Chinese edition shows Chinese originals only. Bond6 does not translate article titles or content.','实时资讯来自公开的 RSS/Atom 订阅源和选定的 Bluesky 账号。我们按内容主题分类，区分原文作者与转发者；无法确认的发表日期会标为未知。英文版只显示英文原创内容；简体中文版只显示中文原创内容。Bond6 不翻译文章标题或内容。')}</p>
   <h2 id="rhythm">${v.say('Bond6 Rhythm','Bond6 节奏')}</h2><p>${v.say('Rhythm is our recorded selection method for daily picks, not a popularity score. Human Pulse needs signals of creative practice, first-person process, care, community, or lived time. AI & Its Impact needs both a system or platform signal and a meaningful consequence for people or culture. Each selected story keeps the short labels and source-excerpt evidence that supported its place. Weak or mismatched signals stay in the live feed rather than being promoted.','「Bond6 节奏」是每日精选的可记录筛选方法，不是热度分数。「人文脉动」需要创作实践、第一人称过程、关怀、社区或生活时间等信号；「AI 与它的影响」则须同时具备系统或平台信号，以及对人或文化有意义的影响。每篇入选文章都会保留简短标签和支持它的来源摘录证据。信号不足或不匹配的内容仍会留在实时资讯中，不会被提升为精选。')}</p>
   <p>${v.say('For calibration, we keep a rolling, aggregate daily audit of the candidate pool and its diversity: lane, language, subject, publisher, author, confidence, and selection shortfalls. It contains no visitor records or reading history. We use it to tune the method from evidence, not from a promise that one kind of story should always win.','为便于校准，我们会滚动保留每日候选池及其多样性的汇总审计：栏目、语言、主题、刊物、作者、置信度和未满额原因。其中不含访客记录或阅读历史。我们据此用证据调整方法，而不是预先认定某一类文章总该胜出。')}</p>
   <p>${v.say('Daily picks and new Bond editions are prepared automatically from available source excerpts, but publishing remains off until the quality checks are reliable in regular operation. When enabled, each note needs usable source text, exact supporting passages, language and attribution checks, and a separate AI comparison with the source. The process is automatic, not a human fact-check.','每日精选和新的「连结」会根据可获取的来源摘录自动准备，但在质量检查能够稳定运行前，不会自动发布。启用后，每则摘要须有足够的来源文字、逐条对应的原文依据，经过语言及署名检查，再由另一轮 AI 对照来源审核。整个流程自动运行，不是人工事实核查。')}</p>
@@ -181,7 +183,7 @@ export async function sourcesPage(env,v) {
   return html(v,v.t('Sources'),`<p class="feed-note">${v.t('Bond6 follows publishers, independent writers, and public accounts that cover writing, creative work, and life with AI. This list changes as we find new sources.')}</p><section class="source-invitation"><div><h2>${v.say('Help widen the reading','一起拓宽阅读范围')}</h2><p>${v.say('Know a publication, writer, newsletter, podcast, or public account worth following? Send its public URL, language, and a sentence on what makes it useful. We review suggestions before adding anything.','知道值得关注的媒体、作者、通讯、播客或公开账号？请发送公开链接、主要语言和一句推荐理由。所有建议都会经过审核，不会自动加入。')}</p><p>${v.say('No mail app? Write to info@bond6.io.','没有邮件客户端？请写信至 info@bond6.io。')}</p></div><a class="text-link" href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion&body=${request}">${v.say('Suggest a source','推荐来源')} <span aria-hidden="true">→</span></a></section><section class="source-group"><h2>${v.say('English and other-language sources','英文及其他语言来源')}</h2><ul class="sources">${list('en')}</ul></section><section class="source-group"><h2>${v.say('Chinese-language sources','中文来源')}</h2><ul class="sources">${list('zh')}</ul></section>`);
 }
 export function subscribe(env,v) {
-  const links=[...(env.GENERATED_PUBLISHING === 'true'?[['daily',null,v.say('Daily picks','每日精选')]]:[]),['live','human',v.t('Human Pulse')],['live','ai',v.t('AI & Its Impact')],['bond',null,v.t('The Bond')],['live',null,v.say('All arrivals','全部新发现')]];
+  const links=[...(env.GENERATED_PUBLISHING === 'true'?[['daily',null,v.say('Daily picks','每日精选')]]:[]),['live','human',v.t('Human Pulse')],['live','ai',v.t('AI & Its Impact')],['bond',null,v.t('Bonding')],['live',null,v.say('All arrivals','全部新发现')]];
   return html(v,v.t('Subscribe'),`<p>${v.say('Choose a feed and paste its address into your RSS reader. Switch language above for the other edition.','选择一个订阅源，把地址粘贴到 RSS 阅读器里。切换页面语言即可获取另一语言的订阅源。')}</p><ul class="subscription-list">${links.map(([kind,lane,title])=>{const path=v.local('/feed.xml')+'?'+new URLSearchParams({kind,...(lane?{lane}:{})});return `<li><h2>${title}</h2><a href="${esc(path)}">https://bond6.io${esc(path)}</a></li>`;}).join('')}</ul>`);
 }
 export function savedPage(v) {
