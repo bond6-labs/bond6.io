@@ -23,9 +23,10 @@ export function searchForm(v) {
     <label for="story-query">${v.t('Search stories')}</label><div><input id="story-query" name="q" type="search" maxlength="120" autocomplete="off" value="${esc(v.url.searchParams.get('q'))}"><button>${v.t('Search')}</button></div>
     ${v.url.searchParams.get('lane')?`<input type="hidden" name="lane" value="${esc(v.url.searchParams.get('lane'))}">`:''}</form></details>`;
 }
-export function html(v,title,content,{status=200,description,wide=false,edition=false}={}) {
+export function html(v,title,content,{status=200,description,intro,wide=false,edition=false}={}) {
   const siteTitle=v.t('The Bond6 Flow'), heading=title||siteTitle;
   description??=v.t('New writing on culture, creative work, and life with AI.');
+  intro??=description;
   const canonical=new URL(v.local(v.path),'https://bond6.io').href;
   const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;
   const nav=[['/','Latest'],['/trending','Focusing'],['/bond','Bonding']];
@@ -43,9 +44,9 @@ export function html(v,title,content,{status=200,description,wide=false,edition=
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span class="mark-six">6</span><small>.io</small></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
-  <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'简'}</a>
+  <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中'}</a>
   </div></div></header>
-  <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(description)}</p>`:''}</div></div>${content}</main>
+  <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(intro)}</p>`:''}</div></div>${content}</main>
   <div class="reader-message shell" role="status" aria-live="polite"></div>
   <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
   <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Focusing')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;

@@ -44,7 +44,7 @@ test('language editions show only original-language stories and no translated-ti
   const db=database();const en=story(94,{title:'An English original headline',title_zh:'A translated headline that must not render'});
   const zh=story(95,{url:'https://example.org/zh/95',link:'https://example.org/zh/95',canonical_url:'https://example.org/zh/95',title:'一条中文原创标题',original_lang:'zh',source:'中文工作室'});
   await storeItems(db,source,[en,zh],now);
-  const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();assert.match(enText,/An English original headline/);assert.doesNotMatch(enText,/一条中文原创标题/);assert.doesNotMatch(enText,/A translated headline that must not render/);assert.match(enText,/aria-label="Search stories"/);assert.match(enText,/>简<\/a>/);
+  const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();assert.match(enText,/An English original headline/);assert.doesNotMatch(enText,/一条中文原创标题/);assert.doesNotMatch(enText,/A translated headline that must not render/);assert.match(enText,/aria-label="Search stories"/);assert.match(enText,/>中<\/a>/);
   const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();assert.match(zhText,/一条中文原创标题/);assert.doesNotMatch(zhText,/An English original headline/);assert.match(zhText,/>EN<\/a>/);
   const zhFeed=await worker.fetch(new Request('https://bond6.io/zh/feed.xml'),{DB:db});const zhXml=await zhFeed.text();assert.match(zhXml,/一条中文原创标题/);assert.doesNotMatch(zhXml,/An English original headline/);
 });
