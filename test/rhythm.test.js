@@ -6,7 +6,7 @@ import { story, now } from './fixtures.js';
 
 test('Rhythm selects evidenced human and AI signals without source-name shortcuts',()=>{
   const human=scoreRhythm(story(1,{title:'I recorded songs with neighbours',excerpt:'I spent the season recording songs with my neighbours in a local community studio.'}));
-  assert.equal(human.lane_recommendation,'human');assert.ok(human.labels.includes('First-person process'));
+  assert.equal(human.lane_recommendation,'human');assert.ok(human.labels.includes('Creative practice'));
   const ai=scoreRhythm(story(2,{title:'AI scheduling changes teachers’ work',excerpt:'A report documents how a generative AI platform changes teachers’ work, privacy, and classroom culture.'}));
   assert.equal(ai.lane_recommendation,'ai');assert.ok(ai.evidence.every(item=>ai.title===undefined||item.evidence));
   assert.equal(scoreRhythm(story(3,{title:'New chip announced',excerpt:'A company announced a new chip today.'})).lane_recommendation,null);

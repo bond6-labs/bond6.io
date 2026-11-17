@@ -26,7 +26,7 @@ export const CULTURE_RETENTION_DAYS = 30; // Days to retain culture content
 
 // Bond6 Rhythm selection. These are deliberately conservative: stories without
 // a strong, recorded reason to belong in a lane stay in the live feed only.
-export const RHYTHM_MIN_CONFIDENCE = 0.6;
+export const RHYTHM_MIN_CONFIDENCE = 0.72;
 export const RHYTHM_FRESH_WINDOW_DAYS = 3;
 export const RHYTHM_FALLBACK_WINDOW_DAYS = 7;
 export const RHYTHM_DAILY_MAX_PER_LANE = 3;

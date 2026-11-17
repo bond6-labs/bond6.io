@@ -24,7 +24,7 @@ export function rhythmPriority(story, now = Date.now()) {
   const freshness = age <= DAY ? 1.2 : age <= RHYTHM_FRESH_WINDOW_DAYS * DAY ? .8 : .25;
   const depth = Math.min(1, (story.excerpt?.length ?? 0) / 700);
   const labels = rhythmLabels(story);
-  const firsthand = labels.includes('First-person process') ? .7 : 0;
+  const firsthand = labels.includes('Personal reflection') || labels.includes('First-person process') ? .7 : 0;
   const specificity = labels.includes('Reported specificity') ? .45 : 0;
   return Number((Number(story.rhythm_confidence) * 4 + laneScore * .35 + freshness + depth + firsthand + specificity + (story.author ? .2 : 0)).toFixed(3));
 }
@@ -84,8 +84,8 @@ async function rhythmSelection(db,now) {
     r.lane_recommendation AS rhythm_lane, r.confidence AS rhythm_confidence, r.labels AS rhythm_labels, r.evidence AS rhythm_evidence
     FROM stories s JOIN story_signals r ON r.story_url=s.url
     WHERE s.discovered_at>=? AND s.lane IS NOT NULL AND s.content_hash IS NOT NULL
-      AND r.lane_recommendation=s.lane AND r.confidence>=?
-    ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_MIN_CONFIDENCE).all();
+      AND r.rhythm_version=? AND r.lane_recommendation=s.lane AND r.confidence>=?
+    ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_VERSION,RHYTHM_MIN_CONFIDENCE).all();
   const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
     WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
   return { eligible:results, selected:rankCandidates(results,used.map(story=>story.url),now) };

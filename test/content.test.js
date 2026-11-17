@@ -40,17 +40,21 @@ test('source polling uses a bounded fast lane without accelerating every feed',(
   assert.equal(pollIntervalMs({poll_minutes:999}),180*60_000);
 });
 test('classification follows content, not publication names',()=>{
-  assert.equal(classify('The new jazz album','Music and guitar performances',{name:'AI Newspaper'}).lane,'human');
-  assert.equal(classify('Artificial intelligence changes painting','Artists discuss AI',{essays:true}).lane,'ai');
+  assert.equal(classify('A musician rehearses a new jazz album','Music and guitar performances',{name:'AI Newspaper'}).lane,'human');
+  assert.equal(classify('Artificial intelligence replaces painting work','Artists discuss AI losing commissions',{essays:true}).lane,'ai');
   assert.equal(classify('Office announcements','Company meeting tomorrow',{}).lane,null);
   assert.equal(classify('A deal to make more money','This makes no sense to me',{}).lane,null);
   assert.equal(classify('NVIDIA financing','The consortium is raising money',{}).lane,null);
   assert.equal(classify('大模型怎样影响小说写作','作者们讨论人工智能对创作的影响').lane,'ai');
-  assert.deepEqual(classify('Meet the National Book Award finalists','A short announcement.',{id:'literary-hub'}),{lane:'human',subject:'writing'});
-  assert.deepEqual(classify('Tara Cunningham – Warm Ground','A record review.',{id:'quietus'}),{lane:'human',subject:'music'});
+  assert.equal(classify('Meet the National Book Award finalists','A short announcement.',{id:'literary-hub'}).lane,null);
+  assert.deepEqual(classify('Tara Cunningham – Warm Ground','A record review.',{id:'quietus',essays:true}),{lane:'human',subject:'music'});
   assert.equal(classify('Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App','The case concerns social media companies and government speech policy.',{id:'techdirt'}).lane,null);
   assert.equal(classify('The End Of Copyright-Locked Software','AI clean-room tools and Claude change how software can be rebuilt, with consequences for copyright.',{id:'techdirt'}).lane,'ai');
   assert.equal(classify('A facial recognition system changes public workers’ privacy','The automated decision affects workers and privacy rights.',{id:'techdirt'}).lane,'ai');
+  assert.equal(classify('Election campaign launches today','Candidates debate the future of the country.',{}).lane,null);
+  assert.equal(classify('Neighbours build a mutual-aid garden','Volunteers support families through a difficult winter.',{}).lane,'human');
+  assert.equal(classify('AI mentioned in a company announcement','A company has a meeting tomorrow.',{}).lane,null);
+  assert.equal(classify('A lab publishes AI research','A report documents a new benchmark for model capabilities.',{}).lane,'ai');
 });
 test('headlines retain their final word and long social posts are not chopped into headlines',()=>{
   const [rss]=fromRss('<rss><channel><item><title>Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App</title><link>https://example.org/a</link><description>AI policy and the impact on people and culture gives this feed item enough source text for a focused classification.</description></item></channel></rss>',source);

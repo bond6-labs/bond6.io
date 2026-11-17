@@ -1,7 +1,8 @@
 import { html, esc, date, card, qlink, correction, actions } from './render.js';
 import { DAY, classify, conversations, conversationTopic, dayKey, storyTopics, subjects, subjectLabels } from './content.js';
-import { sources } from './sources.js';
+import { sources, retiredSourceIds } from './sources.js';
 import { editions as legacy } from './picks.js';
+import { RHYTHM_VERSION } from './rhythm.js';
 
 const legacySlugs=['making-and-proof','imitation-and-performance','behind-the-finished-work','a-personal-exchange'];
 const metaSummary=value => {
@@ -15,7 +16,10 @@ export const legacyEditions=legacy.map((e,i)=>({id:'field-notes-'+legacySlugs[i]
 const parse=row=>row?{...JSON.parse(row.snapshot),correction:row.correction}:null;
 export async function latestEdition(db,kind) { return parse(await db.prepare('SELECT snapshot,correction FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 1').bind(kind).first()); }
 const laneName=(lane,v)=>v.t(lane==='human'?'Human Pulse':'AI & Its Impact');
-const focusedStories=rows=>rows.filter(story=>classify(story.title??'',story.excerpt??'',sources.find(source=>source.id===story.source_id)).lane===story.lane);
+// A source refresh should take effect immediately. Historical records remain in
+// D1 for bounded retention and edition attribution, but must not keep appearing
+// in a live lane after their source has been retired.
+const focusedStories=rows=>rows.filter(story=>!retiredSourceIds.has(story.source_id) && classify(story.title??'',story.excerpt??'',sources.find(source=>source.id===story.source_id)).lane===story.lane);
 const laneSignature=(lane,v)=>lane==='human'
   ?`<div class="lane-character lane-character-human" aria-hidden="true">${owl('perch')}</div><div class="lane-signature human-signature"><span class="heartbeat" aria-hidden="true">♥</span><span><b>37°C</b> · ${v.say('slow current','缓慢脉动')}</span></div>`
   :`<div class="lane-character lane-character-ai" aria-hidden="true">${robot('perch')}</div><div class="lane-signature ai-signature"><span class="digital-flow" aria-hidden="true"><span>101001&nbsp;101001&nbsp;101001&nbsp;</span></span><span>${v.say('fast signal','快速信号')}</span></div>`;
@@ -70,7 +74,7 @@ export async function home(env,v,{trending=false}={}) {
   const liveCandidates=rhythmLive?`WITH candidates AS (
       SELECT s.*,r.rhythm_version,r.human_score AS rhythm_human_score,r.ai_score AS rhythm_ai_score,
         r.lane_recommendation AS rhythm_lane,r.confidence AS rhythm_confidence,r.labels AS rhythm_labels,r.evidence AS rhythm_evidence,
-        CASE WHEN r.lane_recommendation=s.lane AND r.confidence>=0.6
+        CASE WHEN r.rhythm_version=${RHYTHM_VERSION} AND r.lane_recommendation=s.lane AND r.confidence>=0.72
           THEN r.confidence*100 + CASE WHEN s.lane='ai' THEN r.ai_score ELSE r.human_score END ELSE 0 END AS rhythm_live_score
       FROM stories s LEFT JOIN story_signals r ON r.story_url=s.url WHERE ${where}
     ), diverse AS (
@@ -170,7 +174,7 @@ export async function sourcesPage(env,v) {
   const request=encodeURIComponent(v.say('Publication / account name:\nWebsite or feed URL:\nPrimary language:\nWhat it covers:\nWhy it belongs on Bond6:\n','媒体或账号名称：\n网站或订阅地址：\n主要语言：\n内容主题：\n为什么适合 Bond6：\n'));
   const groups=new Map();
   for (const source of sources) {
-    const language=['sspai','gcores','chuapp'].includes(source.id)?'zh':'en';
+    const language=['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en';
     const key=language+'|'+source.name, group=groups.get(key)??{...source,language,items:[]}; group.items.push(source); groups.set(key,group);
   }
   const row=group=>{

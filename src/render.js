@@ -70,13 +70,20 @@ function mediaPreview(story,v) {
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
 const rhythmLabel=(label,v)=>({
+  'Personal reflection':v.say('Personal reflection','个人思考'),
   'First-person process':v.say('First-person process','第一人称过程'),
   'Creative practice':v.say('Creative practice','创作实践'),
+  'Care & mutual support':v.say('Care & mutual support','关怀与互助'),
+  'Embodied life':v.say('Embodied life','身体与真实生活'),
+  'AI capability or system':v.say('AI capability or system','AI 能力或系统'),
+  'AI development':v.say('AI development','AI 进展'),
+  'Consequential perspective':v.say('Consequential perspective','关键人物观点'),
   'Community & care':v.say('Community & care','社区与关怀'),
   'Place & lived time':v.say('Place & lived time','地点与生活时间'),
   'AI system':v.say('AI system','AI 系统'),
   'Platform power':v.say('Platform power','平台权力'),
   'Automated system':v.say('Automated system','自动化系统'),
+  'Impact on people':v.say('Impact on people','对人的影响'),
   'Human consequence':v.say('Human consequence','对人的影响'),
   'Reported specificity':v.say('Reported specificity','报道中的具体性')
 }[label]??label);
