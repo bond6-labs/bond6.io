@@ -445,6 +445,11 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .lane-signature { display: flex; align-items: center; gap: 9px; color: var(--masthead-detail); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
 .lane-signature b { color: var(--masthead-ink); font-size: 11px; }
 .human-signature { gap: 15px; font-family: var(--headline-font); letter-spacing: .14em; }
+.feed-column:last-child .column-masthead { gap: 11px; }
+.feed-column:last-child .column-masthead h2 { line-height: 1.08; }
+.feed-column:last-child .column-masthead p { line-height: 1.45; letter-spacing: 0; }
+.feed-column:last-child .column-masthead h2:lang(en) { margin-block: 2px 0; font-family: "Courier Prime", "Courier New", ui-monospace, monospace; font-size: clamp(32px, 4vw, 50px); line-height: 1.08; letter-spacing: -.04em; }
+.feed-column:last-child .column-masthead h2:lang(zh-Hans) { font-size: clamp(28px, 3.7vw, 40px); line-height: 1.18; letter-spacing: .14em; word-spacing: .12em; }
 .heartbeat { display: inline-grid; place-items: center; width: 75px; height: 22px; color: #c74641; filter: drop-shadow(0 1px 2px #b7433c38); }
 .heartbeat svg { display: block; width: 100%; height: 100%; overflow: hidden; }
 .heartbeat-heart { fill: #d64742; transform-box: fill-box; transform-origin: center; animation: bond6-heartbeat 2.85s ease-in-out infinite; }
@@ -461,6 +466,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
   .digital-flow { width: 77px; font-size: 12px; }.heartbeat { width: 62px; height: 20px; }.human-signature,.ai-signature { gap: 11px; }
   .column-masthead { height: 128px; min-height: 128px; padding-top: 17px; }
   .feed-column:last-child .column-masthead h2 { font-size: 24px; }
+  .feed-column:last-child .column-masthead h2:lang(zh-Hans) { font-size: 28px; }
 }
 @media(min-width:700px) { .column-masthead { height: clamp(178px,17vw,210px); min-height: 0; } }
 @media(min-width:700px) {

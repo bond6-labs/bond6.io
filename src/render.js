@@ -39,7 +39,7 @@ export function html(v,title,content,{status=200,description,intro,wide=false,ed
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
   <script src="/reader.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css?v=language-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span class="mark-six">6</span><small>.io</small></a>
