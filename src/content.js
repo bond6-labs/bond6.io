@@ -70,14 +70,16 @@ export function storyTopics(story) {
   const text = `${story.title ?? ''} ${story.excerpt ?? ''}`;
   return conversationTopics.filter(topic => topic.match.test(text)).map(topic => topic.key);
 }
-export function conversations(stories, now = Date.now()) {
+export function conversations(stories, now = Date.now(), readerInterest = new Map()) {
   const active = stories.filter(story => (story.discovered_at ?? 0) >= now - 7 * DAY);
   return conversationTopics.map(topic => {
     const matches = active.filter(story => storyTopics(story).includes(topic.key));
     const sources = new Set(matches.map(story => story.source_id ?? story.source));
-    return { ...topic, stories: matches.length, sources: sources.size, latest: Math.max(0, ...matches.map(story => story.discovered_at ?? 0)) };
-  }).filter(topic => topic.stories >= 3 && topic.sources >= 3)
-    .sort((a, b) => b.sources - a.sources || b.stories - a.stories || b.latest - a.latest).slice(0, 5);
+    const readers = Math.max(0,Number(readerInterest.get(topic.key)??0));
+    const strength=sources.size>=3?'strong':sources.size>=2?'emerging':readers>=3?'reader':null;
+    return { ...topic, stories: matches.length, sources: sources.size, readers, strength, latest: Math.max(0, ...matches.map(story => story.discovered_at ?? 0)) };
+  }).filter(topic => topic.strength)
+    .sort((a, b) => (b.strength==='strong')-(a.strength==='strong') || (b.strength==='emerging')-(a.strength==='emerging') || b.sources-a.sources || b.readers-a.readers || b.stories-a.stories || b.latest-a.latest).slice(0, 5);
 }
 /** Normalize untrusted feed text into plain text before it reaches storage. */
 export const plain = (value, limit = 5000) => {

@@ -39,7 +39,11 @@
   function bindShare(button){if(button.dataset.readerBound)return;button.dataset.readerBound='true';button.hidden=false;button.addEventListener('click',()=>share(button));}
   function bindStoryControls(root=document){root.querySelectorAll('.save-story').forEach(bindSave);root.querySelectorAll('.share-story').forEach(bindShare);refreshButtons();}
   bindStoryControls();
-  document.addEventListener('click',event=>{if(event.target.closest('a[data-event="original"]'))metric('original');});
+  document.addEventListener('click',event=>{
+    const link=event.target.closest('a[data-event="original"]');if(!link)return;metric('original');
+    const key=link.closest('.story')?.dataset.focus?.split(',').find(Boolean);if(!key||!storage||!countEvents)return;
+    try{const day=new Date().toISOString().slice(0,10),interestKey='bond6-focus-interest:'+day,seen=new Set(JSON.parse(localStorage.getItem(interestKey)??'[]'));if(seen.has(key))return;seen.add(key);localStorage.setItem(interestKey,JSON.stringify([...seen].slice(-12)));metric('focus:'+key);}catch{/* Interest signals are optional. */}
+  });
   function element(tag,text,className){const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;}
   function renderSaved(){
     const list=document.querySelector('#saved-list'),clear=document.querySelector('#clear-saved');if(!list)return;
@@ -69,23 +73,26 @@
       const column=trigger.closest('.feed-column'),feed=column?.querySelector('[data-infinite-lane-feed]'),list=feed?.querySelector('[data-infinite-stories]'),statusLine=feed?.querySelector('[data-infinite-status]');
       if(!column||!feed||!list||!statusLine)return;
       let loading=false,finished=false;
+      const rendered=new Set([...column.querySelectorAll('.story h3 a[href]')].map(link=>link.href));
       const message=text=>{statusLine.textContent=text;};
       const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));observer.disconnect();};
       const load=async()=>{
         if(loading||finished||!column.getClientRects().length)return;
         loading=true;trigger.setAttribute('aria-busy','true');message(say('Loading earlier arrivals…','正在加载更早内容…'));
+        let retry=false;
         try{
           const response=await fetch(trigger.href,{headers:{Accept:'text/html'}});if(!response.ok)throw new Error('Request failed');
           const documentPage=new DOMParser().parseFromString(await response.text(),'text/html');
           const incoming=documentPage.querySelector('.archive-stories');
           const cards=incoming?[...incoming.querySelectorAll(':scope > .story')]:[];
           if(!cards.length){finish();return;}
-          list.append(...cards);feed.hidden=false;bindStoryControls(feed);
+          const fresh=cards.filter(card=>{const link=card.querySelector('h3 a[href]')?.href;if(!link||rendered.has(link))return false;rendered.add(link);return true;});
+          if(fresh.length){list.append(...fresh);feed.hidden=false;bindStoryControls(feed);}
           const next=documentPage.querySelector('[data-next-page]');
-          if(next?.href){trigger.href=next.href;message(say('More earlier arrivals load as you scroll.','继续向下滚动即可加载更早内容。'));}
+          if(next?.href){trigger.href=next.href;message(say('More earlier arrivals load as you scroll.','继续向下滚动即可加载更早内容。'));retry=!fresh.length;}
           else finish();
         }catch{message(say('Couldn’t load earlier arrivals. Use Browse all stories instead.','无法加载更早内容。请使用「浏览全部文章」。'));}
-        finally{loading=false;trigger.removeAttribute('aria-busy');}
+        finally{loading=false;trigger.removeAttribute('aria-busy');if(retry)queueMicrotask(load);}
       };
       const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))load();},{rootMargin:'700px 0px'});
       observer.observe(trigger);

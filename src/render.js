@@ -7,8 +7,9 @@ export function locale(url) {
   const zh=url.pathname==='/zh'||url.pathname.startsWith('/zh/');
   const path=zh?url.pathname.slice(3)||'/':url.pathname;
   const local=route=>zh?'/zh'+route:route;
+  const alternateQuery=new URLSearchParams(url.search);for(const key of ['before','before_url','page','load'])alternateQuery.delete(key);
   return {zh,path,local,lang:zh?'zh-Hans':'en',t:label=>zh?chinese[label]??label:label,say:(en,cn)=>zh?cn:en,url,
-    alternate:(zh?path:'/zh'+path)+url.search};
+    alternate:(zh?path:'/zh'+path)+(alternateQuery.size?'?'+alternateQuery:'')};
 }
 export function date(ms,v) {
   return new Intl.DateTimeFormat(v.zh?'zh-Hans':'en',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(ms);
@@ -30,7 +31,7 @@ export function html(v,title,content,{status=200,description,intro,wide=false,ed
   const canonical=new URL(v.local(v.path),'https://bond6.io').href;
   const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;
   const nav=[['/','Latest'],['/trending','Focusing'],['/bond','Bonding']];
-  const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,page:null,view:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
+  const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,page:null,view:null,load:null,before:null,before_url:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
   const body=`<!doctype html><html lang="${v.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${esc(heading)}${title?' · Bond6.io':''}</title><meta name="description" content="${esc(description)}"><meta name="theme-color" content="#f6f3ec">
   <link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="en" href="${en}"><link rel="alternate" hreflang="zh-Hans" href="${zh}"><link rel="alternate" hreflang="x-default" href="${en}">
@@ -70,13 +71,13 @@ function mediaPreview(story,v) {
   return `${image}${audio}<details class="story-video"><summary>${esc(title)}</summary><div>${video}</div></details>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
-export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[]}={}) {
+export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[],focusKeys=[]}={}) {
   const copy=v.zh?s.zh:s.en, title=s.title;
   const publication=s.original_published_at?`<time datetime="${new Date(s.original_published_at).toISOString()}">${date(s.original_published_at,v)}</time>`:`<span>${v.say('Publication date unavailable','发表日期未知')}</span>`;
   const evidence=[...new Map(mentions.map(m=>[m.source,m])).values()];
   const discussion=evidence.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
   const share=editionId?`https://bond6.io${v.local('/edit/'+editionId)}#story-${s.content_hash.slice(0,12)}`:s.url;
-  return `<article class="story${pick?' daily-pick':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}">
+  return `<article class="story${pick?' daily-pick':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}"${focusKeys.length?` data-focus="${esc(focusKeys.join(','))}"`:''}>
     <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
     <h3><a href="${esc(s.url)}" data-event="original" lang="${s.original_lang==='zh'?'zh-Hans':'en'}">${esc(title)}</a></h3>
     ${pick?`<p class="pick-note">${esc(copy?.note)}</p>`:''}

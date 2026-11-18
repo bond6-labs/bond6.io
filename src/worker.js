@@ -2,7 +2,7 @@ import { collect, prune } from './ingest.js';
 import { publishingStep } from './publishing.js';
 import { locale, html, esc } from './render.js';
 import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions } from './pages.js';
-import { classify, dayKey } from './content.js';
+import { classify, conversationTopics, dayKey } from './content.js';
 import { sources, retiredSourceIds } from './sources.js';
 import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH } from './config.js';
 
@@ -41,7 +41,8 @@ export async function event(request,env,now=Date.now()) {
   let bytes=0,body='';const decoder=new TextDecoder();
   for(;;){const {done,value}=await reader.read();if(done)break;bytes+=value.length;if(bytes>MAX_EVENT_BODY_BYTES){await reader.cancel();return new Response(null,{status:413});}body+=decoder.decode(value,{stream:true});}
   let name; try{name=JSON.parse(body).event;}catch{return new Response(null,{status:400});}
-  if(!['visit','return','edition','original','save','share'].includes(name)) return new Response(null,{status:400});
+  const validFocus=typeof name==='string'&&name.startsWith('focus:')&&conversationTopics.some(topic=>topic.key===name.slice(6));
+  if(!['visit','return','edition','original','save','share'].includes(name)&&!validFocus) return new Response(null,{status:400});
   await env.DB.prepare(`INSERT INTO metrics(day,event,count) VALUES(?,?,1) ON CONFLICT(day,event) DO UPDATE SET count=count+1 WHERE count<10000`).bind(dayKey(now),name).run();
   return new Response(null,{status:204,headers:{'Cache-Control':CACHE_CONTROL.none}});
 }

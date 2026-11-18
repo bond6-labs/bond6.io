@@ -27,6 +27,31 @@ test('mobile lane and filters survive navigation and language switch',async()=>{
   const primary=text.match(/<nav class="tabs"[^>]*>([\s\S]*?)<\/nav>/)?.[1]??'';
   assert.match(text,/data-lane="ai" data-desktop-lane="ai"/);assert.match(text,/desktop-lane-switch/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/data-infinite-trigger data-lane="human"/);assert.match(text,/data-infinite-trigger data-lane="ai"/);assert.match(text,/data-infinite-lane-feed="human"/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.doesNotMatch(primary,/aria-label="Saved stories"/);assert.doesNotMatch(text,/<footer[\s\S]*?href="\/edit">Editions/);
 });
+test('live feed continuations use a stable cursor and never repeat rendered stories',async()=>{
+  const db=database();
+  for(let i=0;i<35;i++){
+    const item=story(200+i,{title:`AI system update changes creative work ${i}`,excerpt:`An AI system update changes creative work and jobs for independent artists ${i}.`,lane:'ai',subject:'digital',source:`AI Source ${i}`,source_id:`ai-source-${i}`});
+    await storeItems(db,{...source,id:`ai-source-${i}`,name:`AI Source ${i}`,topic:'Digital Life'},[item],now-i);
+  }
+  const initial=await worker.fetch(new Request('https://bond6.io/?lane=ai'),{DB:db});const initialText=await initial.text();
+  const trigger=initialText.match(/data-infinite-trigger data-lane="ai" href="([^"]+)"/);
+  assert.ok(trigger);assert.match(trigger[1],/before=/);assert.match(trigger[1],/before_url=/);
+  const firstTitle='AI system update changes creative work 0';assert.match(initialText,new RegExp(firstTitle));
+  const continuation=await worker.fetch(new Request('https://bond6.io'+trigger[1].replaceAll('&amp;','&')),{DB:db});const continuationText=await continuation.text();
+  assert.doesNotMatch(continuationText,new RegExp(firstTitle));assert.match(continuationText,/AI system update changes creative work 1[0-9]/);
+  const next=continuationText.match(/data-next-page href="([^"]+)"/);assert.ok(next);assert.match(next[1],/before=/);
+});
+test('Focusing labels emerging signals and Bonding renders a live reading route',async()=>{
+  const db=database();
+  const human=story(310,{title:'A musician writes about care in creative work',excerpt:'A musician describes music, community care and authorship in a personal account.',source:'Human Journal',source_id:'human-journal'});
+  const humanTwo=story(311,{title:'Independent musicians build a caring community',excerpt:'A songwriter reflects on music, community and creative work.',source:'Human Journal Two',source_id:'human-journal-two'});
+  const ai=story(312,{title:'AI tools reshape authorship for artists',excerpt:'An AI system changes creative work, authorship and the rights of artists.',lane:'ai',subject:'digital',source:'AI Journal',source_id:'ai-journal'});
+  await storeItems(db,{...source,id:'human-journal',name:'Human Journal'},[human],now);
+  await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
+  await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
+  const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);
+  const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Live reading route/);assert.match(bondingText,/Making &amp; authorship/);
+});
 test('live Rhythm ordering is opt-in without exposing diagnostic controls',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);
   const chronological=await worker.fetch(new Request('https://bond6.io/'),{DB:db});
