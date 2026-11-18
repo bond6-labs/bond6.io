@@ -17,7 +17,7 @@ export const chinese = {
   'Stories published in the past 7 days': '过去 7 天发布的文章',
   'Human Pulse share of recent stories': '近期文章中「人文脉动」所占比例',
   'Human Pulse': '人文脉动',
-  'AI & Its Impact': 'AI 与它的影响',
+  'AI In Motion': 'AI 进行时',
   'Culture, creative practice, community, and lived experience.': '文化、创作实践、社区与亲身经历。',
   Music: '音乐', Literature: '文学', 'Visual arts': '视觉艺术',
   'How AI and digital platforms are changing work and culture.': '关注 AI 和数字平台如何改变工作与文化。',
