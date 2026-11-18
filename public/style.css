@@ -360,7 +360,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .pick-note { font-size: 15px; line-height: 1.65; margin: 0 0 12px; text-wrap: pretty; }
 .byline { font-size: 11px; gap: 2px 8px; line-height: 1.6; }
 .source-context,.note-disclosure { color: var(--muted); font-size: 11px; }
-.story-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.story-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; position: relative; }
 .story-actions a,.story-actions button,.note-method summary,.discussions a { display: inline-flex; align-items: center; min-height: 44px; font-size: 12px; }
 .original-link { color: var(--column-accent,var(--gold)); margin-right: auto; }
 button { font: inherit; color: var(--ink); cursor: pointer; min-height: 44px; padding: 6px 10px; border: 1px solid var(--rule); background: var(--surface); border-radius: 3px; touch-action: manipulation; }
@@ -439,21 +439,23 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .digital-flow > span { display: inline-block; padding-inline-end: 1ch; animation: bond6-bit-flow 4.8s linear infinite; }
 @keyframes bond6-heartbeat { 0%, 36%, 100% { transform: scale(1); } 8% { transform: scale(1.18); } 18% { transform: scale(.98); } 26% { transform: scale(1.1); } }
 @keyframes bond6-bit-flow { to { transform: translateX(-7.25ch); } }
-.rhythm-reason { margin: 9px 0 2px; border-top: 1px solid color-mix(in srgb, var(--column-accent) 35%, transparent); color: var(--muted); }
-.rhythm-reason summary { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; min-height: 44px; cursor: pointer; font-size: 11px; list-style: none; }
+.rhythm-reason { position: relative; margin: 0; color: var(--muted); }
+.rhythm-reason summary { display: grid; place-items: center; width: 44px; min-height: 44px; cursor: pointer; list-style: none; }
 .rhythm-reason summary::-webkit-details-marker { display: none; }
-.rhythm-reason summary::after { content: '+'; color: var(--column-accent); font-size: 15px; line-height: 1; }
-.rhythm-reason[open] summary::after { content: '−'; }
-.rhythm-kicker { display: inline-flex; align-items: center; min-height: 21px; padding: 0 7px; border: 1px solid currentColor; border-radius: 999px; color: var(--column-accent); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.rhythm-reason.ai .rhythm-kicker { border-radius: 2px; font-family: ui-monospace, Consolas, monospace; }
-.rhythm-reason p { max-width: 58ch; margin: -2px 0 10px; font-size: 12px; line-height: 1.55; }
+.rhythm-reason summary > [aria-hidden] { display: grid; place-items: center; width: 21px; height: 21px; border: 1px solid var(--column-accent); border-radius: 50%; color: var(--column-accent); font: 700 12px/1 Inter, sans-serif; }
+.rhythm-reason.ai summary > [aria-hidden] { border-radius: 3px; font-family: ui-monospace, Consolas, monospace; }
+.rhythm-reason summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rhythm-reason[open] summary > [aria-hidden] { color: var(--surface); background: var(--column-accent); }
+.rhythm-popover { position: absolute; z-index: 3; inset-inline-start: 0; inset-block-start: calc(100% + 5px); width: min(320px,calc(100vw - 48px)); padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--column-accent) 55%, var(--rule)); background: var(--surface); box-shadow: 0 8px 20px #1a19100f; font-size: 12px; line-height: 1.55; }
+.rhythm-popover p { margin: 0; }.rhythm-popover p + p { margin-top: 6px; }
+.rhythm-popover strong { color: var(--column-accent); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 .rhythm-reason a { color: var(--column-accent); text-decoration: underline; text-underline-offset: 3px; }
 @media(width < 700px) {
   .lane-signature { gap: 7px; font-size: 9px; }
   .digital-flow { width: 58px; font-size: 12px; }
   .column-masthead { height: 120px; min-height: 120px; padding-top: 17px; }
   .feed-column:last-child .column-masthead h2 { font-size: 24px; }
-  .rhythm-reason summary { font-size: 10px; }
+  .rhythm-popover { width: min(300px,calc(100vw - 48px)); }
 }
 @media(min-width:700px) { .column-masthead { height: clamp(178px,17vw,210px); min-height: 0; } }
 @media(prefers-reduced-motion:reduce) {

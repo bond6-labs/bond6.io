@@ -119,7 +119,9 @@ export function selectionGate(title, excerpt = '', source = {}) {
     // The live flow may include a well-attributed cultural review/profile or
     // a reported AI development. Core items require stronger lived or human-
     // consequence evidence and are the only candidates for daily selection.
-    human: human_core || (creative && (culture || source.essays === true)),
+  // Live Flow can include a well-attributed report about creative work. Daily
+  // Picks still require the stronger core signals recorded by Bond6 Rhythm.
+  human: human_core || (creative && (culture || reported || source.essays === true)),
     ai: ai_core || (system && reported),
     human_core, ai_core,
     exclusion_reason:null,
@@ -134,7 +136,16 @@ export function classify(title, excerpt, source = {}) {
     : /\b(books?|poems?|poetry|literature|literary|novels?|writers?|writing|fiction|essays?)\b|文学|写作|小说|诗歌|书籍|读书/i.test(text) ? 'writing'
     : /\b(crafts?|crafting|craftsmanship|creative practice|creative process|pottery|ceramics|woodworking|video games?|game design|gaming)\b|手工|创意|游戏|创作|制作/i.test(text) ? 'practice' : sourceSubjects[source.id] ?? 'digital';
   const gate = selectionGate(title, excerpt, source);
-  return { lane: gate.ai ? 'ai' : gate.human ? 'human' : null, subject };
+  // A source may be deliberately curated for just one side of Bond6. This is
+  // a boundary, not a shortcut: the item must still pass that lane's own
+  // signals. It prevents cultural podcasts, for example, from leaking into
+  // AI & Its Impact merely because an episode discusses an algorithm.
+  const lane = source.lane === 'human'
+    ? (gate.human ? 'human' : null)
+    : source.lane === 'ai'
+      ? (gate.ai ? 'ai' : null)
+      : gate.ai ? 'ai' : gate.human ? 'human' : null;
+  return { lane, subject };
 }
 export async function contentHash(story) {
   const value = JSON.stringify([story.url, story.title, story.author, story.excerpt, story.parent_context, story.original_published_at, story.original_lang, story.lane,

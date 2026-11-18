@@ -3,6 +3,9 @@ import { enqueue, claim, saveJob } from './jobs.js';
 import { runJson, notePrompt, reviewPrompt, validateNote, normalizeNote, approved, sourceData, BudgetError, checkLanguage } from './ai.js';
 import { RHYTHM_DAILY_MAX_PER_LANE, RHYTHM_FALLBACK_WINDOW_DAYS, RHYTHM_FRESH_WINDOW_DAYS, RHYTHM_MIN_CONFIDENCE } from './config.js';
 import { RHYTHM_VERSION } from './rhythm.js';
+import { sources } from './sources.js';
+
+const flowSourceIds=new Set(sources.filter(source=>source.tier==='flow').map(source=>source.id));
 
 const rhythmLabels = story => {
   if (Array.isArray(story.rhythm_labels)) return story.rhythm_labels;
@@ -88,7 +91,10 @@ async function rhythmSelection(db,now) {
     ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_VERSION,RHYTHM_MIN_CONFIDENCE).all();
   const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
     WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
-  return { eligible:results, selected:rankCandidates(results,used.map(story=>story.url),now) };
+  // Fast, broader Flow sources keep Latest fresh. The daily edition is drawn
+  // only from the stricter core-reading pool.
+  const core=results.filter(story=>!flowSourceIds.has(story.source_id));
+  return { eligible:core, selected:rankCandidates(core,used.map(story=>story.url),now) };
 }
 
 /** A no-AI, no-publishing daily dry run. It makes the readiness sample observable. */

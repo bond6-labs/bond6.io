@@ -54,9 +54,9 @@ export function html(v,title,content,{status=200,description,intro,wide=false,ed
     'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin',
     'Content-Security-Policy':getCSPHeader()}});
 }
-export function actions(story,v,shareUrl) {
+export function actions(story,v,shareUrl,reason='') {
   const data={url:story.url,title:story.title,source:story.source,author:story.author,date:story.original_published_at,original_lang:story.original_lang};
-  return `<div class="story-actions"><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc(data.title)}" hidden>${v.say('Share','分享')}</button></div>`;
+  return `<div class="story-actions"><button type="button" class="save-story" data-story="${esc(JSON.stringify(data))}" hidden aria-pressed="false">${v.say('Save','收藏')}</button><button type="button" class="share-story" data-url="${esc(shareUrl??story.url)}" data-title="${esc(data.title)}" hidden>${v.say('Share','分享')}</button>${reason}</div>`;
 }
 function mediaPreview(story,v) {
   const credit=v.say(`Media from ${story.source}`,`媒体来自 ${story.source}`);
@@ -95,7 +95,8 @@ function rhythmReason(story,v) {
   const selected=labels.slice(0,3).map(label=>rhythmLabel(label,v));
   const lane=story.lane==='ai'?'ai':'human';
   const signal=lane==='human'?v.say('Human signal','人的信号'):v.say('AI signal','AI 信号');
-  return `<details class="rhythm-reason ${lane}"><summary><span class="rhythm-kicker">${v.say('Why this appeared','为何出现')}</span><span>${esc(signal+' · '+selected.join(' · '))}</span></summary><p>${v.say('Ranked from the available source excerpt for these signals.','根据可获取的来源摘录，按这些信号排序。')} <a href="${v.local('/about')}#rhythm">${v.say('About Bond6 Rhythm','了解 Bond6 节奏')}</a></p></details>`;
+  const label=v.say('Why this appeared','为何出现');
+  return `<details class="rhythm-reason ${lane}"><summary aria-label="${label}"><span aria-hidden="true">?</span><span class="visually-hidden">${label}</span></summary><div class="rhythm-popover"><p><strong>${esc(signal)}</strong> · ${esc(selected.join(' · '))}</p><p>${v.say('Ranked from the available source excerpt for these signals.','根据可获取的来源摘录，按这些信号排序。')} <a href="${v.local('/about')}#rhythm">${v.say('About Bond6 Rhythm','了解 Bond6 节奏')}</a></p></div></details>`;
 }
 export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[]}={}) {
   const copy=v.zh?s.zh:s.en, title=s.title;
@@ -103,6 +104,7 @@ export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[]}={}) {
   const evidence=[...new Map(mentions.map(m=>[m.source,m])).values()];
   const discussion=evidence.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
   const share=editionId?`https://bond6.io${v.local('/edit/'+editionId)}#story-${s.content_hash.slice(0,12)}`:s.url;
+  const reason=pick||rhythm?rhythmReason(s,v):'';
   return `<article class="story${pick?' daily-pick':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}">
     <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
     <h3><a href="${esc(s.url)}" data-event="original" lang="${s.original_lang==='zh'?'zh-Hans':'en'}">${esc(title)}</a></h3>
@@ -110,6 +112,6 @@ export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[]}={}) {
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
     ${mediaPreview(s,v)}
     ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
-    ${pick||rhythm?rhythmReason(s,v):''}${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
-    ${actions(s,v,share)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
+    ${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
+    ${actions(s,v,share,reason)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;
 }

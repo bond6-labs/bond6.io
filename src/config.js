@@ -10,6 +10,10 @@ export const FEED_ITEM_LIMIT = 40; // Max items to process per feed
 export const MAX_EVENT_BODY_BYTES = 128; // Max size for analytics events
 export const MAX_QUERY_LENGTH = 1500; // Max query string length
 export const HTTP_REQUEST_TIMEOUT_MS = 8_000;
+// A scheduled invocation may collect this many due feeds. Keeping this bounded
+// lets a growing source list stay fresh without turning one cron run into an
+// unbounded crawl.
+export const MAX_COLLECTS_PER_TICK = 2;
 
 // Cache configuration
 export const CACHE_TTL_SECONDS = 60;

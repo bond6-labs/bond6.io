@@ -55,6 +55,9 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('Neighbours build a mutual-aid garden','Volunteers support families through a difficult winter.',{}).lane,'human');
   assert.equal(classify('AI mentioned in a company announcement','A company has a meeting tomorrow.',{}).lane,null);
   assert.equal(classify('A lab publishes AI research','A report documents a new benchmark for model capabilities.',{}).lane,'ai');
+  assert.equal(classify('A photographer documents a changing shoreline','A reported account follows the artist’s fieldwork and photographs over a decade.',{}).lane,'human');
+  assert.equal(classify('An artist discusses AI tools','A detailed conversation about art, creative work and how an algorithm changes the studio.',{lane:'human',essays:true}).lane,'human');
+  assert.equal(classify('An AI benchmark launches','A report documents a new model capability.',{lane:'human'}).lane,null);
 });
 test('headlines retain their final word and long social posts are not chopped into headlines',()=>{
   const [rss]=fromRss('<rss><channel><item><title>Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App</title><link>https://example.org/a</link><description>AI policy and the impact on people and culture gives this feed item enough source text for a focused classification.</description></item></channel></rss>',source);

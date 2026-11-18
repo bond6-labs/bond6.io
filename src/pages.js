@@ -72,11 +72,15 @@ export async function home(env,v,{trending=false}={}) {
   const args=[originalLanguage,...(subject?[subject]:[]),...(search?[search]:[])];
   // Joining signals only behind the gate lets a deploy calculate and audit
   // Rhythm without changing the chronological public feed.
+  // Relevance should guide the Flow, but a week-old high score must not pin
+  // the visible slots while newly accepted reporting arrives. This bounded
+  // lift only affects the live display; Daily Picks retain their strict score.
+  const freshnessLift=`CASE WHEN s.discovered_at>=${now-2*60*60_000} THEN 140 WHEN s.discovered_at>=${now-12*60*60_000} THEN 85 WHEN s.discovered_at>=${now-DAY} THEN 35 ELSE 0 END`;
   const liveCandidates=rhythmLive?`WITH candidates AS (
       SELECT s.*,r.rhythm_version,r.human_score AS rhythm_human_score,r.ai_score AS rhythm_ai_score,
         r.lane_recommendation AS rhythm_lane,r.confidence AS rhythm_confidence,r.labels AS rhythm_labels,r.evidence AS rhythm_evidence,
         CASE WHEN r.rhythm_version=${RHYTHM_VERSION} AND r.lane_recommendation=s.lane AND r.confidence>=0.72
-          THEN r.confidence*100 + CASE WHEN s.lane='ai' THEN r.ai_score ELSE r.human_score END ELSE 0 END AS rhythm_live_score
+          THEN r.confidence*100 + CASE WHEN s.lane='ai' THEN r.ai_score ELSE r.human_score END ELSE 0 END + ${freshnessLift} AS rhythm_live_score
       FROM stories s LEFT JOIN story_signals r ON r.story_url=s.url WHERE ${where}
     ), diverse AS (
       SELECT candidates.*,ROW_NUMBER() OVER(PARTITION BY lane,source ORDER BY rhythm_live_score DESC,discovered_at DESC,url DESC) AS publisher_rank FROM candidates
@@ -175,14 +179,15 @@ export async function sourcesPage(env,v) {
   const request=encodeURIComponent(v.say('Publication / account name:\nWebsite or feed URL:\nPrimary language:\nWhat it covers:\nWhy it belongs on Bond6:\n','媒体或账号名称：\n网站或订阅地址：\n主要语言：\n内容主题：\n为什么适合 Bond6：\n'));
   const groups=new Map();
   for (const source of sources) {
-    const language=['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en';
+    const language=source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en');
     const key=language+'|'+source.name, group=groups.get(key)??{...source,language,items:[]}; group.items.push(source); groups.set(key,group);
   }
   const row=group=>{
     const states=group.items.map(source=>results.find(state=>state.id===source.id)).filter(Boolean);
     const ok=Math.max(0,...states.map(state=>state.ok_at??0)), retry=states.some(state=>state.failures>0);
     const types=[...new Set(group.items.map(source=>source.kind==='rss'?'RSS / Atom':'Bluesky'))].join(' + ');
-    return `<li><div><a href="${esc(group.site)}">${esc(group.name)}</a><small>${v.t(group.topic)} · ${types}</small></div><span>${ok?date(ok,v):v.say('Awaiting check','等待检查')}${retry?' · '+v.say('Retrying','重试中'):''}</span></li>`;
+    const tier=group.tier==='flow'?v.say('Live Flow','实时流'):v.say('Core reading','核心阅读');
+    return `<li><div><a href="${esc(group.site)}">${esc(group.name)}</a><small>${v.t(group.topic)} · ${types} · ${tier}</small></div><span>${ok?date(ok,v):v.say('Awaiting check','等待检查')}${retry?' · '+v.say('Retrying','重试中'):''}</span></li>`;
   };
   const list=language=>[...groups.values()].filter(group=>group.language===language).sort((a,b)=>a.name.localeCompare(b.name)).map(row).join('');
   return html(v,v.t('Sources'),`<p class="feed-note">${v.t('Bond6 follows publishers, independent writers, and public accounts that cover writing, creative work, and life with AI. This list changes as we find new sources.')}</p><section class="source-invitation"><div><h2>${v.say('Help widen the reading','一起拓宽阅读范围')}</h2><p>${v.say('Know a publication, writer, newsletter, podcast, or public account worth following? Send its public URL, language, and a sentence on what makes it useful. We review suggestions before adding anything.','知道值得关注的媒体、作者、通讯、播客或公开账号？请发送公开链接、主要语言和一句推荐理由。所有建议都会经过审核，不会自动加入。')}</p><p>${v.say('No mail app? Write to info@bond6.io.','没有邮件客户端？请写信至 info@bond6.io。')}</p></div><a class="text-link" href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion&body=${request}">${v.say('Suggest a source','推荐来源')} <span aria-hidden="true">→</span></a></section><section class="source-group"><h2>${v.say('English and other-language sources','英文及其他语言来源')}</h2><ul class="sources">${list('en')}</ul></section><section class="source-group"><h2>${v.say('Chinese-language sources','中文来源')}</h2><ul class="sources">${list('zh')}</ul></section>`);

@@ -2,7 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { sources } from './sources.js';
 import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, cleanSocialHeadline, hasLeadingPreviewLabel, plain, language, classify, contentHash } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
-import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
+import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_COLLECTS_PER_TICK, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
 import { saveRhythmSignals, scoreRhythmBacklog } from './rhythm.js';
 
@@ -230,17 +230,12 @@ export async function storeItems(db, source, items, now) {
   await saveRhythmSignals(db,validItems.map(item=>({...item,source:source.name,source_id:source.id,topic:source.topic,published_at:item.original_published_at??now})),now);
   return validItems;
 }
-export async function collect(env, now = Date.now()) {
+async function collectOne(env, source, state, now) {
   const db = env.DB;
-  const { results } = await db.prepare('SELECT * FROM source_state').all();
-  const states = new Map(results.map(s => [s.id, s]));
-  const source = [...sources].sort((a,b) => (states.get(a.id)?.next_at ?? 0) - (states.get(b.id)?.next_at ?? 0) || a.id.localeCompare(b.id))[0];
-  const state = states.get(source.id);
-  if ((state?.next_at ?? 0) > now) return;
   const id = 'collect:' + source.id;
   await enqueue(db, id, 'collect', {}, now);
   const job = await claim(db, id, now);
-  if (!job) return;
+  if (!job) return false;
   try {
     const { items, rejectedUrls, etag, modified } = await poll(source, state, now);
     await storeItems(db, source, items, now);
@@ -250,6 +245,7 @@ export async function collect(env, now = Date.now()) {
       etag=excluded.etag,modified=excluded.modified,checked_at=excluded.checked_at,ok_at=excluded.ok_at,failures=0,next_at=excluded.next_at`)
       .bind(source.id, etag, modified, now, now, now + pollIntervalMs(source)).run();
     await saveJob(db, job, {}, now, { next: now + pollIntervalMs(source) });
+    return true;
   } catch (error) {
     const failures = (state?.failures ?? 0) + 1;
     const next = now + Math.min(120, 5 * 2 ** Math.min(failures, 5)) * 60_000;
@@ -257,7 +253,19 @@ export async function collect(env, now = Date.now()) {
       checked_at=excluded.checked_at,failures=excluded.failures,next_at=excluded.next_at`).bind(source.id, now, failures, next).run();
     await saveJob(db, job, {}, now, { next, error: error.message });
     console.warn('Source check failed', {source_id:source.id, job_id:job.id, message:error.message, stack:error.stack, timestamp:now});
+    return false;
   }
+}
+export async function collect(env, now = Date.now()) {
+  const db = env.DB;
+  const { results } = await db.prepare('SELECT * FROM source_state').all();
+  const states = new Map(results.map(s => [s.id, s]));
+  const batch = Math.min(3, Math.max(1, Number.parseInt(env.COLLECT_BATCH_SIZE, 10) || MAX_COLLECTS_PER_TICK));
+  const due = [...sources].filter(source => (states.get(source.id)?.next_at ?? 0) <= now)
+    .sort((a,b) => (states.get(a.id)?.next_at ?? 0) - (states.get(b.id)?.next_at ?? 0) || a.id.localeCompare(b.id)).slice(0,batch);
+  let collected = 0;
+  for (const source of due) if (await collectOne(env,source,states.get(source.id),now)) collected++;
+  return collected;
 }
 export async function prune(env, now) {
   await env.DB.batch([
