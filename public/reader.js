@@ -12,7 +12,8 @@
   function persist(){try{localStorage.setItem(key,JSON.stringify(saved));return true;}catch{notify(say('Browser storage is unavailable; your change could not be saved.','浏览器存储不可用，无法保存这次更改。'));return false;}}
   function refreshButtons(){document.querySelectorAll('.save-story').forEach(b=>{let s;try{s=JSON.parse(b.dataset.story);}catch{return;}const active=saved.some(x=>x.url===s.url);b.textContent=active?say('Saved','已收藏'):say('Save','收藏');b.setAttribute('aria-pressed',String(active));});}
   function showUndo(message){notify(message+' ');const button=document.createElement('button');button.type='button';button.textContent=say('Undo','撤销');button.addEventListener('click',()=>{if(undo){saved=undo;undo=null;persist();renderSaved();refreshButtons();notify(say('Restored.','已恢复。'));}});status?.append(button);}
-  document.querySelectorAll('.save-story').forEach(button=>{
+  function bindSave(button){
+    if(button.dataset.readerBound)return;button.dataset.readerBound='true';
     button.hidden=false;
     if(!storage){button.disabled=true;button.title=say('Browser storage is unavailable','浏览器存储不可用');return;}
     button.addEventListener('click',()=>{
@@ -26,7 +27,7 @@
       if(active)showUndo(say('Removed from saved stories.','已从收藏中移除。'));
       else {metric('save');notify(say('Saved on this browser.','已保存在这个浏览器。'));}
     });
-  });refreshButtons();
+  }
   async function share(button) {
     const url=safeUrl(button.dataset.url);if(!url)return;
     try{
@@ -35,7 +36,9 @@
       else {notify(say('Copy this link: ','复制这个链接：')+url);}
     }catch(error){if(error.name!=='AbortError')notify(say('Copy this link: ','复制这个链接：')+url);}
   }
-  document.querySelectorAll('.share-story').forEach(b=>{b.hidden=false;b.addEventListener('click',()=>share(b));});
+  function bindShare(button){if(button.dataset.readerBound)return;button.dataset.readerBound='true';button.hidden=false;button.addEventListener('click',()=>share(button));}
+  function bindStoryControls(root=document){root.querySelectorAll('.save-story').forEach(bindSave);root.querySelectorAll('.share-story').forEach(bindShare);refreshButtons();}
+  bindStoryControls();
   document.addEventListener('click',event=>{if(event.target.closest('a[data-event="original"]'))metric('original');});
   function element(tag,text,className){const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;}
   function renderSaved(){
@@ -60,5 +63,31 @@
       const label=column.querySelector('.new-count');if(label&&fresh){label.hidden=false;label.textContent=say(fresh+' new since your last visit','比上次访问新增 '+fresh+' 条');}
     }
   }catch{/* Reading does not depend on storage. */}
+  function enableInfiniteFeed(){
+    const trigger=document.querySelector('[data-infinite-trigger]'),feed=document.querySelector('[data-infinite-feed]'),list=document.querySelector('[data-infinite-stories]'),statusLine=document.querySelector('[data-infinite-status]');
+    if(!trigger||!feed||!list||!('IntersectionObserver' in window))return;
+    let loading=false,finished=false;
+    const message=text=>{if(statusLine)statusLine.textContent=text;};
+    const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));observer.disconnect();};
+    const load=async()=>{
+      if(loading||finished)return;
+      loading=true;trigger.setAttribute('aria-busy','true');message(say('Loading earlier arrivals…','正在加载更早内容…'));
+      try{
+        const response=await fetch(trigger.href,{headers:{Accept:'text/html'}});if(!response.ok)throw new Error('Request failed');
+        const documentPage=new DOMParser().parseFromString(await response.text(),'text/html');
+        const incoming=documentPage.querySelector('.archive-stories');
+        const cards=incoming?[...incoming.querySelectorAll(':scope > .story')]:[];
+        if(!cards.length){finish();return;}
+        list.append(...cards);feed.hidden=false;bindStoryControls(feed);
+        const next=documentPage.querySelector('[data-next-page]');
+        if(next?.href){trigger.href=next.href;message(say('More earlier arrivals load as you scroll.','继续向下滚动即可加载更早内容。'));}
+        else finish();
+      }catch{message(say('Couldn’t load earlier arrivals. Use Browse all stories instead.','无法加载更早内容。请使用「浏览全部文章」。'));}
+      finally{loading=false;trigger.removeAttribute('aria-busy');}
+    };
+    const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))load();},{rootMargin:'700px 0px'});
+    observer.observe(trigger);
+  }
+  enableInfiniteFeed();
   if(document.body.dataset.edition==='true')metric('edition');
 })();
