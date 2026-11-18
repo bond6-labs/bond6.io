@@ -64,12 +64,13 @@ export async function home(env,v,{trending=false}={}) {
   const subject=subjects.includes(v.url.searchParams.get('topic'))?v.url.searchParams.get('topic'):null;
   const signal=conversationTopic(v.url.searchParams.get('signal'));
   const lane=v.url.searchParams.get('lane')==='ai'?'ai':'human';
+  const continuationLane=['human','ai'].includes(v.url.searchParams.get('load'))?v.url.searchParams.get('load'):null;
   const page=Math.max(1,Number(v.url.searchParams.get('page'))||1);
   if (!Number.isSafeInteger(page)||page>50) return html(v,v.t('Page unavailable'),`<p>${v.t('This page is outside the current feed.')}</p>`,{status:404});
-  const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending;
+  const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending||!!continuationLane;
   const rhythmLive=env.RHYTHM_LIVE_RANKING==='true';
-  const where=`s.lane IS NOT NULL AND s.original_lang=? AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
-  const args=[originalLanguage,...(subject?[subject]:[]),...(search?[search]:[])];
+  const where=`s.lane IS NOT NULL AND s.original_lang=? ${continuationLane?'AND s.lane=?':''} AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
+  const args=[originalLanguage,...(continuationLane?[continuationLane]:[]),...(subject?[subject]:[]),...(search?[search]:[])];
   // Joining signals only behind the gate lets a deploy calculate and audit
   // Rhythm without changing the chronological public feed.
   // Relevance should guide the Flow, but a week-old high score must not pin
@@ -123,8 +124,8 @@ export async function home(env,v,{trending=false}={}) {
   };
   const topicResults=signal?v.say('Stories in “','「')+(v.zh?signal.zh:signal.en)+v.say('” across sources we follow this week.','」：过去一周多个关注来源都在讨论。'):null;
   const main=archive?`<p class="feed-note">${search?v.say('Search results for “','搜索结果：“')+esc(search)+'”':topicResults??(trending?v.say('Stories independently shared by at least three tracked sources in the past 24 hours.','过去 24 小时内，至少三个本站关注来源独立分享的文章。'):v.say('All recent arrivals','所有近期发现'))}</p><div class="stories archive-stories">${stories.length?stories.slice(0,20).map(render).join(''):`<p class="notice">${v.t('No recent stories match your search. Try another word or phrase.')}</p>`}</div>
-    <nav class="pagination" aria-label="${v.t('Story pages')}">${page>1?`<a href="${esc(qlink(v,{page:page-1,view:'all'}))}">← ${v.say('Previous','上一页')}</a>`:''}${!trending&&stories.length>20?`<a data-next-page href="${esc(qlink(v,{page:page+1,view:'all'}))}">${v.t('Older stories')} →</a>`:''}<a href="${esc(qlink(v,{page:null,view:null,q:null},'/'))}">${v.t('Back to latest')}</a></nav>`
-    :`<div class="feed-columns" data-lane="${lane}">${column('human')}${column('ai')}</div><section class="infinite-feed" data-infinite-feed hidden aria-labelledby="earlier-arrivals"><h2 id="earlier-arrivals">${v.say('Earlier arrivals','更早发现')}</h2><div class="stories archive-stories" data-infinite-stories></div><p class="infinite-status" data-infinite-status aria-live="polite"></p></section><nav class="pagination" aria-label="${v.t('Story pages')}"><a data-infinite-trigger href="${esc(qlink(v,{view:'all',page:1}))}">${v.t('Browse all stories')} →</a><a href="${v.local('/edit')}">${v.say('Past daily editions','往期每日精选')} →</a></nav>`;
+    <nav class="pagination" aria-label="${v.t('Story pages')}">${page>1?`<a href="${esc(qlink(v,{page:page-1,view:'all'}))}">← ${v.say('Previous','上一页')}</a>`:''}${!trending&&stories.length>20?`<a data-next-page href="${esc(qlink(v,{page:page+1,view:'all'}))}">${v.t('Older stories')} →</a>`:''}<a href="${esc(qlink(v,{page:null,view:null,q:null,load:null},'/'))}">${v.t('Back to latest')}</a></nav>`
+    :`<div class="feed-columns" data-lane="${lane}">${['human','ai'].map(l=>column(l).replace('</div></div></section>',`</div><div class="infinite-lane-feed" data-infinite-lane-feed="${l}" hidden><div class="stories archive-stories" data-infinite-stories></div><p class="infinite-status" data-infinite-status aria-live="polite"></p></div><a class="infinite-trigger" data-infinite-trigger data-lane="${l}" href="${esc(qlink(v,{view:'all',page:1,load:l}))}">${v.say('Older ','更早的')}${laneName(l,v)} <span aria-hidden="true">→</span></a></div></section>`)).join('')}</div><nav class="pagination" aria-label="${v.t('Story pages')}"><a href="${esc(qlink(v,{view:'all',page:1,load:null}))}">${v.t('Browse all stories')} →</a><a href="${v.local('/edit')}">${v.say('Past daily editions','往期每日精选')} →</a></nav>`;
   const bond=(await latestEdition(db,'bond')??legacyEditions[0]);
   const last=columns[2].results[0]?.checked;
   const signalCandidates=focusedStories(columns[3].results);

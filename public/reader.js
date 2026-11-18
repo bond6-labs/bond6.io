@@ -63,31 +63,34 @@
       const label=column.querySelector('.new-count');if(label&&fresh){label.hidden=false;label.textContent=say(fresh+' new since your last visit','比上次访问新增 '+fresh+' 条');}
     }
   }catch{/* Reading does not depend on storage. */}
-  function enableInfiniteFeed(){
-    const trigger=document.querySelector('[data-infinite-trigger]'),feed=document.querySelector('[data-infinite-feed]'),list=document.querySelector('[data-infinite-stories]'),statusLine=document.querySelector('[data-infinite-status]');
-    if(!trigger||!feed||!list||!('IntersectionObserver' in window))return;
-    let loading=false,finished=false;
-    const message=text=>{if(statusLine)statusLine.textContent=text;};
-    const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));observer.disconnect();};
-    const load=async()=>{
-      if(loading||finished)return;
-      loading=true;trigger.setAttribute('aria-busy','true');message(say('Loading earlier arrivals…','正在加载更早内容…'));
-      try{
-        const response=await fetch(trigger.href,{headers:{Accept:'text/html'}});if(!response.ok)throw new Error('Request failed');
-        const documentPage=new DOMParser().parseFromString(await response.text(),'text/html');
-        const incoming=documentPage.querySelector('.archive-stories');
-        const cards=incoming?[...incoming.querySelectorAll(':scope > .story')]:[];
-        if(!cards.length){finish();return;}
-        list.append(...cards);feed.hidden=false;bindStoryControls(feed);
-        const next=documentPage.querySelector('[data-next-page]');
-        if(next?.href){trigger.href=next.href;message(say('More earlier arrivals load as you scroll.','继续向下滚动即可加载更早内容。'));}
-        else finish();
-      }catch{message(say('Couldn’t load earlier arrivals. Use Browse all stories instead.','无法加载更早内容。请使用「浏览全部文章」。'));}
-      finally{loading=false;trigger.removeAttribute('aria-busy');}
-    };
-    const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))load();},{rootMargin:'700px 0px'});
-    observer.observe(trigger);
+  function enableInfiniteFeeds(){
+    if(!('IntersectionObserver' in window))return;
+    document.querySelectorAll('[data-infinite-trigger]').forEach(trigger=>{
+      const column=trigger.closest('.feed-column'),feed=column?.querySelector('[data-infinite-lane-feed]'),list=feed?.querySelector('[data-infinite-stories]'),statusLine=feed?.querySelector('[data-infinite-status]');
+      if(!column||!feed||!list||!statusLine)return;
+      let loading=false,finished=false;
+      const message=text=>{statusLine.textContent=text;};
+      const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));observer.disconnect();};
+      const load=async()=>{
+        if(loading||finished||!column.getClientRects().length)return;
+        loading=true;trigger.setAttribute('aria-busy','true');message(say('Loading earlier arrivals…','正在加载更早内容…'));
+        try{
+          const response=await fetch(trigger.href,{headers:{Accept:'text/html'}});if(!response.ok)throw new Error('Request failed');
+          const documentPage=new DOMParser().parseFromString(await response.text(),'text/html');
+          const incoming=documentPage.querySelector('.archive-stories');
+          const cards=incoming?[...incoming.querySelectorAll(':scope > .story')]:[];
+          if(!cards.length){finish();return;}
+          list.append(...cards);feed.hidden=false;bindStoryControls(feed);
+          const next=documentPage.querySelector('[data-next-page]');
+          if(next?.href){trigger.href=next.href;message(say('More earlier arrivals load as you scroll.','继续向下滚动即可加载更早内容。'));}
+          else finish();
+        }catch{message(say('Couldn’t load earlier arrivals. Use Browse all stories instead.','无法加载更早内容。请使用「浏览全部文章」。'));}
+        finally{loading=false;trigger.removeAttribute('aria-busy');}
+      };
+      const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))load();},{rootMargin:'700px 0px'});
+      observer.observe(trigger);
+    });
   }
-  enableInfiniteFeed();
+  enableInfiniteFeeds();
   if(document.body.dataset.edition==='true')metric('edition');
 })();
