@@ -445,7 +445,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .lane-signature { display: flex; align-items: center; gap: 9px; color: var(--masthead-detail); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
 .lane-signature b { color: var(--masthead-ink); font-size: 11px; }
 .human-signature { gap: 15px; font-family: var(--headline-font); letter-spacing: .14em; }
-.heartbeat { display: inline-grid; place-items: center; width: 94px; height: 28px; color: #c74641; filter: drop-shadow(0 1px 2px #b7433c38); }
+.heartbeat { display: inline-grid; place-items: center; width: 75px; height: 22px; color: #c74641; filter: drop-shadow(0 1px 2px #b7433c38); }
 .heartbeat svg { display: block; width: 100%; height: 100%; overflow: hidden; }
 .heartbeat-heart { fill: #d64742; transform-box: fill-box; transform-origin: center; animation: bond6-heartbeat 2.85s ease-in-out infinite; }
 .heartbeat-baseline { fill: none; stroke: currentColor; stroke-width: 1.5; opacity: .28; }
@@ -458,7 +458,7 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 @keyframes bond6-bit-flow { from { transform: translateX(-7.25ch); } to { transform: translateX(0); } }
 @media(width < 700px) {
   .lane-signature { gap: 7px; font-size: 9px; }
-  .digital-flow { width: 77px; font-size: 12px; }.heartbeat { width: 77px; height: 25px; }.human-signature,.ai-signature { gap: 11px; }
+  .digital-flow { width: 77px; font-size: 12px; }.heartbeat { width: 62px; height: 20px; }.human-signature,.ai-signature { gap: 11px; }
   .column-masthead { height: 128px; min-height: 128px; padding-top: 17px; }
   .feed-column:last-child .column-masthead h2 { font-size: 24px; }
 }
