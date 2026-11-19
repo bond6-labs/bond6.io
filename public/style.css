@@ -189,8 +189,15 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .bond-participation a { display: inline-flex; align-items: center; min-height: 44px; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
 @media (min-width: 700px) {
   .bond-pair, .bond-participation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  body:has(.feed-columns) .shell { width: min(100% - 64px, 1080px); }
-  .feed-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: clamp(28px, 4vw, 48px); }
+  /* The two lanes are peers, so they keep equal measure. The wider centre
+     interval is deliberately on the 8 / 13 / 21 / 34 / 55 rhythm: it gives
+     each voice room without making the page feel like two separate sites. */
+  body:has(.feed-columns) .shell { width: min(100% - clamp(48px, 5vw, 80px), 1180px); }
+  .feed-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(44px, 5vw, 64px);
+    margin-top: clamp(28px, 2.7vw, 34px);
+  }
   .feed-column { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; }
 }
 .story details { font-size: 13px; color: var(--muted); }
@@ -364,7 +371,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .topic-filters { display: flex; gap: 4px 16px; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid var(--rule); margin: 4px 0 16px; }
 .topic-filters a { flex: 0 0 auto; display: flex; align-items: center; min-height: 44px; font-size: 12px; color: var(--muted); }
 .topic-filters a[aria-current] { color: var(--ink); box-shadow: inset 0 -2px var(--gold); font-weight: 700; }
-.feed-columns { display: grid; gap: 32px; }
+.feed-columns { display: grid; row-gap: 34px; column-gap: 32px; }
 .feed-column { display: block; min-width: 0; }
 .column-masthead { min-height: 120px; padding: 26px 22px 18px; margin: 0; gap: 8px; }
 .column-masthead::before { top: 13px; inset-inline: 22px; }
@@ -431,7 +438,12 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 .lane-title { font: 700 25px/1.3 var(--headline-font); }.lane-title.human { color: var(--human-heat); }.lane-title.ai { color: var(--ai-heat); }
 .reader-message:empty { display: none; }.reader-message:not(:empty) { padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); position: sticky; bottom: 8px; z-index: 4; max-width: 650px; box-shadow: 0 4px 16px #0001; }
 .reader-message button { margin-left: 10px; }.archive-stories h3 { font-size: 23px; }
-@media(min-width:700px) { .feed-columns { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(min-width:700px) {
+  .feed-columns {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    column-gap: clamp(44px, 5vw, 64px);
+  }
+}
 @media(max-width:900px) {
   .masthead-inner { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-top: 4px; }
   .tabs { grid-row: 2; grid-column: 1/-1; margin: 0; justify-content: space-between; }
