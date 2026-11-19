@@ -2,6 +2,13 @@
 
 A bilingual daily reading site about culture, creative work and life with AI. Cloudflare Worker + D1, server-rendered HTML, progressively enhanced with browser-local saves. The original display site and the earlier clean design remain in Git history; `1acf1bb` preserves the pre-daily-edition work.
 
+## Editorial design documents
+
+The durable specifications for Bond6's selection and source-management systems live outside application code:
+
+- [Bond6 Rhythm](docs/BOND6_RHYTHM.md) — the implemented, inspectable story-selection method.
+- [Bond6 Source Vitality](docs/SOURCE_VITALITY.md) — the approved design for a living English/Chinese source catalogue; implementation is pending.
+
 ## Development
 
 Use Node 22.13 or newer.
