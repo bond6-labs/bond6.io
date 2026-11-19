@@ -21,6 +21,7 @@
   font-family: Inter, "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
+html { scrollbar-gutter: stable; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ground); color: var(--ink); }
 a { color: inherit; text-decoration: none; }
@@ -28,7 +29,7 @@ a, summary { touch-action: manipulation; }
 a:hover, a:focus-visible, summary:hover { color: var(--gold); }
 a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 
-.shell { width: min(100% - 40px, 760px); margin-inline: auto; }
+.shell { width: min(100% - 48px, 1120px); margin-inline: auto; }
 .skip-link { position: absolute; inset: 8px auto auto 12px; padding: 10px 14px; background: var(--surface); z-index: 1; }
 .skip-link:not(:focus) { clip-path: inset(50%); }
 
@@ -204,7 +205,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
   /* The two lanes are peers, so they keep equal measure. The wider centre
      interval is deliberately on the 8 / 13 / 21 / 34 / 55 rhythm: it gives
      each voice room without making the page feel like two separate sites. */
-  body:has(.feed-columns) .shell { width: min(100% - clamp(48px, 5vw, 80px), 1180px); }
+  body:has(.feed-columns) .shell { width: min(100% - 48px, 1120px); }
   .feed-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: clamp(44px, 5vw, 64px);
