@@ -71,15 +71,25 @@ function mediaPreview(story,v) {
   return `${image}${audio}<details class="story-video"><summary>${esc(title)}</summary><div>${video}</div></details>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
-export function card(s,v,{pick=false,rhythm=false,editionId,mentions=[],focusKeys=[]}={}) {
+const deckPreview=(excerpt,limit)=>{
+  const text=String(excerpt??'').replace(/\s+/g,' ').trim();
+  if(text.length<=limit)return {text,truncated:false};
+  const partial=text.slice(0,limit);
+  const sentenceEnd=Math.max(partial.lastIndexOf('. '),partial.lastIndexOf('! '),partial.lastIndexOf('? '));
+  const end=sentenceEnd>=Math.floor(limit*.55)?sentenceEnd+1:Math.max(1,partial.lastIndexOf(' '));
+  return {text:partial.slice(0,end).trim(),truncated:true};
+};
+export function card(s,v,{pick=false,lead=false,rhythm=false,editionId,mentions=[],focusKeys=[]}={}) {
   const copy=v.zh?s.zh:s.en, title=s.title;
   const publication=s.original_published_at?`<time datetime="${new Date(s.original_published_at).toISOString()}">${date(s.original_published_at,v)}</time>`:`<span>${v.say('Publication date unavailable','发表日期未知')}</span>`;
   const evidence=[...new Map(mentions.map(m=>[m.source,m])).values()];
   const discussion=evidence.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
   const share=editionId?`https://bond6.io${v.local('/edit/'+editionId)}#story-${s.content_hash.slice(0,12)}`:s.url;
-  return `<article class="story${pick?' daily-pick':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}"${focusKeys.length?` data-focus="${esc(focusKeys.join(','))}"`:''}>
+  const deck=lead&&s.excerpt?deckPreview(s.excerpt,v.zh?180:260):null;
+  return `<article class="story${pick?' daily-pick':''}${lead?' story-lead':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}"${focusKeys.length?` data-focus="${esc(focusKeys.join(','))}"`:''}>
     <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
     <h3><a href="${esc(s.url)}" data-event="original" lang="${s.original_lang==='zh'?'zh-Hans':'en'}">${esc(title)}</a></h3>
+    ${deck?`<p class="story-deck">${esc(deck.text)}${deck.truncated?'…':''}</p>`:''}
     ${pick?`<p class="pick-note">${esc(copy?.note)}</p>`:''}
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
     ${mediaPreview(s,v)}

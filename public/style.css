@@ -2,6 +2,8 @@
   color-scheme: light;
   --ground: #f6f3ec;
   --surface: #eee9de;
+  --header-ground: #ece8df;
+  --header-rule: #d2cabd;
   --ink: #22201c;
   --muted: #60594f;
   --gold: #785821;
@@ -30,14 +32,15 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .skip-link { position: absolute; inset: 8px auto auto 12px; padding: 10px 14px; background: var(--surface); z-index: 1; }
 .skip-link:not(:focus) { clip-path: inset(50%); }
 
-.masthead { border-bottom: 1px solid var(--rule); }
+.masthead { border-bottom: 1px solid var(--header-rule); background: linear-gradient(90deg,#e9e5dc 0%,var(--header-ground) 38%,#f0ede6 50%,var(--header-ground) 62%,#e9e5dc 100%); }
 .masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
 .wordmark { color: #292622; font: 700 22px/1 Inter, system-ui, sans-serif; letter-spacing: -.055em; white-space: nowrap; }
 .wordmark .mark-six { margin-inline-start: 1px; color: #bf6840; font-style: normal; }
 .wordmark small { margin-inline-start: 2px; color: #23727d; font: 600 12px/1 Inter, system-ui, sans-serif; letter-spacing: -.04em; }
 .tabs { display: flex; align-items: center; gap: clamp(6px, 3vw, 26px); }
-.tabs a { display: flex; align-items: center; min-height: 44px; padding-inline: 4px; font-size: 13px; color: var(--muted); }
-.tabs a[aria-current] { color: var(--gold); font-weight: 700; letter-spacing: .015em; }
+.tabs a { position: relative; display: flex; align-items: center; min-height: 44px; padding-inline: 7px; font-size: 12px; color: var(--muted); letter-spacing: .01em; }
+.tabs a[aria-current] { color: var(--gold); font-weight: 700; letter-spacing: .025em; }
+.tabs a[aria-current]::after { content:""; position:absolute; inset-inline:7px; inset-block-end:5px; height:1px; background:currentColor; }
 .tabs a:hover { color: var(--ink); }
 .tabs { margin-inline-start: auto; }
 .reader-controls { display: flex; align-items: center; gap: 12px; }
@@ -64,6 +67,11 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 }
 .story :is(h2, h3):lang(zh-Hans) { font-size: clamp(20px, 3.4vw, 25px); font-weight: 600; line-height: 1.48; }
 .story :is(h2, h3) a:lang(en) { font-family: "PT Serif", Georgia, serif; font-weight: 400; }
+.feed-column .story:not(.story-lead) h3 { font-size: clamp(20px,2.1vw,24px); }
+.story-lead { padding-top: 21px; padding-bottom: 20px; border-top: 2px solid var(--column-accent,var(--gold)); }
+.story-lead .topic { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.story-lead h3 { max-width: 34ch; font-size: clamp(25px,2.8vw,32px); line-height: 1.2; }
+.story-deck { max-width: 58ch; margin: 8px 0 10px; color: var(--muted); font-size: 14px; line-height: 1.52; }
 .story-image { display: block; position: relative; max-width: 620px; margin: 13px 0 2px; overflow: hidden; background: var(--surface); }
 .story-image img { display: block; width: 100%; max-height: 340px; object-fit: cover; }
 .story-image span { display: block; padding: 4px 7px; color: var(--muted); font-size: 10px; }
@@ -453,7 +461,9 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
 @media(min-width:901px) {
   /* A measured header rhythm: the navigation sits comfortably below the
      viewport edge, then the editorial statement begins on its own breath. */
-  .masthead-inner { min-height: 78px; padding-block: 10px 6px; }
+  .masthead-inner { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); min-height: 78px; padding-block: 10px 6px; }
+  .tabs { grid-column: 2; margin: 0; gap: clamp(14px,2vw,28px); }
+  .reader-controls { grid-column: 3; justify-self: end; }
 }
 @media(max-width:900px) {
   .masthead-inner { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-top: 4px; }

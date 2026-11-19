@@ -187,7 +187,7 @@ export async function home(env,v,{trending=false}={}) {
     stories=capBySource(focusedStories(signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyTopics(story).includes(signal.key)).slice(0,20):result.results));
   }
   const {results:mentions}=stories.length?await db.prepare(`SELECT url,link,source FROM mentions WHERE url IN(${stories.map(()=>'?').join(',')}) ORDER BY published_at DESC`).bind(...stories.map(s=>s.url)).all():{results:[]};
-  const render=s=>card(s,v,{rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url),focusKeys:storyTopics(s)});
+  const render=(s,{lead=false}={})=>card(s,v,{lead,rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url),focusKeys:storyTopics(s)});
   const picks=(edition?.stories??[]).filter(s=>s.original_lang===originalLanguage&&(!subject||s.subject===subject));
   const caption=edition?`<a class="edition-date" href="${v.local('/edit/'+edition.id)}">${date(Date.parse(edition.date+'T12:00:00Z'),v)} <span aria-hidden="true">↗</span></a>`:'';
   const showDaily=Boolean(edition) || dailyLive;
@@ -202,7 +202,7 @@ export async function home(env,v,{trending=false}={}) {
     ${selected.length?selected.map(s=>card(s,v,{pick:true,editionId:edition.id})).join(''):`<p class="daily-empty">${edition?v.say('No picks in this subject for these daily picks.','本期没有这一主题的精选。'):v.say('Daily picks will appear here after automated publication is enabled.','自动发布启用后，每日精选会在这里出现。')}</p>`}
     ${selected.length?`<p class="edition-end">${v.say('That’s the selection. Stay curious.','本期精选到这里，继续保持好奇。')}</p>`:''}`:''}
     <div class="section-label arrivals-label"><h3>${v.say('Latest arrivals','最新发现')}</h3><div class="arrivals-tools"><span class="new-count" hidden></span><button class="refresh-arrivals" type="button" data-refresh-lane="${l}" hidden>${v.say('Load new arrivals','加载新内容')}</button></div></div>
-    <div class="stories">${arrivals.length?arrivals.map(render).join(''):`<p class="notice">${v.t('No recent stories in this section yet.')}</p>`}</div></div></section>`;
+    <div class="stories">${arrivals.length?arrivals.map((story,index)=>render(story,{lead:index===0})).join(''):`<p class="notice">${v.t('No recent stories in this section yet.')}</p>`}</div></div></section>`;
   };
   const topicResults=signal?v.say('Stories in “','「')+(v.zh?signal.zh:signal.en)+v.say('” from the sources we follow this week.','」：来自本周关注来源的相关文章。'):null;
   const visibleStories=stories.slice(0,20), nextCursor=!trending&&!signal&&rawStories.length>20?olderLink(v,olderStory(visibleStories)??olderStory(rawStories),{load:continuationLane}):null;
