@@ -1,5 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="26" fill="#171614"/>
-  <path fill="#d99052" fill-rule="evenodd" d="M16 22h21c14 0 22 7 22 18 0 7-4 12-11 15 8 3 12 9 12 18 0 12-9 19-23 19H16V22Zm12 10v18h9c7 0 11-3 11-9s-4-9-11-9h-9Zm0 28v22h10c8 0 12-4 12-11s-4-11-12-11H28Z"/>
-  <path fill="#63b8b8" d="M96 22c-20 0-33 15-33 36 0 22 12 35 30 35 17 0 26-11 26-27 0-15-9-25-23-25-8 0-14 3-20 9 3-11 10-17 20-17 5 0 10 1 14 4l5-10c-5-4-11-5-19-5Zm-4 30c9 0 14 5 14 14 0 10-5 16-14 16-10 0-15-8-15-20 4-7 9-10 15-10Z"/>
+  <circle cx="64" cy="64" r="54" fill="#e78638"/>
+  <path d="M64 10a54 54 0 0 1 0 108Z" fill="#1495a9"/>
+  <path d="M64 37 90 52v30L64 97 38 82V52Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M64 37v60M38 52l26 15 26-15" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="#1495a9" stroke="#fff" stroke-width="4"><circle cx="25" cy="48" r="7"/><circle cx="25" cy="81" r="7"/></g>
+  <g fill="#e78638" stroke="#fff" stroke-width="4"><circle cx="103" cy="48" r="7"/><circle cx="103" cy="81" r="7"/><circle cx="64" cy="108" r="7"/></g>
 </svg>

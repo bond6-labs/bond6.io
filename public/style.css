@@ -32,18 +32,11 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .skip-link { position: absolute; inset: 8px auto auto 12px; padding: 10px 14px; background: var(--surface); z-index: 1; }
 .skip-link:not(:focus) { clip-path: inset(50%); }
 
-.masthead { border-bottom: 1px solid var(--header-rule); background: linear-gradient(90deg,#e9e5dc 0%,var(--header-ground) 38%,#f0ede6 50%,var(--header-ground) 62%,#e9e5dc 100%); }
+.masthead { border-bottom: 1px solid var(--header-rule); background: #fff; }
 .masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
-.wordmark { display: inline-flex; align-items: center; min-height: 44px; color: #292622; white-space: nowrap; }
-.brand-mark { display: block; flex: 0 0 34px; width: 34px; height: 34px; transform-origin: 50% 50%; animation: brand-mark-settle 1200ms cubic-bezier(.16,1,.3,1) both; }
-.brand-mark svg { display: block; width: 100%; height: 100%; }
-.brand-label { display: inline-flex; align-items: baseline; flex: 0 0 92px; width: 92px; margin-inline-start: 8px; color: #292622; font: 700 22px/1 Inter, system-ui, sans-serif; letter-spacing: -.055em; transform-origin: left center; white-space: nowrap; animation: brand-label-reveal 1400ms cubic-bezier(.16,1,.3,1) 150ms both; }
-.brand-label b { margin-inline-start: 1px; color: #bf6840; font-weight: 700; }
-.brand-label small { margin-inline-start: 2px; color: #23727d; font: 600 12px/1 Inter, system-ui, sans-serif; letter-spacing: -.04em; }
-.wordmark:is(:hover,:focus-visible) .brand-mark { animation: brand-mark-settle 1200ms cubic-bezier(.16,1,.3,1) both; }
-.wordmark:is(:hover,:focus-visible) .brand-label { animation: brand-label-reveal 1400ms cubic-bezier(.16,1,.3,1) 150ms both; }
-@keyframes brand-mark-settle { from { transform: scale(.82) rotate(-7deg); } 58% { transform: scale(1.06) rotate(1deg); } to { transform: scale(1) rotate(0); } }
-@keyframes brand-label-reveal { from { opacity: .15; transform: translateX(-7px) scaleX(.15); } 70% { opacity: 1; } to { opacity: 1; transform: translateX(0) scaleX(1); } }
+.wordmark { display: inline-flex; align-items: center; min-height: 44px; white-space: nowrap; }
+.brand-symbol { display: block; flex: 0 0 40px; width: 40px; height: 48px; background: url('/bond6-logo.jpeg') left center / 164px 48px no-repeat; }
+.brand-word-image { display: block; flex: 0 0 110px; width: 110px; height: 48px; margin-inline-start: 0; background: url('/bond6-logo.jpeg') -52px center / 164px 48px no-repeat; }
 .tabs { display: flex; align-items: center; gap: clamp(6px, 3vw, 26px); }
 .tabs a { position: relative; display: flex; align-items: center; min-height: 44px; padding-inline: 7px; font-size: 12px; color: var(--muted); letter-spacing: .01em; }
 .tabs a[aria-current] { color: var(--gold); font-weight: 700; letter-spacing: .025em; }
@@ -358,7 +351,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 
 @media (max-width: 570px) {
   .shell { width: calc(100% - 32px); }
-  .brand-mark { flex-basis: 30px; width: 30px; height: 30px; }.brand-label { font-size: 21px; }
+  .brand-symbol { flex-basis: 37px; width: 37px; height: 43px; background-size: 148px 43px; }.brand-word-image { flex-basis: 100px; width: 100px; height: 43px; background-size: 148px 43px; background-position: -47px center; }
   .masthead-inner { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-top: 6px; }
   .tabs { grid-row: 2; grid-column: 1 / -1; margin-inline-start: 0; gap: 10px; }
   .reader-controls { grid-row: 1; grid-column: 2; }
@@ -556,7 +549,6 @@ button:focus-visible,input:focus-visible { outline: 2px solid var(--gold); outli
   .feed-columns[data-desktop-lane=human] #ai-feed,.feed-columns[data-desktop-lane=ai] #human-feed { display: none; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .brand-mark,.brand-label,.wordmark:is(:hover,:focus-visible) .brand-mark,.wordmark:is(:hover,:focus-visible) .brand-label { animation: none; }
   .heartbeat-heart,.heartbeat-wave,.digital-flow > span,.scout-human-pupil,.scout-scan,.owl-head,.owl-eye,.owl-pupil,.robot-head,.robot-screen,.robot-signal,.robot-eye,.owl-turning-head,.owl-eye-disc,.barn-eye,.perch-glass,.owl-pupil-dot,.barn-pupil,.perch-pupil,.perch-front > *,.perch-threequarter > *,.perch-profile > *,.picker-eye,.picker-ping,.picker-arm,.picker-body,.machine-arm,.machine-leg,.rover-track,.rover-wheel,.rover-radar,.rover-claw,.scribe-eye,.scribe-spark,.scribe-arm,.scribe-lines { animation: none !important; }
 }
 
