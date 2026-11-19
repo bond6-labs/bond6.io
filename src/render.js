@@ -24,7 +24,7 @@ export function searchForm(v) {
     <label for="story-query">${v.t('Search stories')}</label><div><input id="story-query" name="q" type="search" maxlength="120" autocomplete="off" value="${esc(v.url.searchParams.get('q'))}"><button>${v.t('Search')}</button></div>
     ${v.url.searchParams.get('lane')?`<input type="hidden" name="lane" value="${esc(v.url.searchParams.get('lane'))}">`:''}</form></details>`;
 }
-export function html(v,title,content,{status=200,description,intro,wide=false,edition=false}={}) {
+export function html(v,title,content,{status=200,description,intro,wide=false,edition=false,homepage=false}={}) {
   const siteTitle=v.t('The Bond6 Flow'), heading=title||siteTitle;
   description??=v.t('New writing on culture, creative work, and life with AI.');
   intro??=description;
@@ -40,14 +40,14 @@ export function html(v,title,content,{status=200,description,intro,wide=false,ed
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
   <script src="/reader.js?v=${esc(v.release??'local')}" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=Lora:wght@500;600&family=Noto+Serif+SC:wght@500;600&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css?v=${esc(v.release??'local')}"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span class="mark-six">6</span><small>.io</small></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
   <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中'}</a>
   </div></div></header>
-  <main class="shell" id="main" tabindex="-1"><div class="intro"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(intro)}</p>`:''}</div></div>${content}</main>
+  <main class="shell" id="main" tabindex="-1"><div class="intro${homepage?' homepage-intro':''}"><div><h1>${esc(heading)}</h1>${!title?`<p>${esc(intro)}</p>`:''}</div></div>${content}</main>
   <div class="reader-message shell" role="status" aria-live="polite"></div>
   <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
   <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Focusing')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
