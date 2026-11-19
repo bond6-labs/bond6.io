@@ -1,6 +1,6 @@
 # Bond6 Source Vitality
 
-**Status:** approved design; implementation pending
+**Status:** implemented foundations; editorial promotion/retirement is review-gated
 
 **Depends on:** Bond6 Rhythm, durable source state, D1 row-usage safeguards
 
@@ -137,7 +137,19 @@ The active catalogue must fit that budget with margin for retries. A target conf
 | Candidate | trial sources | 15 | 24 hours | 15 |
 | **Planned total** |  | **90** |  | **474** |
 
-This leaves 102 collections/day for retries, one-off verification, and temporary escalation. It requires lifting the present three-hour maximum source interval and using an indexed “sources due now” query instead of loading every source state at every scheduler tick.
+This leaves 102 collections/day for retries, one-off verification, and temporary escalation. The implementation supports source intervals up to 24 hours and uses an indexed “sources due now” query instead of loading every source state at every scheduler tick.
+
+### Initial catalogue cadence
+
+The existing 53 Bond6 sources are seeded as active; none are discarded by this migration. Their old requested intervals exceeded the free-tier collection ceiling, so the initial Source Vitality policy sets six high-signal AI sources to 45 minutes, 20 standard sources to four hours, and 27 slower culture/essay sources to eight hours. This is approximately 393 planned checks/day, leaving capacity for retries. Future evaluation may recommend a tier change, but does not silently accelerate all sources.
+
+## Operator controls
+
+The catalogue is data-driven at runtime. The current `src/sources.js` list is seeded once into `source_catalogue`; it remains the auditable record of Bond6's initial sources, while day-to-day state, cadence, and candidate entries live in D1. Re-running a deploy synchronizes harmless metadata (name, feed URL, declared language and role) but deliberately never overwrites a source's operational state, reason, pinned setting, or accumulated evidence.
+
+To trial a proposed source, add a row as `candidate` with a verified public feed URL, declared language and intended lane. Its first successful check automatically moves it to `probation`; it is observed but cannot appear in the public Flow. An editor reviews the stored evaluation before setting `state='active'`, or records a documented `watch`, `paused`, or `retired` outcome. Technical failures are the only automatic state actions.
+
+This separation means Bond6 can add, test, slow, pause, restore, or retire individual sources without a code deploy, while preserving the original source list and every decision's reason in the database.
 
 ## Required data model
 

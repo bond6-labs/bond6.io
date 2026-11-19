@@ -7,7 +7,7 @@ A bilingual daily reading site about culture, creative work and life with AI. Cl
 The durable specifications for Bond6's selection and source-management systems live outside application code:
 
 - [Bond6 Rhythm](docs/BOND6_RHYTHM.md) — the implemented, inspectable story-selection method.
-- [Bond6 Source Vitality](docs/SOURCE_VITALITY.md) — the approved design for a living English/Chinese source catalogue; implementation is pending.
+- [Bond6 Source Vitality](docs/SOURCE_VITALITY.md) — the implemented operating system for a living English/Chinese source catalogue, its evidence, and its review-gated editorial decisions.
 
 ## Development
 
@@ -37,7 +37,7 @@ RSS accepts `kind=live|daily|bond` and optional `lane=human|ai`. The original un
 
 ## Collection and publishing
 
-- A cron runs every minute. Collection and publication use separate invocations. Each source has a durable leased job, conditional HTTP requests and failure backoff. Collection is normally once per source about every 25–50 minutes, depending on publishing work and failures.
+- A cron runs every five minutes. Collection and publication use separate invocations. Source Vitality keeps a durable catalogue, conditional HTTP requests, failure backoff, and a two-source-per-tick ceiling. The current initial mix plans roughly 393 checks/day, leaving room below the 576-check safety ceiling for retries.
 - Items preserve author, original language, publication date (nullable), first discovery, source ID, type, excerpt, destination and content hash. Shared articles never inherit a social posting date. Distinctive social posts keep their own permalink and byline; reposts/replies are not featured. Known shorteners have a bounded redirect resolver.
 - Source excerpts are untrusted data. AI receives no tools. Topic assignment requires item content, and daily selection further checks the assigned lane. Human Pulse is not a claim of certified AI-free authorship.
 - At 12:00 UTC, preparation considers the previous 72 hours, extending to seven days. One publisher/author per edition, no repeat selection within seven days, subject variety, and qualifying Chinese originals are preferred. Each lane holds at most three picks.

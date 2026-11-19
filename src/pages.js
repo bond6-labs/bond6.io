@@ -134,7 +134,7 @@ export async function home(env,v,{trending=false}={}) {
   const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending||!!continuationLane;
   const cursor=archive?requestedCursor:null;
   const rhythmLive=env.RHYTHM_LIVE_RANKING==='true';
-  const where=`s.lane IS NOT NULL AND s.original_lang=? ${continuationLane?'AND s.lane=?':''} ${cursor?'AND (s.discovered_at<? OR (s.discovered_at=? AND s.url<?))':''} AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
+  const where=`s.lane IS NOT NULL AND s.original_lang=? ${continuationLane?'AND s.lane=?':''} ${cursor?'AND (s.discovered_at<? OR (s.discovered_at=? AND s.url<?))':''} AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) AND NOT EXISTS(SELECT 1 FROM source_catalogue catalogue WHERE catalogue.id=s.source_id AND catalogue.state IN ('paused','retired')) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
   const args=[originalLanguage,...(continuationLane?[continuationLane]:[]),...(cursor?[cursor.discoveredAt,cursor.discoveredAt,cursor.url]:[]),...(subject?[subject]:[]),...(search?[search]:[])];
   // Joining signals only behind the gate lets a deploy calculate and audit
   // Rhythm without changing the chronological public feed.
@@ -263,35 +263,36 @@ export function about(v) {
   <p><a href="${v.local('/sources')}">${v.t('Sources')}</a> · <a href="${v.local('/subscribe')}">RSS</a> · ${correction(v,'https://bond6.io')}</p></div>`);
 }
 export async function sourcesPage(env,v) {
-  const {results}=await env.DB.prepare('SELECT id,checked_at,ok_at,failures FROM source_state').all();
+  const [{results:catalogue},{results:sourceStates}]=await Promise.all([
+    env.DB.prepare(`SELECT c.*,s.checked_at,s.ok_at,s.failures,
+      (SELECT standing FROM source_evaluations e WHERE e.source_id=c.id ORDER BY evaluated_at DESC LIMIT 1) AS standing,
+      (SELECT recommendation FROM source_evaluations e WHERE e.source_id=c.id ORDER BY evaluated_at DESC LIMIT 1) AS recommendation
+      FROM source_catalogue c LEFT JOIN source_state s ON s.id=c.id ORDER BY c.language,c.name`).all(),
+    env.DB.prepare('SELECT id,checked_at,ok_at,failures FROM source_state').all()
+  ]);
   const request=encodeURIComponent(v.say('Publication / account name:\nWebsite or feed URL:\nPrimary language:\nWhat it covers:\nWhy it belongs on Bond6:\n','媒体或账号名称：\n网站或订阅地址：\n主要语言：\n内容主题：\n为什么适合 Bond6：\n'));
-  const states=new Map(results.map(state=>[state.id,state]));
-  const groups=new Map();
-  for (const source of sources) {
-    const language=source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en');
-    const key=language+'|'+source.name, group=groups.get(key)??{...source,language,items:[]}; group.items.push(source); groups.set(key,group);
-  }
-  const topic=group=>v.zh?sourceTopics[group.topic]??group.topic:group.topic;
-  const health=group=>{
-    // A publisher can have more than one transport. Its current health follows
-    // the newest attempt, rather than a stale failure from an older transport.
-    const latest=group.items.map(source=>states.get(source.id)).filter(Boolean)
-      .sort((a,b)=>Number(b.checked_at??0)-Number(a.checked_at??0))[0];
-    if(!latest)return `<span class="source-health awaiting">${v.say('Not checked yet','尚未检查')}</span>`;
-    const failed=Number(latest.failures)>0&&Number(latest.checked_at)>Number(latest.ok_at??0);
+  const stateById=new Map(sourceStates.map(state=>[state.id,state]));
+  const fallback=sources.map(source=>({...source,...stateById.get(source.id),feed_url:source.url,site_url:source.site,language:source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en'),state:'active',tier:source.tier==='flow'?'rapid':'standard'}));
+  const rows=catalogue.length?catalogue:fallback;
+  const topic=row=>v.zh?sourceTopics[row.topic]??row.topic:row.topic;
+  const stateLabel=state=>({active:v.say('Active','启用中'),watch:v.say('Watching','观察中'),candidate:v.say('Candidate','候选来源'),probation:v.say('In review','评估中'),paused:v.say('Paused','已暂停'),retired:v.say('Retired','已退出')}[state]??state);
+  const health=row=>{
+    if(!row.checked_at)return `<span class="source-health awaiting">${v.say('Not checked yet','尚未检查')}</span>`;
+    const failed=Number(row.failures)>0&&Number(row.checked_at)>Number(row.ok_at??0);
     if(failed){
-      const lastSuccess=Number(latest.ok_at)>0?` <small>${v.say('Last successful check ','上次成功检查：')}${date(latest.ok_at,v)}</small>`:'';
+      const lastSuccess=Number(row.ok_at)>0?` <small>${v.say('Last successful check ','上次成功检查：')}${date(row.ok_at,v)}</small>`:'';
       return `<span class="source-health retrying">${v.say('Latest check failed · retrying','最近检查失败 · 将重试')}${lastSuccess}</span>`;
     }
-    return `<span class="source-health healthy">${v.say('Checked ','已检查：')}${date(Number(latest.ok_at??latest.checked_at),v)}</span>`;
+    return `<span class="source-health healthy">${v.say('Checked ','已检查：')}${date(Number(row.ok_at??row.checked_at),v)}</span>`;
   };
-  const row=group=>{
-    const types=[...new Set(group.items.map(source=>source.kind==='rss'?'RSS / Atom':'Bluesky'))].join(' + ');
-    const tier=group.tier==='flow'?v.say('Live Flow','实时流'):v.say('Core reading','核心阅读');
-    return `<li><div><a href="${esc(group.site)}">${esc(group.name)}</a><small>${esc(topic(group))} · ${types} · ${tier}</small></div>${health(group)}</li>`;
+  const row=source=>{
+    const type=source.kind==='rss'?'RSS / Atom':'Bluesky', tier=source.tier==='rapid'?v.say('Rapid','快速'):source.tier==='slow'?v.say('Slow reading','慢速阅读'):source.tier==='candidate'?v.say('Candidate','候选'):v.say('Standard','常规');
+    const score=Number.isFinite(Number(source.standing))?`<small class="source-standing">${v.say('Standing ','综合评分 ')}${Math.round(Number(source.standing))}/100</small>`:'';
+    return `<li><div><a href="${esc(source.site_url??source.site)}">${esc(source.name)}</a><small>${esc(topic(source))} · ${type} · ${tier} · ${stateLabel(source.state)}</small>${score}</div>${health(source)}</li>`;
   };
-  const list=language=>[...groups.values()].filter(group=>group.language===language).sort((a,b)=>a.name.localeCompare(b.name)).map(row).join('');
-  return html(v,v.t('Sources'),`<p class="feed-note">${v.say('This is Bond6’s current source catalog. Both language editions use this same list; each edition displays only stories in its original language. A source’s status reflects its most recent scheduled check.','这是 Bond6 当前的来源目录。中英文页面使用同一份名单；各语言版本只显示相应语言的原创内容。每个来源的状态反映最近一次定时检查。')}</p><section class="source-invitation"><div><h2>${v.say('Help widen the reading','一起拓宽阅读范围')}</h2><p>${v.say('Know a publication, writer, newsletter, or podcast worth following? Send its public URL, language, and a sentence on what makes it useful. We review suggestions before adding anything.','知道值得关注的媒体、作者、通讯或播客？请发送公开链接、主要语言和一句推荐理由。所有建议都会经过审核，不会自动加入。')}</p><p>${v.say('No mail app? Write to info@bond6.io.','没有邮件客户端？请写信至 info@bond6.io。')}</p></div><a class="text-link" href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion&body=${request}">${v.say('Suggest a source','推荐来源')} <span aria-hidden="true">→</span></a></section><section class="source-group"><h2>${v.say('English and other-language sources','英文及其他语言来源')}</h2><ul class="sources">${list('en')}</ul></section><section class="source-group"><h2>${v.say('Chinese-language sources','中文来源')}</h2><ul class="sources">${list('zh')}</ul></section>`);
+  const list=language=>rows.filter(source=>source.language===language).sort((a,b)=>a.name.localeCompare(b.name)).map(row).join('');
+  const active=rows.filter(source=>source.state==='active'||source.state==='watch').length;
+  return html(v,v.t('Sources'),`<p class="feed-note">${v.say(`Bond6 currently keeps ${active} active or watched sources in a living catalogue. The English edition shows English originals; the Chinese edition shows Chinese originals. Status reflects the most recent scheduled check.`,`Bond6 当前有 ${active} 个启用或观察中的来源。英文版只显示英文原创，中文版只显示中文原创。状态反映最近一次定时检查。`)}</p><section class="source-vitality-note"><h2>${v.say('Source Vitality','来源活力')}</h2><p>${v.say('Sources are evaluated for reliability, freshness, editorial fit, usable yield, and duplication. A broken feed can pause automatically; editorial additions and retirements remain reviewed while the system learns.','来源会按可靠性、新鲜度、编辑匹配度、可用内容比例与重复度进行评估。失效订阅可自动暂停；在系统校准期间，编辑性新增与移除仍会经过审核。')}</p></section><section class="source-invitation"><div><h2>${v.say('Help widen the reading','一起拓宽阅读范围')}</h2><p>${v.say('Know a publication, writer, newsletter, or podcast worth following? Send its public URL, language, and a sentence on what makes it useful. We review suggestions before adding anything.','知道值得关注的媒体、作者、通讯或播客？请发送公开链接、主要语言和一句推荐理由。所有建议都会经过审核，不会自动加入。')}</p><p>${v.say('No mail app? Write to info@bond6.io.','没有邮件客户端？请写信至 info@bond6.io。')}</p></div><a class="text-link" href="mailto:info@bond6.io?subject=Bond6%20source%20suggestion&body=${request}">${v.say('Suggest a source','推荐来源')} <span aria-hidden="true">→</span></a></section><section class="source-group"><h2>${v.say('English and other-language sources','英文及其他语言来源')}</h2><ul class="sources">${list('en')}</ul></section><section class="source-group"><h2>${v.say('Chinese-language sources','中文来源')}</h2><ul class="sources">${list('zh')}</ul></section>`);
 }
 export function subscribe(env,v) {
   const links=[...(env.GENERATED_PUBLISHING === 'true'?[['daily',null,v.say('Daily picks','每日精选')]]:[]),['live','human',v.t('Human Pulse')],['live','ai',v.t('AI Wave')],['bond',null,v.t('Bonding')],['live',null,v.say('All arrivals','全部新发现')]];

@@ -14,6 +14,10 @@ export const HTTP_REQUEST_TIMEOUT_MS = 8_000;
 // lets a growing source list stay fresh without turning one cron run into an
 // unbounded crawl.
 export const MAX_COLLECTS_PER_TICK = 2;
+export const SOURCE_VITALITY_RETENTION_DAYS = 90;
+export const SOURCE_EVALUATION_HOUR_UTC = 0;
+export const SOURCE_EVALUATION_MINUTE_UTC = 50;
+export const SOURCE_CATALOGUE_VERSION = 'source-vitality-v2';
 
 // Cache configuration
 export const CACHE_TTL_SECONDS = 60;

@@ -50,14 +50,15 @@ test('Sources uses the latest check state and keeps its catalog bilingual',async
   db.sql.prepare('INSERT INTO source_state VALUES(?,?,?,?,?,?,?)').run('ai-snake-oil',null,null,now,now-60_000,2,now+60_000);
   const english=await worker.fetch(new Request('https://bond6.io/sources'),{DB:db,BUILD_VERSION:'catalog-release'});
   const text=await english.text();
-  assert.match(text,/Bond6’s current source catalog/);
+  assert.match(text,/living catalogue/);
+  assert.match(text,/Source Vitality/);
   assert.match(text,/Bandcamp Daily[\s\S]*?Checked/);
   assert.match(text,/AI Snake Oil[\s\S]*?Latest check failed · retrying[\s\S]*?Last successful check/);
   assert.match(text,/随机波动[\s\S]*?Not checked yet/);
   assert.match(text,/reader\.js\?v=catalog-release/);
   const chinese=await worker.fetch(new Request('https://bond6.io/zh/sources'),{DB:db});
   const chineseText=await chinese.text();
-  assert.match(chineseText,/中英文页面使用同一份名单/);
+  assert.match(chineseText,/启用或观察中的来源/);
   assert.match(chineseText,/AI 与社会/);
   assert.match(chineseText,/最近检查失败 · 将重试/);
 });

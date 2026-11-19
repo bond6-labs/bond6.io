@@ -37,7 +37,8 @@ test('source polling uses a bounded fast lane without accelerating every feed',(
   assert.equal(pollIntervalMs({poll_minutes:10}),10*60_000);
   assert.equal(pollIntervalMs({}),45*60_000);
   assert.equal(pollIntervalMs({poll_minutes:1}),10*60_000);
-  assert.equal(pollIntervalMs({poll_minutes:999}),180*60_000);
+  assert.equal(pollIntervalMs({poll_minutes:999}),999*60_000);
+  assert.equal(pollIntervalMs({poll_minutes:9999}),1440*60_000);
 });
 test('classification follows content, not publication names',()=>{
   assert.equal(classify('A musician rehearses a new jazz album','Music and guitar performances',{name:'AI Newspaper'}).lane,'human');

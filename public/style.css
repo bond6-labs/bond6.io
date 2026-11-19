@@ -220,6 +220,10 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .sources .source-health small { margin-top: 2px; }
 .source-group { margin-top: 30px; }
 .source-group h2 { margin: 0 0 8px; font: 700 22px/1.3 var(--headline-font); }
+.source-vitality-note { margin: 18px 0 22px; padding: 17px 20px; border: 1px solid var(--rule); border-inline-start: 3px solid var(--ai-heat); background: color-mix(in srgb,var(--surface) 72%,transparent); }
+.source-vitality-note h2 { margin: 0 0 5px; font: 700 21px/1.2 var(--headline-font); }
+.source-vitality-note p { max-width: 68ch; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.source-standing { margin-top: 2px !important; color: var(--gold) !important; font-variant-numeric: tabular-nums; }
 .source-invitation { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 20px 0 28px; padding: 22px 24px; border-left: 3px solid var(--gold); background: var(--panel); }
 .source-invitation h2 { margin: 0 0 6px; font-size: 24px; }
 .source-invitation p { max-width: 680px; margin: 0; color: var(--muted); }

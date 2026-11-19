@@ -1,13 +1,13 @@
 import { XMLParser } from 'fast-xml-parser';
-import { sources } from './sources.js';
 import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, cleanSocialHeadline, hasLeadingPreviewLabel, plain, language, classify, contentHash } from './content.js';
 import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_COLLECTS_PER_TICK, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
 import { saveRhythmSignals } from './rhythm.js';
+import { dueSources, observeSource, pruneSourceVitality, sourceFromCatalogue } from './source-vitality.js';
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
-export const pollIntervalMs = source => Math.min(180, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
+export const pollIntervalMs = source => Math.min(1440, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
 const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
 const shortHosts = new Set(['t.co', 'bit.ly', 'buff.ly', 'ow.ly', 'tinyurl.com']);
 const attr = (node, ...names) => {
@@ -154,12 +154,13 @@ export async function poll(source, state, now) {
   if (state?.modified) headers.set('If-Modified-Since', state.modified);
   const url = source.url ?? ('https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?' + new URLSearchParams({ actor: source.handle, filter: 'posts_no_replies', limit: '20' }));
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(HTTP_REQUEST_TIMEOUT_MS) });
-  if (response.status === 304) return { items: [], etag: state?.etag ?? null, modified: state?.modified ?? null };
+  if (response.status === 304) return { items: [], rejectedUrls:[], raw_items:0, usable_items:0, etag: state?.etag ?? null, modified: state?.modified ?? null };
   if (!response.ok) throw new Error('Upstream HTTP ' + response.status);
   const body = await readBody(response);
   const parsed = source.kind === 'rss' ? fromRss(body, source) : fromBluesky(body, source);
   const excluded = /\b(vip|raffle|giveaway|tickets?|sale|discount|new low price|daily deals?|this week in|weekly roundup|lit hub daily|podcast episode|excerpt)\b|抽\s*vip|新史低|\d+\s*折/i;
-  const items = parsed.filter(i => i.url && i.title && i.lane && i.excerpt.length >= 80 && !excluded.test(i.title)
+  const usable=parsed.filter(i=>i.url&&i.title&&i.excerpt.length>=80);
+  const items = usable.filter(i => i.lane && !excluded.test(i.title)
     && (!i.original_published_at || i.original_published_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY)
     && (!i.original_published_at || i.original_published_at <= now + 300_000)
     && (!i.shared_at || i.shared_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY));
@@ -181,7 +182,7 @@ export async function poll(source, state, now) {
     }
     item.content_hash = await contentHash(item);
   }
-  return { items, rejectedUrls, etag: response.headers.get('etag'), modified: response.headers.get('last-modified') };
+  return { items, rejectedUrls, raw_items:parsed.length, usable_items:usable.length, etag: response.headers.get('etag'), modified: response.headers.get('last-modified') };
 }
 export async function suppressItems(db, source, urls, now) {
   for (let start = 0; start < urls.length; start += 80) {
@@ -239,9 +240,22 @@ async function collectOne(env, source, state, now) {
   const job = await claim(db, id, now);
   if (!job) return false;
   try {
-    const { items, rejectedUrls, etag, modified } = await poll(source, state, now);
-    await storeItems(db, source, items, now);
-    await suppressItems(db, source, rejectedUrls, now);
+    const { items, rejectedUrls, raw_items, usable_items, etag, modified } = await poll(source, state, now);
+    const existing=items.length?await db.prepare(`SELECT url FROM stories WHERE url IN(${items.map(()=>'?').join(',')})`).bind(...items.map(item=>item.url)).all():{results:[]};
+    const existingUrls=new Set(existing.results.map(item=>item.url));
+    // Candidate/probation feeds are evaluated but do not enter the public Flow
+    // until Source Vitality has recommended and an editor has promoted them.
+    if(!['candidate','probation'].includes(source.catalogue_state)) {
+      await storeItems(db, source, items, now);
+      await suppressItems(db, source, rejectedUrls, now);
+    }
+    const fresh=items.filter(item=>!existingUrls.has(item.url));
+    await observeSource(db,source,{success:true,raw_items,usable_items,accepted_items:items.length,duplicate_items:items.length-fresh.length,last_new_item_at:fresh.length?now:null},now);
+    // A candidate has proved that its declared feed is readable. It remains
+    // outside the public Flow while probation gathers enough useful evidence.
+    if(source.catalogue_state==='candidate')await db.prepare(`UPDATE source_catalogue
+      SET state='probation',last_state_change=?,state_reason='First readable collection; gathering probation evidence.'
+      WHERE id=? AND state='candidate'`).bind(now,source.id).run();
     await db.prepare(`INSERT INTO source_state VALUES(?,?,?,?,?,0,?) ON CONFLICT(id) DO UPDATE SET
       etag=excluded.etag,modified=excluded.modified,checked_at=excluded.checked_at,ok_at=excluded.ok_at,failures=0,next_at=excluded.next_at`)
       .bind(source.id, etag, modified, now, now, now + pollIntervalMs(source)).run();
@@ -253,19 +267,20 @@ async function collectOne(env, source, state, now) {
     await db.prepare(`INSERT INTO source_state VALUES(?,NULL,NULL,?,NULL,?,?) ON CONFLICT(id) DO UPDATE SET
       checked_at=excluded.checked_at,failures=excluded.failures,next_at=excluded.next_at`).bind(source.id, now, failures, next).run();
     await saveJob(db, job, {}, now, { next, error: error.message });
+    await observeSource(db,source,{success:false},now);
     console.warn('Source check failed', {source_id:source.id, job_id:job.id, message:error.message, stack:error.stack, timestamp:now});
     return false;
   }
 }
 export async function collect(env, now = Date.now()) {
   const db = env.DB;
-  const { results } = await db.prepare('SELECT * FROM source_state').all();
-  const states = new Map(results.map(s => [s.id, s]));
   const batch = Math.min(3, Math.max(1, Number.parseInt(env.COLLECT_BATCH_SIZE, 10) || MAX_COLLECTS_PER_TICK));
-  const due = [...sources].filter(source => (states.get(source.id)?.next_at ?? 0) <= now)
-    .sort((a,b) => (states.get(a.id)?.next_at ?? 0) - (states.get(b.id)?.next_at ?? 0) || a.id.localeCompare(b.id)).slice(0,batch);
+  const due=await dueSources(db,now,batch);
   let collected = 0;
-  for (const source of due) if (await collectOne(env,source,states.get(source.id),now)) collected++;
+  for (const row of due) {
+    const source=sourceFromCatalogue(row);
+    if (await collectOne(env,source,row,now)) collected++;
+  }
   return collected;
 }
 export async function prune(env, now) {
@@ -282,4 +297,5 @@ export async function prune(env, now) {
     env.DB.prepare(`DELETE FROM metrics WHERE day < ?`).bind(new Date(now - 60 * DAY).toISOString().slice(0,10)),
     env.DB.prepare(`DELETE FROM rhythm_audits WHERE edition_date IN (SELECT edition_date FROM rhythm_audits ORDER BY edition_date DESC LIMIT -1 OFFSET ?)`).bind(RHYTHM_AUDIT_RETENTION)
   ]);
+  await pruneSourceVitality(env.DB,now);
 }

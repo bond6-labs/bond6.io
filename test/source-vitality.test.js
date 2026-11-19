@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { database } from './db.js';
+import { now } from './fixtures.js';
+import { dueSources, ensureSourceCatalogue, evaluateSource, evaluateSourceVitality, observeSource, sourceFromCatalogue } from '../src/source-vitality.js';
+import { sources } from '../src/sources.js';
+
+test('Source Vitality seeds every current source once without replacing its operational state',async()=>{
+  const db=database();
+  assert.equal(await ensureSourceCatalogue(db,now),true);
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM source_catalogue').first()).n,sources.length);
+  await db.prepare("UPDATE source_catalogue SET state='watch',state_reason='Reviewed' WHERE id=?").bind(sources[0].id).run();
+  assert.equal(await ensureSourceCatalogue(db,now+1),false);
+  const row=await db.prepare('SELECT * FROM source_catalogue WHERE id=?').bind(sources[0].id).first();
+  assert.equal(row.state,'watch');
+  assert.equal(sourceFromCatalogue(row).id,sources[0].id);
+});
+
+test('due source query only returns catalogue sources whose schedule has elapsed',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now);
+  await db.prepare('INSERT INTO source_state VALUES(?,?,?,?,?,?,?)').bind('bandcamp',null,null,now,now,0,now+60_000).run();
+  const due=await dueSources(db,now,100);
+  assert.ok(due.every(row=>row.id!=='bandcamp'));
+  const later=await dueSources(db,now+60_000,100);
+  assert.ok(later.some(row=>row.id==='bandcamp'));
+  await db.prepare("UPDATE source_catalogue SET state='paused' WHERE id='bandcamp'").run();
+  assert.ok(!(await dueSources(db,now+60_000,100)).some(row=>row.id==='bandcamp'));
+});
+
+test('daily observations preserve new-item evidence and produce a review recommendation',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now-15*86_400_000);
+  const source=sourceFromCatalogue(await db.prepare('SELECT * FROM source_catalogue WHERE id=?').bind('bandcamp').first());
+  for(let day=0;day<14;day++)await observeSource(db,source,{success:true,raw_items:5,usable_items:4,accepted_items:2,duplicate_items:0,last_new_item_at:now-day*86_400_000},now-day*86_400_000);
+  const result=await evaluateSourceVitality(db,now);
+  const bandcamp=result.find(row=>row.id==='bandcamp');
+  assert.ok(bandcamp.standing>=65);assert.equal(bandcamp.recommendation,'keep');
+  assert.ok((await db.prepare('SELECT count(*) AS n FROM source_evaluations WHERE source_id=?').bind('bandcamp').first()).n===1);
+});
+
+test('persistent technical failures can pause while weak editorial yield only recommends review',()=>{
+  const base={checks:14,successes:0,errors:14,raw_items:0,usable_items:0,accepted_items:0,duplicate_items:0,last_success_at:null,last_new_item_at:null,expected_minutes:60,added_at:now-31*86_400_000,state:'active',pinned:0,failed_days:14};
+  assert.equal(evaluateSource(base,now).recommendation,'pause');
+  const weak={...base,checks:20,successes:20,errors:0,raw_items:100,usable_items:90,accepted_items:1,duplicate_items:0,last_success_at:now,last_new_item_at:now,failed_days:0};
+  assert.equal(evaluateSource(weak,now).recommendation,'retire-review');
+});

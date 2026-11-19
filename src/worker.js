@@ -4,8 +4,9 @@ import { locale, html, esc } from './render.js';
 import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions } from './pages.js';
 import { classify, conversationTopics, dayKey } from './content.js';
 import { sources, retiredSourceIds } from './sources.js';
-import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH } from './config.js';
+import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH, SOURCE_EVALUATION_HOUR_UTC, SOURCE_EVALUATION_MINUTE_UTC } from './config.js';
 import { scoreRhythmBacklog } from './rhythm.js';
+import { ensureSourceCatalogue, evaluateSourceVitality } from './source-vitality.js';
 
 const xml=value=>esc(String(value??'').replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,''));
 async function rss(env,v) {
@@ -14,8 +15,12 @@ async function rss(env,v) {
   const kindLabel=kind==='daily'?v.say('Daily picks','每日精选'):kind==='bond'?v.t('Bonding'):v.say('Latest','最新');
   let items=[];
   if (kind==='live') {
-    const {results}=await env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(v.zh?'zh':'en',...(lane?[lane]:[])).all();
-    items=results.filter(s=>!retiredSourceIds.has(s.source_id)&&classify(s.title??'',s.excerpt??'',sources.find(source=>source.id===s.source_id)).lane===s.lane)
+    const [{results},{results:catalogue}]=await Promise.all([
+      env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(v.zh?'zh':'en',...(lane?[lane]:[])).all(),
+      env.DB.prepare('SELECT id,state FROM source_catalogue').all()
+    ]);
+    const stateBySource=new Map(catalogue.map(source=>[source.id,source.state]));
+    items=results.filter(s=>!retiredSourceIds.has(s.source_id)&&!['paused','retired'].includes(stateBySource.get(s.source_id))&&classify(s.title??'',s.excerpt??'',sources.find(source=>source.id===s.source_id)).lane===s.lane)
       .map(s=>({title:s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
   } else {
     const {results}=await env.DB.prepare('SELECT * FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 50').bind(kind).all();
@@ -107,8 +112,10 @@ export default {
   scheduled(controller,env,ctx) {
     ctx.waitUntil((async()=>{
       const now=controller.scheduledTime,minute=new Date(now).getUTCMinutes();
+      await ensureSourceCatalogue(env.DB,now);
       // Five-minute scheduling leaves room under D1's free read allowance.
       // Fresh sources are still prioritised by their individual due times.
+      if(new Date(now).getUTCHours()===SOURCE_EVALUATION_HOUR_UTC&&minute===SOURCE_EVALUATION_MINUTE_UTC){await evaluateSourceVitality(env.DB,now);return;}
       if(new Date(now).getUTCHours()===0&&minute===55){await prune(env,now);return;}
       const worked=await publishingStep(env,now);
       if(!worked){await collect(env,now);if(minute===0)await scoreRhythmBacklog(env.DB,now);}
