@@ -17,7 +17,7 @@ export const MAX_COLLECTS_PER_TICK = 2;
 export const SOURCE_VITALITY_RETENTION_DAYS = 90;
 export const SOURCE_EVALUATION_HOUR_UTC = 0;
 export const SOURCE_EVALUATION_MINUTE_UTC = 50;
-export const SOURCE_CATALOGUE_VERSION = 'source-vitality-v2';
+export const SOURCE_CATALOGUE_VERSION = 'source-vitality-v4';
 
 // Cache configuration
 export const CACHE_TTL_SECONDS = 60;

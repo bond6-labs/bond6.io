@@ -24,7 +24,7 @@ It rewards editorial fit and useful specificity, not publisher size, political v
 | State | English | Simplified Chinese | Meaning |
 | --- | ---: | ---: | --- |
 | Active | up to 50 | up to 25 | May contribute to the public Flow. |
-| Candidate | up to 10 | up to 5 | Trial feeds; not eligible for public display until promoted. |
+| Candidate | up to 20 | up to 20 | Trial feeds; not eligible for public display until promoted. |
 | Watch | included in active cap | included in active cap | Still collected, but under review for weak value or declining health. |
 | Paused / retired | no limit | no limit | Kept as a compact record with a reason and date. |
 
@@ -57,6 +57,19 @@ The source is technically reachable but has declining editorial yield, excessive
 ### Paused and retired
 
 Broken feeds can be paused automatically. Editorial retirement should initially be a reviewed recommendation. A retired record retains the reason, score snapshot, and a cooldown date so the same weak feed is not repeatedly re-added.
+
+A source that still responds but produces no genuinely new item for **60 days**
+automatically moves from `active` to `watch`, with a 24-hour collection cadence.
+It is not deleted or automatically retired: this distinguishes a quiet publisher
+from a broken source and gives an editor a clear, reversible cleanup queue.
+
+**Archival guarantee:** Bond6 does not delete a source because it becomes stale,
+low-yield, or temporarily inaccessible. A source first moves to `watch` or
+`paused`; only a documented technical failure or reviewed editorial decision can
+move it to `retired`. Retirement keeps the feed URL, publisher, language,
+reason, state-change date, evaluation evidence and historical story attribution.
+An editor can restore the same record to `candidate`, `probation`, `watch`, or
+`active` without rediscovering or recreating it.
 
 ## Observations
 
@@ -115,6 +128,7 @@ Ratios are smoothed with a small prior so three strong items out of ten are prom
 | Duplicate share above 60% over a meaningful sample | Reduce cadence, merge role with a better source, or retire. |
 | Repeated failed checks for 14 days | Pause automatically. |
 | No successful response for 30 days | Retire automatically with a technical reason. |
+| Successful responses but no genuinely new item for 60 days | Move to watch and collect once per day; review before retiring. |
 | Low-volume source with a high value score | Preserve as a pinned slow source. |
 
 “Expected cadence” is source-specific. A quarterly literary journal must never be removed simply for not producing daily news.
@@ -127,17 +141,21 @@ Bond6 currently permits at most 576 source collections per UTC day:
 288 five-minute scheduler ticks × 2 collections per tick
 ```
 
-The active catalogue must fit that budget with margin for retries. A target configuration for 75 active sources plus 15 candidates is:
+The active catalogue must fit that budget with margin for retries. The current
+operating configuration supports a 66-source live catalogue and a deliberately
+broad 40-source trial pool. Candidate feeds are checked only once per day and
+are never reader-visible, so this lets Bond6 learn from promising sources
+without treating a research list as public editorial endorsement.
 
 | Tier | Typical use | Count | Interval | Polls/day |
 | --- | --- | ---: | ---: | ---: |
 | Rapid | a few high-signal AI / technology sources | 6 | 45 minutes | 192 |
 | Standard | dependable news and culture publishers | 20 | 4 hours | 120 |
-| Slow | essays, art, literature, research, podcasts | 49 | 8 hours | 147 |
-| Candidate | trial sources | 15 | 24 hours | 15 |
-| **Planned total** |  | **90** |  | **474** |
+| Slow | essays, art, literature, research, podcasts | 40 | 8 hours | 120 |
+| Candidate | trial sources | 40 | 24 hours | 40 |
+| **Planned total** |  | **106** |  | **472** |
 
-This leaves 102 collections/day for retries, one-off verification, and temporary escalation. The implementation supports source intervals up to 24 hours and uses an indexed “sources due now” query instead of loading every source state at every scheduler tick.
+This leaves 104 collections/day for retries, one-off verification, and temporary escalation. The implementation supports source intervals up to 24 hours and uses an indexed “sources due now” query instead of loading every source state at every scheduler tick.
 
 ### Initial catalogue cadence
 

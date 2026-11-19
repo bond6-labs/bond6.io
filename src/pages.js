@@ -1,6 +1,6 @@
 import { html, esc, date, card, qlink, correction, actions } from './render.js';
 import { DAY, classify, conversations, conversationTopic, dayKey, storyTopics, subjects, subjectLabels } from './content.js';
-import { sources, retiredSourceIds } from './sources.js';
+import { sources, archivedSources, retiredSourceIds } from './sources.js';
 import { editions as legacy } from './picks.js';
 import { RHYTHM_VERSION } from './rhythm.js';
 
@@ -272,7 +272,9 @@ export async function sourcesPage(env,v) {
   ]);
   const request=encodeURIComponent(v.say('Publication / account name:\nWebsite or feed URL:\nPrimary language:\nWhat it covers:\nWhy it belongs on Bond6:\n','媒体或账号名称：\n网站或订阅地址：\n主要语言：\n内容主题：\n为什么适合 Bond6：\n'));
   const stateById=new Map(sourceStates.map(state=>[state.id,state]));
-  const fallback=sources.map(source=>({...source,...stateById.get(source.id),feed_url:source.url,site_url:source.site,language:source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en'),state:'active',tier:source.tier==='flow'?'rapid':'standard'}));
+  const fallback=[...sources,...archivedSources].map(source=>({...source,...stateById.get(source.id),feed_url:source.url,site_url:source.site,
+    language:source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en'),
+    state:source.state??'active',tier:source.state==='candidate'||source.tier==='candidate'?'candidate':source.tier==='flow'?'rapid':'standard'}));
   const rows=catalogue.length?catalogue:fallback;
   const topic=row=>v.zh?sourceTopics[row.topic]??row.topic:row.topic;
   const stateLabel=state=>({active:v.say('Active','启用中'),watch:v.say('Watching','观察中'),candidate:v.say('Candidate','候选来源'),probation:v.say('In review','评估中'),paused:v.say('Paused','已暂停'),retired:v.say('Retired','已退出')}[state]??state);

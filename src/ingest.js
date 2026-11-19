@@ -8,6 +8,7 @@ import { dueSources, observeSource, pruneSourceVitality, sourceFromCatalogue } f
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
 export const pollIntervalMs = source => Math.min(1440, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
+const CURRENT_ITEM_WINDOW=30*DAY;
 const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
 const shortHosts = new Set(['t.co', 'bit.ly', 'buff.ly', 'ow.ly', 'tinyurl.com']);
 const attr = (node, ...names) => {
@@ -250,7 +251,11 @@ async function collectOne(env, source, state, now) {
       await suppressItems(db, source, rejectedUrls, now);
     }
     const fresh=items.filter(item=>!existingUrls.has(item.url));
-    await observeSource(db,source,{success:true,raw_items,usable_items,accepted_items:items.length,duplicate_items:items.length-fresh.length,last_new_item_at:fresh.length?now:null},now);
+    // A feed may keep returning an old, successful XML document after its
+    // publisher has stopped. Re-discovery after story retention expires must
+    // not make that stale feed look newly active again.
+    const recentlyPublished=fresh.filter(item=>!item.original_published_at||item.original_published_at>=now-CURRENT_ITEM_WINDOW);
+    await observeSource(db,source,{success:true,raw_items,usable_items,accepted_items:items.length,duplicate_items:items.length-fresh.length,last_new_item_at:recentlyPublished.length?now:null},now);
     // A candidate has proved that its declared feed is readable. It remains
     // outside the public Flow while probation gathers enough useful evidence.
     if(source.catalogue_state==='candidate')await db.prepare(`UPDATE source_catalogue

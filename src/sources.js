@@ -28,6 +28,23 @@ export const sources = [
   { id: 'climbing', name: 'Climbing', kind: 'rss', url: 'https://www.climbing.com/feed/', site: 'https://www.climbing.com/', topic: 'Climbing & embodied life', tier: 'flow', poll_minutes: 45 },
   { id: 'open-culture', name: 'Open Culture', kind: 'rss', url: 'https://www.openculture.com/feed', site: 'https://www.openculture.com/', topic: 'Culture & learning', tier: 'flow', poll_minutes: 90 },
   { id: 'kottke', name: 'Kottke.org', kind: 'rss', url: 'https://feeds.kottke.org/main', site: 'https://kottke.org/', topic: 'Culture, design & curiosities', tier: 'flow', poll_minutes: 45 },
+  // Batch 1: each active addition fills a specific gap in the English reading
+  // without pushing the live catalogue beyond its 50-source operating ceiling.
+  { id: 'granta', name: 'Granta', kind: 'rss', url: 'https://granta.com/feed/', site: 'https://granta.com/', topic: 'Literature, memoir & reportage', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'rumpus', name: 'The Rumpus', kind: 'rss', url: 'https://therumpus.net/feed/', site: 'https://therumpus.net/', topic: 'Independent arts, essays & poetry', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'stereogum', name: 'Stereogum', kind: 'rss', url: 'https://www.stereogum.com/feed/', site: 'https://www.stereogum.com/', topic: 'Music criticism & artists', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'pudding', name: 'The Pudding', kind: 'rss', url: 'https://pudding.cool/rss.xml', site: 'https://pudding.cool/', topic: 'Visual essays, culture & design', lane: 'human', essays: true, poll_minutes: 480 },
+
+  // Candidate feeds are deliberately collected at a 24-hour cadence for
+  // Source Vitality evidence. They never enter the public Flow until reviewed.
+  { id: 'atlas-obscura', name: 'Atlas Obscura', kind: 'rss', url: 'https://www.atlasobscura.com/feeds/latest', site: 'https://www.atlasobscura.com/', topic: 'Curiosity, places & cultural history', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'guernica', name: 'Guernica', kind: 'rss', url: 'https://www.guernicamag.com/feed/', site: 'https://www.guernicamag.com/', topic: 'Literary essays, fiction & interviews', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'nautilus', name: 'Nautilus', kind: 'rss', url: 'https://nautil.us/feed/', site: 'https://nautil.us/', topic: 'Ideas, science & human culture', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: '3quarks', name: '3 Quarks Daily', kind: 'rss', url: 'https://3quarksdaily.com/feed/', site: 'https://3quarksdaily.com/', topic: 'Curated arts, philosophy & science writing', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'baffler', name: 'The Baffler', kind: 'rss', url: 'https://thebaffler.com/feed/', site: 'https://thebaffler.com/', topic: 'Art, criticism & cultural essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'print-magazine', name: 'PRINT Magazine', kind: 'rss', url: 'https://www.printmag.com/feed/', site: 'https://www.printmag.com/', topic: 'Design, illustration & creative practice', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'orion-magazine', name: 'Orion Magazine', kind: 'rss', url: 'https://orionmagazine.org/feed/', site: 'https://orionmagazine.org/', topic: 'Nature, place & cultural essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'emergence-magazine', name: 'Emergence Magazine', kind: 'rss', url: 'https://emergencemagazine.org/feed/', site: 'https://emergencemagazine.org/', topic: 'Ecology, culture, film & audio essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'qingshu', name: '轻书散文小站', kind: 'rss', url: 'https://www.qingshu.art/feed.xml', site: 'https://www.qingshu.art/', topic: 'Essays & literary life', language: 'zh', essays: true, poll_minutes: 180 },
   // Named programmes only: each has a public, first-party RSS feed and is
   // deliberately bounded to Human Pulse rather than a whole podcast directory.
@@ -35,6 +52,25 @@ export const sources = [
   { id: 'kanlixiang-roundtable', name: '看理想·圆桌', kind: 'rss', url: 'https://api.vistopia.com.cn/rss/program/13.xml', site: 'https://www.vistopia.com.cn/', topic: 'Humanities & cultural conversation', language: 'zh', lane: 'human', tier: 'flow', poll_minutes: 180 },
   { id: 'yixi-extratalk', name: '一席·席外话', kind: 'rss', url: 'https://feed.xyzfm.space/cp6bdgmn8wf6', site: 'https://yixi.tv/', topic: 'Creative life & conversation', language: 'zh', lane: 'human', tier: 'flow', poll_minutes: 180 },
   { id: 'jiemian-culture-podcast', name: '界面文化·编辑部聊天室', kind: 'rss', url: 'https://feed.xyzfm.space/yngbfgflw4qk', site: 'https://www.jiemian.com/', topic: 'Culture & public life', language: 'zh', lane: 'human', tier: 'flow', poll_minutes: 180 },
+  { id: 'storyfm', name: '故事FM', kind: 'rss', url: 'https://feeds.storyfm.cn/storyfm.xml', site: 'https://storyfm.cn/', topic: 'First-person lives, work & memory', language: 'zh', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'culture-unlimited', name: '文化有限', kind: 'rss', url: 'https://www.ximalaya.com/album/29887212.xml', site: 'https://www.ximalaya.com/album/29887212', topic: 'Books, film & cultural conversation', language: 'zh', lane: 'human', essays: true, poll_minutes: 480 },
+
+  // Chinese Human Pulse candidates. Traditional-script or mirror-only sources
+  // are held for script, reliability, and usable-excerpt review before display.
+  { id: 'famous-unknown', name: '非马非牛', kind: 'rss', url: 'https://fmfn.ink/feed/', site: 'https://fmfn.ink/', topic: 'History, culture & everyday life', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'crossing', name: '换日线 Crossing', kind: 'rss', url: 'https://crossing.cw.com.tw/rss', site: 'https://crossing.cw.com.tw/', topic: 'First-person cross-cultural life writing', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'zhang-luoyuan', name: '张落远', kind: 'rss', url: 'https://luoyuanzhang.substack.com/feed', site: 'https://luoyuanzhang.substack.com/', topic: 'Historical fiction & literary serials', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'times-culture', name: '時報文化', kind: 'rss', url: 'https://feed.firstory.me/rss/user/ckdpr5miuh40k0862l4qutz4e', site: 'https://open.firstory.me/user/ckdpr5miuh40k0862l4qutz4e', topic: 'Books, writers & local culture', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'voice-spinning-books', name: '聲紡讀書部', kind: 'rss', url: 'https://feed.firstory.me/rss/user/cmqmaai9d0ay501xd50pxddo7', site: 'https://open.firstory.me/user/cmqmaai9d0ay501xd50pxddo7', topic: 'Books, music & family memory', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'shinekid', name: 'ShineKid', kind: 'rss', url: 'https://shinekid.com/feed/', site: 'https://shinekid.com/', topic: 'Personal writing, books & film', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'east-west-tones', name: '东腔西调', kind: 'rss', url: 'https://rsshub.bestblogs.dev/xiaoyuzhou/podcast/5f72b66083c34e85dd14fde9', site: 'https://www.xiaoyuzhoufm.com/podcast/5f72b66083c34e85dd14fde9', topic: 'History, society & cultural conversation', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'wandering-notes', name: '游荡集', kind: 'rss', url: 'https://rsshub.bestblogs.dev/xiaoyuzhou/podcast/6163ca67c8c1d14e83366b31', site: 'https://www.xiaoyuzhoufm.com/podcast/6163ca67c8c1d14e83366b31', topic: 'Books, music, travel & personal essays', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'left-right', name: '忽左忽右', kind: 'rss', url: 'https://rsshub.bestblogs.dev/xiaoyuzhou/podcast/5e4ee557418a84a0466737b7', site: 'https://www.xiaoyuzhoufm.com/podcast/5e4ee557418a84a0466737b7', topic: 'History, film, literature & travel', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'east-west-voice', name: '声东击西', kind: 'rss', url: 'https://rsshub.bestblogs.dev/xiaoyuzhou/podcast/5e2831ed418a84a046231c00', site: 'https://www.xiaoyuzhoufm.com/podcast/5e2831ed418a84a046231c00', topic: 'People, work & social change', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'bie-ren-xing', name: '别任性', kind: 'rss', url: 'https://feeds.acast.com/public/shows/5e79b43429d1401a1a8c0015', site: 'https://bierenxing.podview.com/', topic: 'Gender, culture & books', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'zhaoyuan-jian', name: '昭鸢笺', kind: 'rss', url: 'https://blog.mibase.top/index.xml', site: 'https://blog.mibase.top/', topic: 'Personal essays & literary notes', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'to-the-lighthouse', name: 'To the Lighthouse', kind: 'rss', url: 'https://owlswims.com/feed', site: 'https://owlswims.com/', topic: 'Reading, essays & reviews', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'tripper-press', name: 'Tripper Press', kind: 'rss', url: 'https://tripper.press/atom.xml', site: 'https://tripper.press/', topic: 'Photography, cities & travel culture', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
 
   // AI Wave — primary labs plus reporting and critical analysis.
   { id: 'zitron-newsletter', name: 'Ed Zitron', kind: 'rss', url: 'https://www.wheresyoured.at/rss/', site: 'https://www.wheresyoured.at/', topic: 'First-person accounts', allPosts: true },
@@ -57,20 +93,62 @@ export const sources = [
   { id: 'verge-ai', name: 'The Verge — AI', kind: 'rss', url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', site: 'https://www.theverge.com/ai-artificial-intelligence/', topic: 'AI & public life', tier: 'flow', poll_minutes: 20 },
   { id: 'the-decoder', name: 'The Decoder', kind: 'rss', url: 'https://the-decoder.com/feed/', site: 'https://the-decoder.com/', topic: 'AI development & impact', tier: 'flow', poll_minutes: 30 },
   { id: 'ai-snake-oil', name: 'AI Snake Oil', kind: 'rss', url: 'https://www.aisnakeoil.com/feed', site: 'https://www.aisnakeoil.com/', topic: 'AI evidence & impact', poll_minutes: 90 },
+  { id: 'import-ai', name: 'Import AI', kind: 'rss', url: 'https://jack-clark.net/feed/', site: 'https://jack-clark.net/', topic: 'AI research, policy & field direction', lane: 'ai', essays: true, poll_minutes: 480 },
+
+  // AI candidates diversify the research and practitioner perspective without
+  // displacing the proven live catalogue before they earn a review.
+  { id: 'last-week-in-ai', name: 'Last Week in AI', kind: 'rss', url: 'https://lastweekin.ai/feed', site: 'https://lastweekin.ai/', topic: 'AI news, research & policy roundup', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'tldr-ai', name: 'TLDR AI', kind: 'rss', url: 'https://tldr.tech/api/rss/ai', site: 'https://tldr.tech/ai', topic: 'AI releases, tools & research links', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'bair', name: 'BAIR Blog', kind: 'rss', url: 'https://bair.berkeley.edu/blog/feed.xml', site: 'https://bair.berkeley.edu/blog/', topic: 'AI research written by researchers', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'microsoft-research', name: 'Microsoft Research Blog', kind: 'rss', url: 'https://www.microsoft.com/en-us/research/feed/', site: 'https://www.microsoft.com/en-us/research/blog/', topic: 'Industrial research, AI & systems', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'one-useful-thing', name: 'One Useful Thing', kind: 'rss', url: 'https://www.oneusefulthing.org/feed', site: 'https://www.oneusefulthing.org/', topic: 'AI at work, education & everyday practice', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'exponential-view', name: 'Exponential View', kind: 'rss', url: 'https://www.exponentialview.co/feed', site: 'https://www.exponentialview.co/', topic: 'AI strategy, economics & infrastructure', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'epoch-ai', name: 'Epoch AI', kind: 'rss', url: 'https://epochai.substack.com/feed', site: 'https://epoch.ai/', topic: 'AI progress, compute & forecasts', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'interconnects', name: 'Interconnects', kind: 'rss', url: 'https://www.interconnects.ai/feed', site: 'https://www.interconnects.ai/', topic: 'Frontier models, open AI & engineering', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'simon-willison', name: 'Simon Willison’s Weblog', kind: 'rss', url: 'https://simonwillison.net/atom/everything/', site: 'https://simonwillison.net/', topic: 'Hands-on LLMs, coding agents & tools', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'latent-space', name: 'Latent Space', kind: 'rss', url: 'https://www.latent.space/feed', site: 'https://www.latent.space/', topic: 'AI engineering & agent infrastructure', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'sakana-ai', name: 'Sakana AI Blog', kind: 'rss', url: 'https://sakana.ai/feed.xml', site: 'https://sakana.ai/', topic: 'AI research, world models & physical AI', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'venturebeat-ai', name: 'VentureBeat — AI', kind: 'rss', url: 'https://venturebeat.com/category/ai/feed/', site: 'https://venturebeat.com/category/ai/', topic: 'AI industry & enterprise adoption', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+
+  // Active Chinese AI reporting stays inside the Chinese-language cap. Strict
+  // item-level AI signals still exclude general technology and commerce news.
+  { id: 'huxiu', name: '虎嗅', kind: 'rss', url: 'https://rss.huxiu.com/', site: 'https://www.huxiu.com/', topic: 'AI industry, products & society', language: 'zh', lane: 'ai', poll_minutes: 480 },
+  { id: 'tmtpost', name: '钛媒体', kind: 'rss', url: 'https://www.tmtpost.com/feed', site: 'https://www.tmtpost.com/', topic: 'AI industry, hardware & public impact', language: 'zh', lane: 'ai', poll_minutes: 480 },
+  { id: 'solidot', name: '奇客 Solidot', kind: 'rss', url: 'https://www.solidot.org/index.rss', site: 'https://www.solidot.org/', topic: 'AI research, open source & infrastructure', language: 'zh', lane: 'ai', poll_minutes: 480 },
+  { id: 'ithome', name: 'IT之家', kind: 'rss', url: 'https://www.ithome.com/rss/', site: 'https://www.ithome.com/', topic: 'AI products, models & industry', language: 'zh', lane: 'ai', poll_minutes: 480 },
+  { id: 'aigc-weekly', name: 'AIGC Weekly', kind: 'rss', url: 'https://quaily.com/op7418/feed/atom', site: 'https://quaily.com/op7418', topic: 'Generative AI products & Chinese industry', language: 'zh', lane: 'ai', essays: true, poll_minutes: 480 },
+  { id: 'chinaz-ai', name: '站长之家', kind: 'rss', url: 'https://app.chinaz.com/?app=rss', site: 'https://www.chinaz.com/', topic: 'AI products, models & internet change', language: 'zh', lane: 'ai', poll_minutes: 480 },
+
+  { id: 'infoq-recommend', name: 'InfoQ 推荐', kind: 'rss', url: 'https://plink.anyfeeder.com/infoq/recommend', site: 'https://www.infoq.cn/', topic: 'Enterprise AI & technical practice', language: 'zh', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'jiqizhixin', name: '机器之心', kind: 'rss', url: 'https://wechat2rss.bestblogs.dev/feed/8d97af31b0de9e48da74558af128a4673d78c9a3.xml', site: 'https://www.jiqizhixin.com/', topic: 'AI research & industry', language: 'zh', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'ai-era', name: '新智元', kind: 'rss', url: 'https://wechat2rss.xlab.app/feed/ede30346413ea70dbef5d485ea5cbb95cca446e7.xml', site: 'https://www.ai-era.com/', topic: 'AI models, embodied systems & industry', language: 'zh', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'geekpark', name: '极客公园', kind: 'rss', url: 'https://wechat2rss.xlab.app/feed/1a5aec98e71c707c8ca092bc2c255b9d4bac477d.xml', site: 'https://www.geekpark.net/', topic: 'AI innovation, products & public life', language: 'zh', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: '36kr', name: '36氪', kind: 'rss', url: 'https://36kr.com/feed', site: 'https://36kr.com/', topic: 'AI startups, products & industry', language: 'zh', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  { id: 'landian-news', name: '蓝点网', kind: 'rss', url: 'https://www.landiannews.com/feed', site: 'https://www.landiannews.com/', topic: 'AI tools, software & digital systems', language: 'zh', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
 ];
 
 export const essaySources = sources.filter(source => source.essays).map(source => source.name);
 export const essaySourceParams = essaySources.map(() => '?').join(', ');
 export const ESSAY_DAYS = 30;
 
-// Retired sources are kept only to suppress their still-retained D1 records.
-// This lets a source review take effect immediately without erasing edition
-// attribution or requiring a destructive database migration.
-export const retiredSourceIds = new Set([
-  'gcores', 'chuapp',
-  // Outside is broad lifestyle utility coverage; mooool is primarily property
-  // and commercial architecture promotion. Neither is the editorial focus.
-  'outside', 'mooool',
-  'appleton-social', 'dash-social', 'markup-social', 'eff-social',
-  'doctorow-social', 'nieman-social', '404-social', 'ed-social'
-]);
+// Archived sources remain first-class catalogue records. They are not polled
+// or displayed, but retain a name, address and explicit reason so the source
+// list can be reconsidered without having to rediscover prior work.
+export const archivedSources = [
+  { id: 'gcores', name: '机核', kind: 'rss', url: 'https://www.gcores.com/rss', site: 'https://www.gcores.com/', topic: 'Creative Practice', language: 'zh', state: 'retired', state_reason: 'High gaming-news volume did not sustain enough Human Pulse material; retain for a later, more narrowly scoped gaming review.' },
+  { id: 'chuapp', name: '触乐', kind: 'rss', url: 'https://www.chuapp.com/feed', site: 'https://www.chuapp.com/', topic: 'Creative Practice', language: 'zh', state: 'retired', state_reason: 'Broad game-news mix pulled the Chinese Human Pulse away from culture and first-person creative work; eligible for future topic-scoped reconsideration.' },
+  { id: 'outside', name: 'Outside', kind: 'rss', url: 'https://www.outsideonline.com/feed/', site: 'https://www.outsideonline.com/', topic: 'Outdoor life & endurance', language: 'en', state: 'retired', state_reason: 'Broad lifestyle and utility coverage was not a dependable fit for Bond6’s personal, embodied-story standard.' },
+  { id: 'mooool', name: 'mooool 木藕设计网', kind: 'rss', url: 'https://mooool.com/feed', site: 'https://mooool.com/', topic: 'Design & architecture', language: 'zh', state: 'retired', state_reason: 'Property and commercial architecture promotion outweighed independent art and design coverage.' },
+  { id: 'appleton-social', name: 'Maggie Appleton · Bluesky', kind: 'bluesky', handle: 'maggieappleton.com', site: 'https://bsky.app/profile/maggieappleton.com', topic: 'Creative Practice', language: 'en', state: 'retired', state_reason: 'Direct social collection was retired after duplicate linked articles and unreliable post headlines; the first-party RSS source remains active.' },
+  { id: 'dash-social', name: 'Anil Dash · Bluesky', kind: 'bluesky', handle: 'anildash.com', site: 'https://bsky.app/profile/anildash.com', topic: 'Life online', language: 'en', state: 'retired', state_reason: 'Direct social collection was retired after duplicate linked articles and unreliable post headlines; the first-party RSS source remains active.' },
+  { id: 'markup-social', name: 'The Markup · Bluesky', kind: 'bluesky', handle: 'themarkup.org', site: 'https://bsky.app/profile/themarkup.org', topic: 'Life online', language: 'en', state: 'retired', state_reason: 'Retained as a historical social source after linked reporting repeatedly duplicated publisher feeds; may return as a tightly scoped discussion source.' },
+  { id: 'eff-social', name: 'Electronic Frontier Foundation · Bluesky', kind: 'bluesky', handle: 'eff.org', site: 'https://bsky.app/profile/eff.org', topic: 'Life online', language: 'en', state: 'retired', state_reason: 'Retained as a historical social source after linked reporting repeatedly duplicated publisher feeds; may return as a tightly scoped discussion source.' },
+  { id: 'doctorow-social', name: 'Cory Doctorow · Bluesky', kind: 'bluesky', handle: 'doctorow.pluralistic.net', site: 'https://bsky.app/profile/doctorow.pluralistic.net', topic: 'Writing & publishing', language: 'en', state: 'retired', state_reason: 'Direct social collection was retired because display-name and link-preview artefacts weakened card quality; the author can be reconsidered through a clean first-party feed.' },
+  { id: 'nieman-social', name: 'Nieman Lab · Bluesky', kind: 'bluesky', handle: 'niemanlab.org', site: 'https://bsky.app/profile/niemanlab.org', topic: 'Writing & publishing', language: 'en', state: 'retired', state_reason: 'Retained as a historical social source after linked reporting repeatedly duplicated publisher feeds; may return as a tightly scoped discussion source.' },
+  { id: '404-social', name: '404 Media · Bluesky', kind: 'bluesky', handle: '404media.co', site: 'https://bsky.app/profile/404media.co', topic: 'Life online', language: 'en', state: 'retired', state_reason: 'Direct social collection was retired after duplicate linked articles; the first-party RSS source remains active.' },
+  { id: 'ed-social', name: 'Ed Zitron · Bluesky', kind: 'bluesky', handle: 'edzitron.com', site: 'https://bsky.app/profile/edzitron.com', topic: 'First-person accounts', language: 'en', state: 'retired', state_reason: 'Direct social collection was retired after duplicate linked articles and truncated social-card text; the newsletter RSS source remains active.' }
+];
+
+// Used to hide still-retained historical cards immediately, without deleting
+// their source attribution or edition snapshots.
+export const retiredSourceIds = new Set(archivedSources.map(source=>source.id));

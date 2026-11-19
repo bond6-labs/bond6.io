@@ -8,9 +8,12 @@ const sourceSubjects = {
   bandcamp: 'music', 'aquarium-drunkard': 'music', quietus: 'music',
   'literary-hub': 'writing', kleon: 'writing', appleton: 'writing', dash: 'writing', marginalian: 'writing', 'electric-literature': 'writing', 'paris-review': 'writing', longreads: 'writing',
   'public-domain-review': 'writing', 'jstor-daily': 'writing', aeon: 'writing', kaix: 'writing', maohang: 'writing', hehew: 'writing',
-  colossal: 'art', hyperallergic: 'art', 'creative-boom': 'art', 'harvard-arts': 'art',
-  conge: 'practice', climbing: 'practice', 'creative-independent': 'practice',
-  sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', '404': 'digital', techdirt: 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', deepmind: 'digital', huggingface: 'digital', qbitai: 'digital'
+  granta: 'writing', rumpus: 'writing', guernica: 'writing', nautilus: 'writing', '3quarks': 'writing', baffler: 'writing', 'orion-magazine': 'writing', 'emergence-magazine': 'writing',
+  colossal: 'art', hyperallergic: 'art', 'creative-boom': 'art', 'harvard-arts': 'art', pudding: 'art', 'atlas-obscura': 'art', 'print-magazine': 'art',
+  stereogum: 'music',
+  conge: 'practice', climbing: 'practice', 'creative-independent': 'practice', storyfm: 'practice',
+  'culture-unlimited': 'writing', 'famous-unknown': 'writing', crossing: 'writing', 'zhang-luoyuan': 'writing', 'times-culture': 'writing', 'voice-spinning-books': 'music', shinekid: 'writing', 'east-west-tones': 'writing', 'wandering-notes': 'writing', 'left-right': 'writing', 'east-west-voice': 'practice', 'bie-ren-xing': 'writing', 'zhaoyuan-jian': 'writing', 'to-the-lighthouse': 'writing', 'tripper-press': 'art',
+  sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', '404': 'digital', techdirt: 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', deepmind: 'digital', huggingface: 'digital', qbitai: 'digital', 'import-ai': 'digital', 'last-week-in-ai': 'digital', 'tldr-ai': 'digital', bair: 'digital', 'microsoft-research': 'digital', 'one-useful-thing': 'digital', 'exponential-view': 'digital', 'epoch-ai': 'digital', interconnects: 'digital', 'simon-willison': 'digital', 'latent-space': 'digital', 'sakana-ai': 'digital', 'venturebeat-ai': 'digital', huxiu: 'digital', tmtpost: 'digital', solidot: 'digital', ithome: 'digital', 'aigc-weekly': 'digital', 'chinaz-ai': 'digital', 'infoq-recommend': 'digital', jiqizhixin: 'digital', 'ai-era': 'digital', geekpark: 'digital', '36kr': 'digital', 'landian-news': 'digital'
 };
 const sentenceEnd = (text, limit = 240) => {
   if (text.length <= limit) return text.trim();

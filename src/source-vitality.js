@@ -1,16 +1,17 @@
 import { dayKey } from './content.js';
 import { SOURCE_CATALOGUE_VERSION, SOURCE_VITALITY_RETENTION_DAYS } from './config.js';
-import { sources } from './sources.js';
+import { sources, archivedSources } from './sources.js';
 
 const DAY=86_400_000;
+const STALE_SOURCE_DAYS=60;
 const clamp=(value,min=0,max=100)=>Math.max(min,Math.min(max,value));
 const languageFor=source=>source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en');
 // Only the sources where speed materially changes the AI Wave remain rapid.
 // Everything else earns collection capacity through evidence rather than a
 // historic per-feed interval that would overflow the free-tier poll budget.
 const rapidSourceIds=new Set(['platformer','404','techdirt','techcrunch-ai','verge-ai','the-decoder']);
-const tierFor=source=>rapidSourceIds.has(source.id)?'rapid':(source.tier==='flow'||Number(source.poll_minutes??240)<=90?'standard':'slow');
-const expectedMinutes=source=>tierFor(source)==='rapid'?45:tierFor(source)==='standard'?240:480;
+const tierFor=source=>source.state==='candidate'||source.tier==='candidate'?'candidate':rapidSourceIds.has(source.id)?'rapid':(source.tier==='flow'||Number(source.poll_minutes??240)<=90?'standard':'slow');
+const expectedMinutes=source=>tierFor(source)==='rapid'?45:tierFor(source)==='standard'?240:tierFor(source)==='candidate'?1440:480;
 const configFor=source=>JSON.stringify({
   url:source.url??null,handle:source.handle??null,essays:source.essays===true,allPosts:source.allPosts===true,
   title_prefixes:source.title_prefixes??[],lane:source.lane??null
@@ -18,8 +19,8 @@ const configFor=source=>JSON.stringify({
 
 export function catalogueSource(source, now=Date.now()) {
   return {id:source.id,name:source.name,feed_url:source.url??null,site_url:source.site,kind:source.kind??'rss',config:configFor(source),
-    language:languageFor(source),intended_lane:source.lane??null,topic:source.topic,state:'active',tier:tierFor(source),
-    expected_minutes:expectedMinutes(source),pinned:0,added_at:now,last_state_change:now};
+    language:languageFor(source),intended_lane:source.lane??null,topic:source.topic,state:source.state??'active',tier:tierFor(source),
+    expected_minutes:expectedMinutes(source),pinned:0,added_at:now,last_state_change:now,state_reason:source.state_reason??null};
 }
 
 export function sourceFromCatalogue(row) {
@@ -35,14 +36,13 @@ export async function ensureSourceCatalogue(db, now=Date.now()) {
   const current=await db.prepare('SELECT value FROM source_catalogue_meta WHERE id=?').bind('version').first();
   if(current?.value===SOURCE_CATALOGUE_VERSION)return false;
   const statements=[];
-  for(const source of sources){
+  for(const source of [...sources,...archivedSources]){
     const row=catalogueSource(source,now);
-    statements.push(db.prepare(`INSERT INTO source_catalogue(id,name,feed_url,site_url,kind,config,language,intended_lane,topic,state,tier,expected_minutes,pinned,added_at,last_state_change)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    statements.push(db.prepare(`INSERT INTO source_catalogue(id,name,feed_url,site_url,kind,config,language,intended_lane,topic,state,tier,expected_minutes,pinned,added_at,last_state_change,state_reason)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET name=excluded.name,feed_url=excluded.feed_url,site_url=excluded.site_url,kind=excluded.kind,
-      config=excluded.config,language=excluded.language,intended_lane=excluded.intended_lane,topic=excluded.topic,
-      tier=excluded.tier,expected_minutes=excluded.expected_minutes`)
-      .bind(row.id,row.name,row.feed_url,row.site_url,row.kind,row.config,row.language,row.intended_lane,row.topic,row.state,row.tier,row.expected_minutes,row.pinned,row.added_at,row.last_state_change));
+      config=excluded.config,language=excluded.language,intended_lane=excluded.intended_lane,topic=excluded.topic`)
+      .bind(row.id,row.name,row.feed_url,row.site_url,row.kind,row.config,row.language,row.intended_lane,row.topic,row.state,row.tier,row.expected_minutes,row.pinned,row.added_at,row.last_state_change,row.state_reason));
   }
   statements.push(db.prepare(`INSERT INTO source_catalogue_meta(id,value,updated_at) VALUES('version',?,?)
     ON CONFLICT(id) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`).bind(SOURCE_CATALOGUE_VERSION,now));
@@ -86,12 +86,14 @@ export function evaluateSource(row, now=Date.now()) {
   const value=Math.round(clamp(fit*35+complete*25+original*15+freshness(row.last_new_item_at,row.expected_minutes,now)*.15+5));
   const standing=Math.round(vitality*.45+value*.55);
   const age=now-Number(row.added_at||now), failedDays=Number(row.failed_days||0), noSuccess=!row.last_success_at||now-Number(row.last_success_at)>30*DAY;
+  const stale=age>=STALE_SOURCE_DAYS*DAY&&(!row.last_new_item_at||now-Number(row.last_new_item_at)>=STALE_SOURCE_DAYS*DAY);
   let recommendation='keep',rationale='Evidence is still accumulating.';
-  if(failedDays>=14){recommendation='pause';rationale='No successful feed response on 14 observed days.';}
-  else if(age>=30*DAY&&noSuccess){recommendation='retire-technical';rationale='No successful feed response in 30 days.';}
+  if(age>=30*DAY&&noSuccess){recommendation='retire-technical';rationale='No successful feed response in 30 days.';}
+  else if(failedDays>=14){recommendation='pause';rationale='No successful feed response on 14 observed days.';}
+  else if(row.state==='active'&&stale){recommendation='watch-stale';rationale=`No genuinely new item recorded in ${STALE_SOURCE_DAYS} days; slow collection and review before any retirement.`;}
   else if(raw>=100&&accepted<3&&!row.pinned){recommendation='retire-review';rationale='Fewer than 3 accepted items from at least 100 raw items.';}
   else if(raw>=40&&(accepted/raw)<.05&&!row.pinned){recommendation='watch';rationale='Accepted-item yield is below 5% after a meaningful sample.';}
-  else if(row.state==='candidate'&&usable>=20&&age>=14*DAY&&standing>=65){recommendation='promote-review';rationale='Candidate has enough usable evidence and a strong standing.';}
+  else if((row.state==='candidate'||row.state==='probation')&&usable>=20&&age>=14*DAY&&standing>=65){recommendation='promote-review';rationale='Trial source has enough usable evidence and a strong standing.';}
   else if(row.state==='watch'&&standing>=65){recommendation='recover-review';rationale='Standing has recovered above the active threshold.';}
   return {vitality,value,standing,recommendation,rationale};
 }
@@ -112,6 +114,8 @@ export async function evaluateSourceVitality(db, now=Date.now()) {
       VALUES(?,?,?,?,?,?,?,?,?)`).bind(row.id,now,start,now,score.vitality,score.value,score.standing,score.recommendation,score.rationale));
     if(score.recommendation==='pause'||score.recommendation==='retire-technical')statements.push(db.prepare(`UPDATE source_catalogue SET state=?,last_state_change=?,state_reason=? WHERE id=? AND state NOT IN ('retired')`)
       .bind(score.recommendation==='pause'?'paused':'retired',now,score.rationale,row.id));
+    else if(score.recommendation==='watch-stale')statements.push(db.prepare(`UPDATE source_catalogue SET state='watch',tier='slow',expected_minutes=1440,last_state_change=?,state_reason=? WHERE id=? AND state='active'`)
+      .bind(now,score.rationale,row.id));
   }
   if(statements.length)await db.batch(statements);
   return results.map(row=>({id:row.id,...evaluateSource(row,now)}));
