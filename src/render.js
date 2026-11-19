@@ -20,8 +20,10 @@ export function qlink(v,changes={},path=v.path) {
   return v.local(path)+(query.size?'?'+query:'');
 }
 export function searchForm(v) {
+  const query=v.url.searchParams.get('q')??'';
+  const clear=qlink(v,{q:null,page:null,before:null,before_url:null});
   return `<details class="search-control"><summary aria-label="${v.t('Search stories')}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.8" cy="10.8" r="6.1"></circle><path d="m16 16 4.3 4.3"></path></svg><span class="visually-hidden">${v.t('Search')}</span></summary><form class="story-search" role="search" action="${v.local('/')}">
-    <label for="story-query">${v.t('Search stories')}</label><div><input id="story-query" name="q" type="search" maxlength="120" autocomplete="off" value="${esc(v.url.searchParams.get('q'))}"><button>${v.t('Search')}</button></div>
+    <label for="story-query">${v.t('Search stories')}</label><div><input id="story-query" name="q" type="search" maxlength="120" autocomplete="off" placeholder="${v.say('Headlines, writers, or sources…','搜索标题、作者或来源…')}" value="${esc(query)}">${query?`<a class="clear-search" href="${esc(clear)}">${v.say('Clear','清除')}</a>`:''}<button>${v.t('Search')}</button></div>
     ${v.url.searchParams.get('lane')?`<input type="hidden" name="lane" value="${esc(v.url.searchParams.get('lane'))}">`:''}</form></details>`;
 }
 export function html(v,title,content,{status=200,description,intro,wide=false,edition=false,homepage=false}={}) {
@@ -61,7 +63,8 @@ export function actions(story,v,shareUrl) {
 }
 function mediaPreview(story,v) {
   const credit=v.say(`Media from ${story.source}`,`媒体来自 ${story.source}`);
-  const image=story.image_url?`<a class="story-image" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span>${esc(credit)}</span></a>`:'';
+  const art=story.subject==='art';
+  const image=story.image_url?`<a class="story-image${art?' preserve-media':''}" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><span class="story-image-frame"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" width="16" height="10" data-media-check data-min-width="${art?180:320}" data-min-height="${art?180:180}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="story-image-credit">${esc(credit)}</span></a>`:'';
   const audio=story.audio_url?`<div class="story-audio"><span>${v.say('Listen from ','收听：')}${esc(story.source)}</span><audio controls preload="none" src="${esc(story.audio_url)}">${v.say('Audio is available at the original source.','音频可在原始来源收听。')}</audio></div>`:'';
   if (!story.video_url) return image+audio;
   const title=v.say(`Play video from ${story.source}`,`播放 ${story.source} 的视频`);

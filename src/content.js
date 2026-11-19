@@ -127,7 +127,9 @@ export function selectionGate(title, excerpt = '', source = {}) {
     // consequence evidence and are the only candidates for daily selection.
   // Live Flow can include a well-attributed report about creative work. Daily
   // Picks still require the stronger core signals recorded by Bond6 Rhythm.
-  human: human_core || (creative && (culture || reported || source.essays === true)),
+    // A cultural publisher alone cannot make an item Human Pulse. The live
+    // fallback still needs both a creative subject and an editorial context.
+    human: human_core || (creative && (culture || reported)),
     ai: ai_core || (system && movement && reported),
     human_core, ai_core,
     exclusion_reason:null,

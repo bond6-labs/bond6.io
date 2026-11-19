@@ -64,6 +64,8 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('I learned to climb after an injury','A personal account of recovery, training and returning to a mountain route.',{}).lane,'human');
   assert.equal(classify('A photographer documents a changing shoreline','A reported account follows the artist’s fieldwork and photographs over a decade.',{}).lane,'human');
   assert.equal(classify('An artist discusses AI tools','A detailed conversation about art, creative work and how an algorithm changes the studio.',{lane:'human',essays:true}).lane,'human');
+  assert.equal(classify('A design publisher announces a new page','The publication shares a brief site update.',{essays:true}).lane,null);
+  assert.equal(classify('A painter reflects on a decade in the studio','An interview follows the artist’s process, materials and changing practice.',{essays:true}).lane,'human');
   assert.equal(classify('An AI benchmark launches','A report documents a new model capability.',{lane:'human'}).lane,null);
 });
 test('headlines retain their final word and long social posts are not chopped into headlines',()=>{

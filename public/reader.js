@@ -37,8 +37,27 @@
     }catch(error){if(error.name!=='AbortError')notify(say('Copy this link: ','复制这个链接：')+url);}
   }
   function bindShare(button){if(button.dataset.readerBound)return;button.dataset.readerBound='true';button.hidden=false;button.addEventListener('click',()=>share(button));}
-  function bindStoryControls(root=document){root.querySelectorAll('.save-story').forEach(bindSave);root.querySelectorAll('.share-story').forEach(bindShare);refreshButtons();}
+  function bindMediaQuality(image){
+    if(image.dataset.mediaBound)return;image.dataset.mediaBound='true';
+    const check=()=>{
+      const frame=image.closest('.story-image');
+      const minWidth=Number(image.dataset.minWidth??0),minHeight=Number(image.dataset.minHeight??0);
+      if(!frame||image.naturalWidth<minWidth||image.naturalHeight<minHeight)frame?.setAttribute('hidden','');
+    };
+    image.addEventListener('error',check,{once:true});
+    if(image.complete)check();else image.addEventListener('load',check,{once:true});
+  }
+  function bindStoryControls(root=document){root.querySelectorAll('.save-story').forEach(bindSave);root.querySelectorAll('.share-story').forEach(bindShare);root.querySelectorAll('img[data-media-check]').forEach(bindMediaQuality);refreshButtons();}
   bindStoryControls();
+  function enableSearch(){
+    const control=document.querySelector('.search-control'),input=control?.querySelector('input[type="search"]'),summary=control?.querySelector('summary');
+    if(!control||!input||!summary)return;
+    control.addEventListener('toggle',()=>{if(control.open)window.requestAnimationFrame(()=>input.focus());});
+    document.addEventListener('keydown',event=>{
+      if(event.key==='Escape'&&control.open){control.open=false;summary.focus();}
+    });
+  }
+  enableSearch();
   document.addEventListener('click',event=>{
     const link=event.target.closest('a[data-event="original"]');if(!link)return;metric('original');
     const key=link.closest('.story')?.dataset.focus?.split(',').find(Boolean);if(!key||!storage||!countEvents)return;
