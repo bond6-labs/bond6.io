@@ -38,10 +38,10 @@ export function html(v,title,content,{status=200,description,intro,wide=false,ed
   <meta property="og:type" content="${edition?'article':'website'}"><meta property="og:site_name" content="Bond6.io"><meta property="og:title" content="${esc(heading)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">
   <meta property="og:image" content="https://bond6.io/social-card.png"><meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
-  <script src="/reader.js" defer></script>
+  <script src="/reader.js?v=${esc(v.release??'local')}" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=language-1"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
+  <link rel="stylesheet" href="/style.css?v=${esc(v.release??'local')}"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no">Bond<span class="mark-six">6</span><small>.io</small></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
@@ -51,7 +51,7 @@ export function html(v,title,content,{status=200,description,intro,wide=false,ed
   <div class="reader-message shell" role="status" aria-live="polite"></div>
   <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
   <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Focusing')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
-  return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,
+  return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,'CDN-Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,
     'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin',
     'Content-Security-Policy':getCSPHeader()}});
 }

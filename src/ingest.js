@@ -4,7 +4,7 @@ import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, cleanSocialH
 import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_COLLECTS_PER_TICK, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
-import { saveRhythmSignals, scoreRhythmBacklog } from './rhythm.js';
+import { saveRhythmSignals } from './rhythm.js';
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
 export const pollIntervalMs = source => Math.min(180, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
@@ -218,12 +218,14 @@ export async function storeItems(db, source, items, now) {
       title_en=CASE WHEN stories.title=excluded.title THEN coalesce(stories.title_en,excluded.title_en) ELSE excluded.title_en END,
       translate_after=CASE WHEN stories.title=excluded.title THEN stories.translate_after ELSE 0 END,
       image_url=excluded.image_url,audio_url=excluded.audio_url,video_url=excluded.video_url
-      WHERE excluded.is_article>=stories.is_article OR stories.source_id IS NULL`).bind(...values));
+      WHERE (excluded.is_article>=stories.is_article OR stories.source_id IS NULL)
+        AND stories.content_hash IS NOT excluded.content_hash`).bind(...values));
   }
   for (let start = 0; start < validItems.length; start += 20) {
     const chunk = validItems.slice(start, start + 20);
     statements.push(db.prepare(`INSERT INTO mentions(url,source,link,published_at) VALUES ${chunk.map(() => '(?,?,?,?)').join(',')}
-      ON CONFLICT(url,source) DO UPDATE SET link=excluded.link,published_at=excluded.published_at`)
+      ON CONFLICT(url,source) DO UPDATE SET link=excluded.link,published_at=excluded.published_at
+      WHERE mentions.link IS NOT excluded.link OR mentions.published_at IS NOT excluded.published_at`)
       .bind(...chunk.flatMap(i => [i.url, source.name, i.link, i.shared_at ?? i.original_published_at ?? now])));
   }
   if (statements.length) await db.batch(statements);
@@ -240,7 +242,6 @@ async function collectOne(env, source, state, now) {
     const { items, rejectedUrls, etag, modified } = await poll(source, state, now);
     await storeItems(db, source, items, now);
     await suppressItems(db, source, rejectedUrls, now);
-    await scoreRhythmBacklog(db,now);
     await db.prepare(`INSERT INTO source_state VALUES(?,?,?,?,?,0,?) ON CONFLICT(id) DO UPDATE SET
       etag=excluded.etag,modified=excluded.modified,checked_at=excluded.checked_at,ok_at=excluded.ok_at,failures=0,next_at=excluded.next_at`)
       .bind(source.id, etag, modified, now, now, now + pollIntervalMs(source)).run();

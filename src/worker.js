@@ -5,11 +5,13 @@ import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, le
 import { classify, conversationTopics, dayKey } from './content.js';
 import { sources, retiredSourceIds } from './sources.js';
 import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH } from './config.js';
+import { scoreRhythmBacklog } from './rhythm.js';
 
 const xml=value=>esc(String(value??'').replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,''));
 async function rss(env,v) {
   const kind=v.url.searchParams.get('kind')??'live', lane=v.url.searchParams.get('lane');
   if (!['live','daily','bond'].includes(kind)||(lane&&!['human','ai'].includes(lane))) return new Response('Unknown feed filter',{status:400});
+  const kindLabel=kind==='daily'?v.say('Daily picks','每日精选'):kind==='bond'?v.t('Bonding'):v.say('Latest','最新');
   let items=[];
   if (kind==='live') {
     const {results}=await env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(v.zh?'zh':'en',...(lane?[lane]:[])).all();
@@ -25,7 +27,7 @@ async function rss(env,v) {
     }).slice(0,50);
   }
   const built=Math.max(Date.now(),...items.map(item=>Number(item.date)||0));
-  return new Response(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${xml(v.t('The Bond6 Flow'))} · ${kind}${lane?' · '+lane:''}</title><link>https://bond6.io${v.local('/')}</link><description>${xml(v.t('New writing on culture, creative work, and life with AI.'))}</description><language>${v.lang}</language><lastBuildDate>${new Date(built).toUTCString()}</lastBuildDate><atom:link href="${xml('https://bond6.io'+v.url.pathname+v.url.search)}" rel="self" type="application/rss+xml"/>${items.map(i=>`<item><title>${xml(i.title)}</title><link>${xml(i.link)}</link><guid isPermaLink="false">${xml(i.id)}</guid>${i.date?`<pubDate>${new Date(i.date).toUTCString()}</pubDate>`:''}${i.author?`<dc:creator>${xml(i.author)}</dc:creator>`:''}${i.category?`<category>${xml(i.category)}</category>`:''}<description>${xml(i.description)}</description></item>`).join('')}</channel></rss>`,{headers:{'Content-Type':'application/rss+xml; charset=utf-8','Cache-Control':CACHE_CONTROL.public}});
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${xml(v.t('The Bond6 Flow'))} · ${xml(kindLabel)}${lane?' · '+xml(v.t(lane==='human'?'Human Pulse':'AI Wave')):''}</title><link>https://bond6.io${v.local('/')}</link><description>${xml(v.t('New writing on culture, creative work, and life with AI.'))}</description><language>${v.lang}</language><lastBuildDate>${new Date(built).toUTCString()}</lastBuildDate><atom:link href="${xml('https://bond6.io'+v.url.pathname+v.url.search)}" rel="self" type="application/rss+xml"/>${items.map(i=>`<item><title>${xml(i.title)}</title><link>${xml(i.link)}</link><guid isPermaLink="false">${xml(i.id)}</guid>${i.date?`<pubDate>${new Date(i.date).toUTCString()}</pubDate>`:''}${i.author?`<dc:creator>${xml(i.author)}</dc:creator>`:''}${i.category?`<category>${xml(i.category)}</category>`:''}<description>${xml(i.description)}</description></item>`).join('')}</channel></rss>`,{headers:{'Content-Type':'application/rss+xml; charset=utf-8','Cache-Control':CACHE_CONTROL.public}});
 }
 async function sitemap(env) {
   const {results}=await env.DB.prepare('SELECT id,kind FROM editions ORDER BY edition_date DESC LIMIT 100').all();
@@ -65,25 +67,51 @@ async function route(request,env,v) {
 }
 export default {
   async fetch(request,env,ctx) {
-    const url=new URL(request.url),v=locale(url);
+    const url=new URL(request.url),v=locale(url);v.release=env.BUILD_VERSION??'local';
     if(url.pathname==='/events'&&request.method==='POST')return event(request,env).catch(error=>{
       console.error('Event recording failed',{message:error.message,stack:error.stack,timestamp:Date.now()});
       return new Response(null,{status:503});
     });
     if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
     if(url.search.length>MAX_QUERY_LENGTH)return new Response('Query too long',{status:400});
-    let response;
-    try {response=await route(request,env,v);}catch(error){console.error('Page query failed',{message:error.message,stack:error.stack,path:v.path,timestamp:Date.now()});response=html(v,v.t('Feed unavailable'),`<p class="notice">${v.t('The feed is temporarily unavailable. Please try again shortly.')}</p>`,{status:503});}
+    if(url.pathname==='/healthz'){
+      let response;
+      try {await env.DB.prepare('SELECT 1 AS ok').first();response=Response.json({ok:true,release:v.release},{headers:{'Cache-Control':CACHE_CONTROL.none,'CDN-Cache-Control':CACHE_CONTROL.none}});}
+      catch(error){console.error('Health check failed',{message:error.message,stack:error.stack,timestamp:Date.now()});response=Response.json({ok:false,release:v.release},{status:503,headers:{'Cache-Control':CACHE_CONTROL.none,'CDN-Cache-Control':CACHE_CONTROL.none}});}
+      response.headers.set('X-Bond6-Release',v.release);return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;
+    }
+    const cacheable=request.method==='GET'&&!url.searchParams.has('q')&&typeof caches!=='undefined';
+    const cache=cacheable?caches.default:null;
+    // A release-specific edge key makes every deploy immediately coherent even
+    // when an older page response is still retained at a Cloudflare edge.
+    const cacheUrl=new URL(url);cacheUrl.searchParams.set('__bond6_release',v.release);
+    const cacheKey=cacheable?new Request(cacheUrl,{method:'GET'}):null;
+    const snapshotUrl=new URL(url);snapshotUrl.searchParams.set('__bond6_snapshot','1');
+    const snapshotKey=cacheable?new Request(snapshotUrl,{method:'GET'}):null;
+    if(cacheKey){const cached=await cache.match(cacheKey);if(cached)return cached;}
+    let response,staleSnapshot=false;
+    try {response=await route(request,env,v);}catch(error){
+      console.error('Page query failed',{message:error.message,stack:error.stack,path:v.path,timestamp:Date.now()});
+      const snapshot=snapshotKey?await cache.match(snapshotKey):null;
+      if(snapshot){const headers=new Headers(snapshot.headers);headers.set('Cache-Control',CACHE_CONTROL.none);headers.set('CDN-Cache-Control',CACHE_CONTROL.none);headers.set('X-Bond6-Snapshot','stale');response=new Response(snapshot.body,{status:200,headers});staleSnapshot=true;}
+      else response=html(v,v.t('Feed unavailable'),`<p class="notice">${v.t('The feed is temporarily unavailable. Please try again shortly.')}</p>`,{status:503});
+    }
+    response.headers.set('X-Bond6-Release',v.release);
+    if(cacheKey&&response.ok&&!staleSnapshot){
+      const snapshotHeaders=new Headers(response.headers);snapshotHeaders.set('Cache-Control','public, max-age=3600');snapshotHeaders.set('CDN-Cache-Control','public, max-age=3600');
+      const snapshot=new Response(response.clone().body,{status:response.status,statusText:response.statusText,headers:snapshotHeaders});
+      ctx?.waitUntil?.(Promise.all([cache.put(cacheKey,response.clone()),cache.put(snapshotKey,snapshot)]));
+    }
     return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;
   },
   scheduled(controller,env,ctx) {
     ctx.waitUntil((async()=>{
       const now=controller.scheduledTime,minute=new Date(now).getUTCMinutes();
-      // Separate invocations keep feed parsing and AI publication below query/CPU budgets.
-      if(minute===59){await prune(env,now);return;}
-      if(minute%2===0){await collect(env,now);return;}
+      // Five-minute scheduling leaves room under D1's free read allowance.
+      // Fresh sources are still prioritised by their individual due times.
+      if(new Date(now).getUTCHours()===0&&minute===55){await prune(env,now);return;}
       const worked=await publishingStep(env,now);
-      if(!worked)await collect(env,now);
+      if(!worked){await collect(env,now);if(minute===0)await scoreRhythmBacklog(env.DB,now);}
     })().catch(error=>console.error('Scheduled work failed',{message:error.message,stack:error.stack,timestamp:Date.now()})));
   }
 };

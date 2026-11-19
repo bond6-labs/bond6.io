@@ -25,11 +25,9 @@ export const sources = [
   { id: 'longreads', name: 'Longreads', kind: 'rss', url: 'https://longreads.com/feed/', site: 'https://longreads.com/', topic: 'Long-form writing', essays: true, poll_minutes: 90 },
   { id: 'marginalian', name: 'The Marginalian', kind: 'rss', url: 'https://www.themarginalian.org/feed/', site: 'https://www.themarginalian.org/', topic: 'Culture & ideas', essays: true, poll_minutes: 180 },
   { id: 'dezeen', name: 'Dezeen', kind: 'rss', url: 'https://www.dezeen.com/feed/', site: 'https://www.dezeen.com/', topic: 'Design & architecture', tier: 'flow', poll_minutes: 20 },
-  { id: 'outside', name: 'Outside', kind: 'rss', url: 'https://www.outsideonline.com/feed/', site: 'https://www.outsideonline.com/', topic: 'Outdoor life & endurance', tier: 'flow', poll_minutes: 45 },
   { id: 'climbing', name: 'Climbing', kind: 'rss', url: 'https://www.climbing.com/feed/', site: 'https://www.climbing.com/', topic: 'Climbing & embodied life', tier: 'flow', poll_minutes: 45 },
   { id: 'open-culture', name: 'Open Culture', kind: 'rss', url: 'https://www.openculture.com/feed', site: 'https://www.openculture.com/', topic: 'Culture & learning', tier: 'flow', poll_minutes: 90 },
   { id: 'kottke', name: 'Kottke.org', kind: 'rss', url: 'https://feeds.kottke.org/main', site: 'https://kottke.org/', topic: 'Culture, design & curiosities', tier: 'flow', poll_minutes: 45 },
-  { id: 'mooool', name: 'mooool 木藕设计网', kind: 'rss', url: 'https://mooool.com/feed', site: 'https://mooool.com/', topic: 'Design & architecture', language: 'zh', tier: 'flow', poll_minutes: 90 },
   { id: 'qingshu', name: '轻书散文小站', kind: 'rss', url: 'https://www.qingshu.art/feed.xml', site: 'https://www.qingshu.art/', topic: 'Essays & literary life', language: 'zh', essays: true, poll_minutes: 180 },
   // Named programmes only: each has a public, first-party RSS feed and is
   // deliberately bounded to Human Pulse rather than a whole podcast directory.
@@ -38,7 +36,7 @@ export const sources = [
   { id: 'yixi-extratalk', name: '一席·席外话', kind: 'rss', url: 'https://feed.xyzfm.space/cp6bdgmn8wf6', site: 'https://yixi.tv/', topic: 'Creative life & conversation', language: 'zh', lane: 'human', tier: 'flow', poll_minutes: 180 },
   { id: 'jiemian-culture-podcast', name: '界面文化·编辑部聊天室', kind: 'rss', url: 'https://feed.xyzfm.space/yngbfgflw4qk', site: 'https://www.jiemian.com/', topic: 'Culture & public life', language: 'zh', lane: 'human', tier: 'flow', poll_minutes: 180 },
 
-  // AI & Its Impact — primary labs plus reporting and critical analysis.
+  // AI Wave — primary labs plus reporting and critical analysis.
   { id: 'zitron-newsletter', name: 'Ed Zitron', kind: 'rss', url: 'https://www.wheresyoured.at/rss/', site: 'https://www.wheresyoured.at/', topic: 'First-person accounts', allPosts: true },
   { id: 'rest-of-world', name: 'Rest of World', kind: 'rss', url: 'https://restofworld.org/feed/latest/', site: 'https://restofworld.org/', topic: 'Life online' },
   { id: 'creative-commons', name: 'Creative Commons', kind: 'rss', url: 'https://creativecommons.org/feed/', site: 'https://creativecommons.org/', topic: 'Writing & publishing' },
@@ -70,6 +68,9 @@ export const ESSAY_DAYS = 30;
 // attribution or requiring a destructive database migration.
 export const retiredSourceIds = new Set([
   'gcores', 'chuapp',
+  // Outside is broad lifestyle utility coverage; mooool is primarily property
+  // and commercial architecture promotion. Neither is the editorial focus.
+  'outside', 'mooool',
   'appleton-social', 'dash-social', 'markup-social', 'eff-social',
   'doctorow-social', 'nieman-social', '404-social', 'ed-social'
 ]);

@@ -45,6 +45,10 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('Office announcements','Company meeting tomorrow',{}).lane,null);
   assert.equal(classify('A deal to make more money','This makes no sense to me',{}).lane,null);
   assert.equal(classify('NVIDIA financing','The consortium is raising money',{}).lane,null);
+  assert.equal(classify('Humyn Labs raises a $40m Series A','The AI startup announced a venture funding round led by investors.',{}).lane,null);
+  assert.equal(classify('Startup funding promises to automate jobs','Investors led a Series A venture funding round for the AI company.',{}).lane,null);
+  assert.equal(classify('New luxury residence opens beside the river','A property developer presents its architecture showroom and real estate project.',{}).lane,null);
+  assert.equal(classify('How many carbohydrates should runners eat?','A nutrition guide recommends calories, supplements and a training plan.',{}).lane,null);
   assert.equal(classify('大模型怎样影响小说写作','作者们讨论人工智能对创作的影响').lane,'ai');
   assert.equal(classify('Meet the National Book Award finalists','A short announcement.',{id:'literary-hub'}).lane,null);
   assert.deepEqual(classify('Tara Cunningham – Warm Ground','A record review.',{id:'quietus',essays:true}),{lane:'human',subject:'music'});
@@ -55,6 +59,8 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('Neighbours build a mutual-aid garden','Volunteers support families through a difficult winter.',{}).lane,'human');
   assert.equal(classify('AI mentioned in a company announcement','A company has a meeting tomorrow.',{}).lane,null);
   assert.equal(classify('A lab publishes AI research','A report documents a new benchmark for model capabilities.',{}).lane,'ai');
+  assert.equal(classify('An AI lab launches a model with new reasoning capabilities','A report documents the release and benchmark results.',{}).lane,'ai');
+  assert.equal(classify('I learned to climb after an injury','A personal account of recovery, training and returning to a mountain route.',{}).lane,'human');
   assert.equal(classify('A photographer documents a changing shoreline','A reported account follows the artist’s fieldwork and photographs over a decade.',{}).lane,'human');
   assert.equal(classify('An artist discusses AI tools','A detailed conversation about art, creative work and how an algorithm changes the studio.',{lane:'human',essays:true}).lane,'human');
   assert.equal(classify('An AI benchmark launches','A report documents a new model capability.',{lane:'human'}).lane,null);

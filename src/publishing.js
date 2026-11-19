@@ -17,7 +17,7 @@ const rhythmEvidence = story => {
 };
 
 /**
- * A deterministic priority for the daily edit, not a claim of importance.
+ * A deterministic priority for daily picks, not a claim of importance.
  * The components are intentionally small and inspectable: strong lane evidence,
  * useful source text, freshness, and a little credit for a named author.
  */
@@ -91,7 +91,7 @@ async function rhythmSelection(db,now) {
     ORDER BY s.discovered_at DESC LIMIT 160`).bind(now - RHYTHM_FALLBACK_WINDOW_DAYS * DAY,RHYTHM_VERSION,RHYTHM_MIN_CONFIDENCE).all();
   const { results: used } = await db.prepare(`SELECT url FROM edition_stories JOIN editions ON editions.id=edition_stories.edition_id
     WHERE kind='daily' AND published_at>=?`).bind(now - 7 * DAY).all();
-  // Fast, broader Flow sources keep Latest fresh. The daily edition is drawn
+  // Fast, broader Flow sources keep Latest fresh. Daily picks are drawn
   // only from the stricter core-reading pool.
   const core=results.filter(story=>!flowSourceIds.has(story.source_id));
   return { eligible:core, selected:rankCandidates(core,used.map(story=>story.url),now) };
@@ -202,7 +202,7 @@ export function validateBond(draft, stories) {
   const words = draft.en.note.split(/\s+/).length;
   return words>=80 && words<=120;
 }
-/** Only completed daily notes with recorded, strong Rhythm evidence may seed The Bond. */
+/** Only completed daily notes with recorded, strong Rhythm evidence may seed Bonding. */
 export function validatedBondStories(stories) {
   return stories.filter(story => story?.en?.note && story?.zh?.note
     && Number(story.rhythm?.confidence) >= RHYTHM_MIN_CONFIDENCE
@@ -212,9 +212,9 @@ export function validatedBondStories(stories) {
 async function bondStep(env,job,now) {
   const state=JSON.parse(job.payload), db=env.DB;
   const edition=await db.prepare(`SELECT snapshot FROM editions WHERE kind='daily' AND edition_date=?`).bind(state.date).first();
-  if (!edition) return saveJob(db,job,state,now,{done:true,error:'No daily edition to connect'});
+  if (!edition) return saveJob(db,job,state,now,{done:true,error:'No daily picks to connect'});
   const stories=validatedBondStories(JSON.parse(edition.snapshot).stories);
-  if (new Set(stories.map(story=>story.lane)).size!==2) return saveJob(db,job,state,now,{done:true,error:'No high-confidence validated pair for The Bond'});
+  if (new Set(stories.map(story=>story.lane)).size!==2) return saveJob(db,job,state,now,{done:true,error:'No high-confidence validated pair for Bonding'});
   if (!state.draft) {
     const {results:recent}=await db.prepare(`SELECT snapshot FROM editions WHERE kind='bond' ORDER BY edition_date DESC LIMIT 7`).all();
     const draft=await runJson(env,'bond',`Find one substantive connection between a Human Pulse item and an AI Wave item. Use ONLY these validated notes. Return {urls:[two exact source URLs],en:{title,note,question},zh:{title,note,question}}. The English connecting note must be 80-120 words; Chinese 140-350 characters, with equivalent meaning. Frame the connection as Bond6's interpretation, not as an author's view. Ask ONE specific question. Avoid connections or questions from the recent editions. If the relation is superficial, return {reject:true}.`,{stories,recent:recent.map(r=>JSON.parse(r.snapshot).en?.title)},now,1400);

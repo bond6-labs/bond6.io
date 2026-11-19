@@ -56,7 +56,11 @@ export async function saveRhythmSignals(db, stories, now) {
     statements.push(db.prepare(`INSERT INTO story_signals(story_url,rhythm_version,human_score,ai_score,lane_recommendation,confidence,labels,evidence,exclusion_reason,scored_at)
       VALUES ${chunk.map(()=>'(?,?,?,?,?,?,?,?,?,?)').join(',')} ON CONFLICT(story_url) DO UPDATE SET rhythm_version=excluded.rhythm_version,human_score=excluded.human_score,
       ai_score=excluded.ai_score,lane_recommendation=excluded.lane_recommendation,confidence=excluded.confidence,labels=excluded.labels,
-      evidence=excluded.evidence,exclusion_reason=excluded.exclusion_reason,scored_at=excluded.scored_at`)
+      evidence=excluded.evidence,exclusion_reason=excluded.exclusion_reason,scored_at=excluded.scored_at
+      WHERE story_signals.rhythm_version IS NOT excluded.rhythm_version OR story_signals.human_score IS NOT excluded.human_score
+        OR story_signals.ai_score IS NOT excluded.ai_score OR story_signals.lane_recommendation IS NOT excluded.lane_recommendation
+        OR story_signals.confidence IS NOT excluded.confidence OR story_signals.labels IS NOT excluded.labels
+        OR story_signals.evidence IS NOT excluded.evidence OR story_signals.exclusion_reason IS NOT excluded.exclusion_reason`)
       .bind(...chunk.flatMap(({story,rhythm})=>[story.url,rhythm.rhythm_version,rhythm.human_score,rhythm.ai_score,rhythm.lane_recommendation,rhythm.confidence,JSON.stringify(rhythm.labels),JSON.stringify(rhythm.evidence),rhythm.exclusion_reason,now])));
   }
   if (statements.length) await db.batch(statements);

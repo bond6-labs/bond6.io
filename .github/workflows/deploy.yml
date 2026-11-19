@@ -29,7 +29,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy Worker
-        run: npm run deploy
+        run: npx wrangler deploy --var BUILD_VERSION:${GITHUB_SHA}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify production release
+        run: node scripts/smoke-production.mjs
+        env:
+          BOND6_EXPECTED_RELEASE: ${{ github.sha }}

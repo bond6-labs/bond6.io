@@ -20,7 +20,54 @@ test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaS
   const about=await worker.fetch(new Request('https://bond6.io/about'),{DB:db});assert.match(await about.text(),/Bond6 Rhythm/);
   const edition=await worker.fetch(new Request('https://bond6.io/edit/2026-11-13'),{DB:db});const editionText=await edition.text();assert.match(editionText,/class="story-actions"/);assert.doesNotMatch(editionText,/Why this appeared/);
   const head=await worker.fetch(new Request('https://bond6.io/',{method:'HEAD'}),{DB:db});assert.equal(await head.text(),'');
+  const health=await worker.fetch(new Request('https://bond6.io/healthz'),{DB:db,BUILD_VERSION:'test-release'});assert.equal(health.status,200);assert.equal(health.headers.get('x-bond6-release'),'test-release');assert.deepEqual(await health.json(),{ok:true,release:'test-release'});
+  const page=await worker.fetch(new Request('https://bond6.io/'),{DB:db,BUILD_VERSION:'test-release'});assert.equal(page.headers.get('cache-control'),'public, max-age=60');assert.equal(page.headers.get('cdn-cache-control'),'public, max-age=60');assert.equal(page.headers.get('x-bond6-release'),'test-release');
   const sitemap=await worker.fetch(new Request('https://bond6.io/sitemap.xml'),{DB:db});assert.match(await sitemap.text(),/zh\/edit\/2026-11-13/);
+});
+test('a last successful edge snapshot keeps a reading page available during a database failure',async()=>{
+  const stored=new Map(),priorCaches=globalThis.caches;
+  globalThis.caches={default:{
+    async match(request){const response=stored.get(request.url);return response?.clone();},
+    async put(request,response){stored.set(request.url,response.clone());}
+  }};
+  try{
+    const db=database(),tasks=[];
+    const context={waitUntil(task){tasks.push(task);}};
+    const initial=await worker.fetch(new Request('https://bond6.io/'),{DB:db,BUILD_VERSION:'one'},context);
+    assert.equal(initial.status,200);await Promise.all(tasks);
+    const unavailable={prepare(){throw new Error('D1 daily row-read limit reached');}};
+    const recovered=await worker.fetch(new Request('https://bond6.io/'),{DB:unavailable,BUILD_VERSION:'two'});
+    assert.equal(recovered.status,200);
+    assert.equal(recovered.headers.get('x-bond6-snapshot'),'stale');
+    assert.match(await recovered.text(),/The Bond6 Flow/);
+  } finally {
+    if(priorCaches===undefined)delete globalThis.caches;else globalThis.caches=priorCaches;
+  }
+});
+test('Sources uses the latest check state and keeps its catalog bilingual',async()=>{
+  const db=database();
+  db.sql.prepare('INSERT INTO source_state VALUES(?,?,?,?,?,?,?)').run('bandcamp',null,null,now,now,0,now);
+  db.sql.prepare('INSERT INTO source_state VALUES(?,?,?,?,?,?,?)').run('ai-snake-oil',null,null,now,now-60_000,2,now+60_000);
+  const english=await worker.fetch(new Request('https://bond6.io/sources'),{DB:db,BUILD_VERSION:'catalog-release'});
+  const text=await english.text();
+  assert.match(text,/Bond6’s current source catalog/);
+  assert.match(text,/Bandcamp Daily[\s\S]*?Checked/);
+  assert.match(text,/AI Snake Oil[\s\S]*?Latest check failed · retrying[\s\S]*?Last successful check/);
+  assert.match(text,/随机波动[\s\S]*?Not checked yet/);
+  assert.match(text,/reader\.js\?v=catalog-release/);
+  const chinese=await worker.fetch(new Request('https://bond6.io/zh/sources'),{DB:db});
+  const chineseText=await chinese.text();
+  assert.match(chineseText,/中英文页面使用同一份名单/);
+  assert.match(chineseText,/AI 与社会/);
+  assert.match(chineseText,/最近检查失败 · 将重试/);
+});
+test('archive pages cap a single publisher while retaining other arrivals',async()=>{
+  const db=database();
+  for(let i=0;i<8;i++)await storeItems(db,{...source,id:'same-publisher',name:'Same Publisher'},[story(500+i,{url:`https://example.org/same/${i}`,link:`https://example.org/same/${i}`,canonical_url:`https://example.org/same/${i}`,title:`A musician records a new album at home ${i}`,author:null,source:'Same Publisher',source_id:'same-publisher',subject:'music',discovered_at:now-i})],now-i);
+  for(let i=0;i<4;i++)await storeItems(db,{...source,id:`other-${i}`,name:`Other Publisher ${i}`},[story(600+i,{url:`https://example.org/other/${i}`,link:`https://example.org/other/${i}`,canonical_url:`https://example.org/other/${i}`,title:`A musician records a different album at home ${i}`,source:`Other Publisher ${i}`,source_id:`other-${i}`,subject:'music',discovered_at:now-100-i})],now-100-i);
+  const page=await worker.fetch(new Request('https://bond6.io/?view=all&topic=music'),{DB:db});const text=await page.text();
+  assert.equal((text.match(/<span>Same Publisher<\/span>/g)??[]).length,3);
+  assert.match(text,/Other Publisher 0/);
 });
 test('mobile lane and filters survive navigation and language switch',async()=>{
   const db=database();const r=await worker.fetch(new Request('https://bond6.io/?lane=ai&topic=music'),{DB:db});const text=await r.text();
@@ -41,7 +88,7 @@ test('live feed continuations use a stable cursor and never repeat rendered stor
   assert.doesNotMatch(continuationText,new RegExp(firstTitle));assert.match(continuationText,/AI system update changes creative work 1[0-9]/);
   const next=continuationText.match(/data-next-page href="([^"]+)"/);assert.ok(next);assert.match(next[1],/before=/);
 });
-test('Focusing labels emerging signals and Bonding renders a live reading route',async()=>{
+test('Focusing labels emerging signals and Bonding renders a Bonding route',async()=>{
   const db=database();
   const human=story(310,{title:'A musician writes about care in creative work',excerpt:'A musician describes music, community care and authorship in a personal account.',source:'Human Journal',source_id:'human-journal'});
   const humanTwo=story(311,{title:'Independent musicians build a caring community',excerpt:'A songwriter reflects on music, community and creative work.',source:'Human Journal Two',source_id:'human-journal-two'});
@@ -50,7 +97,7 @@ test('Focusing labels emerging signals and Bonding renders a live reading route'
   await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
   await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
   const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);
-  const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Live reading route/);assert.match(bondingText,/Making &amp; authorship/);
+  const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
 });
 test('live Rhythm ordering is opt-in without exposing diagnostic controls',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);

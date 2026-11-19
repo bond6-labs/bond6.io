@@ -5,8 +5,8 @@
   "compatibility_date": "2026-11-12",
   "workers_dev": true,
   "assets": { "directory": "./public" },
-  "triggers": { "crons": ["* * * * *"] },
-  "vars": { "MAX_STORIES": "1000", "GENERATED_PUBLISHING": "false", "RHYTHM_SHADOW_MODE": "true", "RHYTHM_LIVE_RANKING": "true", "AI_DAILY_NEURONS": "8000" },
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": { "MAX_STORIES": "1000", "GENERATED_PUBLISHING": "false", "RHYTHM_SHADOW_MODE": "true", "RHYTHM_LIVE_RANKING": "false", "AI_DAILY_NEURONS": "8000" },
   "ai": { "binding": "AI" },
   "d1_databases": [{
     "binding": "DB",

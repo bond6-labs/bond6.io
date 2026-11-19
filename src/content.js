@@ -6,10 +6,10 @@ export const subjects = ['music', 'art', 'writing', 'practice', 'digital'];
 export const subjectLabels = { music: 'Music', art: 'Art & Design', writing: 'Writing', practice: 'Creative Practice', digital: 'Digital Life' };
 const sourceSubjects = {
   bandcamp: 'music', 'aquarium-drunkard': 'music', quietus: 'music',
-  'literary-hub': 'writing', kleon: 'writing', appleton: 'writing', dash: 'writing',
+  'literary-hub': 'writing', kleon: 'writing', appleton: 'writing', dash: 'writing', marginalian: 'writing', 'electric-literature': 'writing', 'paris-review': 'writing', longreads: 'writing',
   'public-domain-review': 'writing', 'jstor-daily': 'writing', aeon: 'writing', kaix: 'writing', maohang: 'writing', hehew: 'writing',
   colossal: 'art', hyperallergic: 'art', 'creative-boom': 'art', 'harvard-arts': 'art',
-  conge: 'practice',
+  conge: 'practice', climbing: 'practice', 'creative-independent': 'practice',
   sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', '404': 'digital', techdirt: 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', deepmind: 'digital', huggingface: 'digital', qbitai: 'digital'
 };
 const sentenceEnd = (text, limit = 240) => {
@@ -94,12 +94,14 @@ export const language = validateLanguage;
 // human experience and direct AI consequences rather than the general news
 // cycle.
 const offScope = /\b(?:war|wartime|military|weapon(?:s|ized)?|missile|battlefield|armed forces|election|campaign|parliament|congress|president(?:ial)?|prime minister|democratic party|republican party)\b|战争|军事|武器|导弹|战场|选举|竞选|国会|总统|政党/i;
-const promotion = /\b(?:sale|discount|giveaway|raffle|tickets?|daily deals?|roundup|finalists?|awards?|podcast episode|excerpt)\b|抽\s*vip|新史低|\d+\s*折|获奖名单/i;
+const promotion = /\b(?:sale|discount|giveaway|raffle|tickets?|daily deals?|roundup|finalists?|awards?|podcast episode|excerpt|sponsored|advertorial|promo(?:tional)?)\b|抽\s*vip|新史低|\d+\s*折|获奖名单|广告合作|推广/i;
+const commercial = /\b(?:funding round|raises? \$?\d|venture capital|venture funding|seed funding|series [a-f]|valuation|invest(?:or|ment)|acqui(?:re|sition)|ipo|real estate|residential development|luxury (?:home|residence)|showroom|brand partnership)\b|融资|募资|风投|估值|投资人|收购|上市|房地产|住宅项目|样板间|品牌合作/i;
+const utilityLifestyle = /\b(?:carbohydrate(?:s)?|calori(?:e|es)|nutrition(?:al)?|meal plan|supplement(?:s)?|training plan|gear guide|product review)\b|碳水|卡路里|营养补充|训练计划|装备推荐/i;
 const humanCreative = /\b(?:music|musician|songwriter|album|record|song|composer|band|writer|poet|poetry|novel|essay|artist|painting|sculpt(?:ure|or)|illustrat(?:ion|or)|photograph(?:y|er)|film(?:maker)?|cinema|design(?:er)?|craft|ceramic|woodwork|game design)\b|音乐人|作曲|专辑|唱片|歌曲|作家|诗人|诗歌|小说|散文|艺术家|绘画|雕塑|插画|摄影|电影|设计师|手工|陶艺|木工|游戏设计/i;
 const humanMaking = /\b(?:make|making|record(?:ing)?|rehears(?:e|es|al|ing)?|draft(?:ing)?|edit(?:ing)?|paint(?:ing)?|draw(?:ing)?|compose|perform(?:ing)?|practic(?:e|ing)|build(?:ing)?|learn(?:ing)?|studio|workshop)\b|创作|制作|录制|排练|草稿|编辑|绘画|作曲|演出|练习|工作室|工坊/i;
 const humanVoice = /\b(?:i|my|me|we|our)\b.{0,90}\b(?:think|feel|believe|wonder|remember|learn(?:ed|t)?|realize(?:d)?|grieve|love|hope|fear|dream|imagine|experience)\b|我(?:想|觉得|相信|记得|学到|意识到|害怕|希望|热爱|经历)|我们(?:想|觉得|相信|记得|学到|经历)/i;
 const humanCare = /\b(?:mutual aid|care(?:giving)?|support(?:ing)?|solidarity|neighbou?r(?:hood)?|community(?:-led)?|co-?op|volunteer(?:ing)?|friendship|family|grief|empathy|sympathy)\b|互助|关怀|照料|支持|团结|邻里|社区|合作社|志愿|友谊|家人|共情|同情/i;
-const humanEmbodied = /\b(?:climb(?:ing)?|mountain(?:eer(?:ing)?)?|trail|marathon|ultra(?:run)?|surf(?:ing)?|skate(?:boarding)?|dance|body|endurance|injury|recovery|farm(?:ing)?|garden(?:ing)?|outdoor)\b|登山|攀岩|越野|马拉松|冲浪|滑板|舞蹈|身体|耐力|受伤|康复|农场|园艺|户外/i;
+const humanEmbodied = /\b(?:climb(?:ing)?|mountain(?:eer(?:ing)?)?|trail running|marathon|ultra(?:run)?|surf(?:ing)?|skate(?:boarding)?|dance|injury|recovery|farm(?:ing)?|garden(?:ing)?)\b|登山|攀岩|越野|马拉松|冲浪|滑板|舞蹈|受伤|康复|农场|园艺/i;
 const culturalContext = /\b(?:review|interview|profile|conversation|criticism|critique|exhibition|performance|retrospective|reading|listening)\b|乐评|书评|影评|访谈|专访|人物|对谈|评论|批评|展览|演出|回顾|阅读|聆听/i;
 const aiSystem = /\b(?:ai|artificial intelligence|llms?|large language model|chatgpt|openai|anthropic|generative ai|machine learning|deepfake|model training|data cent(?:er|re)|ai agent|algorithmic (?:feed|ranking|recommendation)|recommender system|automated decision(?:-making)?|facial recognition|biometric (?:system|surveillance))\b|人工智能|大模型|生成式|机器学习|深度伪造|训练模型|数据中心|智能体|算法推荐|自动化决策|人脸识别|生物识别/i;
 const aiImpact = /\b(?:replace(?:s|d|ment|ing)?|automate(?:s|d|ion|ing)?|job(?:s)?|work(?:er|place|load)?|labou?r|wage|union|artist|writer|teacher|student|privacy|surveillance|copyright|authorship|rights|trust|education|creative work)\b|替代|自动化|工作|劳动|工资|工会|艺术家|作者|教师|学生|隐私|监控|版权|署名|权利|信任|教育|创作/i;
@@ -112,10 +114,12 @@ export function selectionGate(title, excerpt = '', source = {}) {
   const text = `${title ?? ''}. ${excerpt ?? ''}`.replace(/\s+/g, ' ').trim();
   if (offScope.test(text)) return { human:false, ai:false, exclusion_reason:'Outside Bond6 scope: politics, war, or military' };
   if (promotion.test(text)) return { human:false, ai:false, exclusion_reason:'Promotion, roundup, award list, or excerpt' };
+  if (utilityLifestyle.test(text)) return { human:false, ai:false, exclusion_reason:'Utility lifestyle or product content, not an individual account' };
   const creative = humanCreative.test(text), making = humanMaking.test(text), voice = humanVoice.test(text);
   const care = humanCare.test(text), embodied = humanEmbodied.test(text), culture = culturalContext.test(text);
   const system = aiSystem.test(text), impact = aiImpact.test(text), movement = aiMovement.test(text), elite = aiElite.test(text), reported = reportedSpecificity.test(text);
-  const human_core = (creative && making) || voice || care || embodied;
+  if (commercial.test(text)) return { human:false, ai:false, exclusion_reason:'Commercial, funding, or property coverage is outside Bond6’s editorial flow' };
+  const human_core = (creative && making) || voice || care || (embodied && (voice || culture || reported));
   const ai_core = system && (impact || movement || elite);
   return {
     // The live flow may include a well-attributed cultural review/profile or
@@ -124,7 +128,7 @@ export function selectionGate(title, excerpt = '', source = {}) {
   // Live Flow can include a well-attributed report about creative work. Daily
   // Picks still require the stronger core signals recorded by Bond6 Rhythm.
   human: human_core || (creative && (culture || reported || source.essays === true)),
-    ai: ai_core || (system && reported),
+    ai: ai_core || (system && movement && reported),
     human_core, ai_core,
     exclusion_reason:null,
     signals:{ creative, making, voice, care, embodied, culture, system, impact, movement, elite, reported }
@@ -141,7 +145,7 @@ export function classify(title, excerpt, source = {}) {
   // A source may be deliberately curated for just one side of Bond6. This is
   // a boundary, not a shortcut: the item must still pass that lane's own
   // signals. It prevents cultural podcasts, for example, from leaking into
-  // AI & Its Impact merely because an episode discusses an algorithm.
+  // AI Wave merely because an episode discusses an algorithm.
   const lane = source.lane === 'human'
     ? (gate.human ? 'human' : null)
     : source.lane === 'ai'

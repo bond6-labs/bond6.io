@@ -68,18 +68,16 @@
     }
   }catch{/* Reading does not depend on storage. */}
   function enableInfiniteFeeds(){
-    if(!('IntersectionObserver' in window))return;
     document.querySelectorAll('[data-infinite-trigger]').forEach(trigger=>{
       const column=trigger.closest('.feed-column'),feed=column?.querySelector('[data-infinite-lane-feed]'),list=feed?.querySelector('[data-infinite-stories]'),statusLine=feed?.querySelector('[data-infinite-status]');
       if(!column||!feed||!list||!statusLine)return;
       let loading=false,finished=false;
       const rendered=new Set([...column.querySelectorAll('.story h3 a[href]')].map(link=>link.href));
       const message=text=>{statusLine.textContent=text;};
-      const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));observer.disconnect();};
+      const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));};
       const load=async()=>{
         if(loading||finished||!column.getClientRects().length)return;
         loading=true;trigger.setAttribute('aria-busy','true');message(say('Loading earlier arrivals…','正在加载更早内容…'));
-        let retry=false;
         try{
           const response=await fetch(trigger.href,{headers:{Accept:'text/html'}});if(!response.ok)throw new Error('Request failed');
           const documentPage=new DOMParser().parseFromString(await response.text(),'text/html');
@@ -89,15 +87,69 @@
           const fresh=cards.filter(card=>{const link=card.querySelector('h3 a[href]')?.href;if(!link||rendered.has(link))return false;rendered.add(link);return true;});
           if(fresh.length){list.append(...fresh);feed.hidden=false;bindStoryControls(feed);}
           const next=documentPage.querySelector('[data-next-page]');
-          if(next?.href){trigger.href=next.href;message(say('More earlier arrivals load as you scroll.','继续向下滚动即可加载更早内容。'));retry=!fresh.length;}
+          if(next?.href){trigger.href=next.href;message(say('Choose “Load older stories” when you want another page.','需要时，选择「加载更早内容」。'));}
           else finish();
         }catch{message(say('Couldn’t load earlier arrivals. Use Browse all stories instead.','无法加载更早内容。请使用「浏览全部文章」。'));}
-        finally{loading=false;trigger.removeAttribute('aria-busy');if(retry)queueMicrotask(load);}
+        finally{loading=false;trigger.removeAttribute('aria-busy');}
       };
-      const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))load();},{rootMargin:'700px 0px'});
-      observer.observe(trigger);
+      trigger.addEventListener('click',event=>{
+        if(event.button||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+        event.preventDefault();load();
+      });
     });
   }
   enableInfiniteFeeds();
+  function enableArrivalRefresh(){
+    const columns=[...document.querySelectorAll('.feed-column')];
+    if(!columns.length||!window.fetch)return;
+    const pending=new Map();
+    const buttonFor=lane=>document.querySelector(`[data-refresh-lane="${lane}"]`);
+    const showPending=(lane,cards)=>{
+      const button=buttonFor(lane);if(!button)return;
+      if(!cards.length){button.hidden=true;return;}
+      button.hidden=false;
+      button.textContent=say(`${cards.length} new · Load`,`${cards.length} 条新内容 · 加载`);
+    };
+    const check=async()=>{
+      if(document.hidden)return;
+      try{
+        const response=await fetch(location.href,{headers:{Accept:'text/html'}});if(!response.ok)return;
+        const page=new DOMParser().parseFromString(await response.text(),'text/html');
+        for(const column of columns){
+          const lane=column.id.replace(/-feed$/,'');
+          const source=page.querySelector('#'+column.id),incoming=source?.querySelector('.arrivals-label + .stories');
+          if(!incoming)continue;
+          const seen=new Set([...column.querySelectorAll('.story h3 a[href]')].map(link=>link.href));
+          const queued=pending.get(lane)??[];
+          queued.forEach(card=>{const href=card.querySelector('h3 a[href]')?.href;if(href)seen.add(href);});
+          const fresh=[...incoming.querySelectorAll(':scope > .story')].filter(card=>{
+            const href=card.querySelector('h3 a[href]')?.href;
+            return Boolean(href&&!seen.has(href));
+          });
+          if(!fresh.length)continue;
+          const all=[...queued,...fresh];pending.set(lane,all);showPending(lane,all);
+        }
+      }catch{/* Freshness checks are optional; keep the current reading view intact. */}
+    };
+    document.querySelectorAll('.refresh-arrivals').forEach(button=>button.addEventListener('click',()=>{
+      const lane=button.dataset.refreshLane,cards=pending.get(lane)??[];
+      const column=document.querySelector('#'+lane+'-feed'),arrivals=column?.querySelector('.arrivals-label + .stories');
+      if(!arrivals||!cards.length)return;
+      arrivals.querySelector('.notice')?.remove();
+      const additions=cards.map(card=>document.importNode(card,true));
+      additions.forEach(card=>{const mark=card.querySelector('.new-mark');if(mark)mark.hidden=false;});
+      arrivals.prepend(...additions);pending.delete(lane);showPending(lane,[]);bindStoryControls(arrivals);
+      notify(say(`${additions.length} new arrivals added.`, `已加载 ${additions.length} 条新内容。`));
+    }));
+    window.setInterval(check,5*60*1000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});
+  }
+  enableArrivalRefresh();
+  function enableBackToTop(){
+    if(!document.querySelector('.feed-columns'))return;
+    const link=document.createElement('a');link.className='back-to-top';link.href='#main';link.textContent=say('Back to top','返回顶部');link.hidden=true;document.body.append(link);
+    const update=()=>{link.hidden=window.scrollY<700;};update();window.addEventListener('scroll',update,{passive:true});
+  }
+  enableBackToTop();
   if(document.body.dataset.edition==='true')metric('edition');
 })();
