@@ -8,6 +8,13 @@ import { dueSources, observeSource, pruneSourceVitality, sourceFromCatalogue } f
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
 export const pollIntervalMs = source => Math.min(1440, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
+export const retryIntervalMs = (source, failures) => {
+  // Do not let a broken slow feed consume the same capacity as a fast news
+  // feed. Retrying still starts promptly, then backs off to the source's own
+  // expected cadence until Source Vitality can pause it.
+  const ceiling=Math.min(1440,Math.max(45,Number(source.poll_minutes)||480));
+  return Math.min(ceiling,5*2**Math.min(Math.max(1,failures),8))*60_000;
+};
 const CURRENT_ITEM_WINDOW=30*DAY;
 const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
 const shortHosts = new Set(['t.co', 'bit.ly', 'buff.ly', 'ow.ly', 'tinyurl.com']);
@@ -154,23 +161,31 @@ export async function readBody(response) {
     const { done, value } = await reader.read();
     if (done) return body + decoder.decode();
     bytes += value.length;
-    if (bytes > FEED_SIZE_LIMIT) { await reader.cancel(); throw new Error('Feed exceeds size limit'); }
     body += decoder.decode(value, { stream: true });
+    // RSS/Atom feeds often retain years of old podcast episodes. The parser
+    // only ever considers FEED_ITEM_LIMIT entries, so stop as soon as that
+    // many complete entries have arrived instead of rejecting a useful feed
+    // merely because its unused archive exceeds the global body limit.
+    const completeEntries=(body.match(/<\/(?:item|entry)\s*>/gi)??[]).length;
+    if (completeEntries>=FEED_ITEM_LIMIT) { await reader.cancel(); return body; }
+    if (bytes > FEED_SIZE_LIMIT) { await reader.cancel(); throw new Error('Feed exceeds size limit'); }
   }
 }
-export async function poll(source, state, now) {
+export async function poll(source, state, now, fetcher = fetch) {
   const headers = new Headers({ 'User-Agent': 'Bond6 (+https://bond6.io/about)' });
   if (state?.etag) headers.set('If-None-Match', state.etag);
   if (state?.modified) headers.set('If-Modified-Since', state.modified);
   const url = source.url ?? ('https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?' + new URLSearchParams({ actor: source.handle, filter: 'posts_no_replies', limit: '20' }));
-  const response = await fetch(url, { headers, signal: AbortSignal.timeout(HTTP_REQUEST_TIMEOUT_MS) });
+  const response = await fetcher(url, { headers, signal: AbortSignal.timeout(HTTP_REQUEST_TIMEOUT_MS) });
   if (response.status === 304) return { items: [], rejectedUrls:[], raw_items:0, usable_items:0, etag: state?.etag ?? null, modified: state?.modified ?? null };
   if (!response.ok) throw new Error('Upstream HTTP ' + response.status);
   const body = await readBody(response);
   const parsed = source.kind === 'rss' ? fromRss(body, source) : fromBluesky(body, source);
-  const excluded = /\b(vip|raffle|giveaway|tickets?|sale|discount|new low price|daily deals?|this week in|weekly roundup|lit hub daily|podcast episode|excerpt)\b|抽\s*vip|新史低|\d+\s*折/i;
-  const usable=parsed.filter(i=>i.url&&i.title&&i.excerpt.length>=80);
-  const items = usable.filter(i => i.lane && !excluded.test(i.title)
+  const excluded = /\b(vip|raffle|giveaway|tickets?|sale|discount|new low price|daily deals?|this week in|weekly roundup|lit hub daily|excerpt)\b|抽\s*vip|新史低|\d+\s*折/i;
+  const podcastLabel=/\bpodcast episode\b/i;
+  const minExcerpt=source.short_excerpt?(source.language==='zh'?24:48):80;
+  const usable=parsed.filter(i=>i.url&&i.title&&i.excerpt.length>=minExcerpt);
+  const items = usable.filter(i => i.lane && !excluded.test(i.title) && !(podcastLabel.test(i.title)&&source.format!=='podcast')
     && (!i.original_published_at || i.original_published_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY)
     && (!i.original_published_at || i.original_published_at <= now + 300_000)
     && (!i.shared_at || i.shared_at >= now - (i.lane === 'human' ? CULTURE_RETENTION_DAYS : AI_RETENTION_DAYS) * DAY));
@@ -277,7 +292,7 @@ async function collectOne(env, source, state, now) {
     return true;
   } catch (error) {
     const failures = (state?.failures ?? 0) + 1;
-    const next = now + Math.min(120, 5 * 2 ** Math.min(failures, 5)) * 60_000;
+    const next = now + retryIntervalMs(source,failures);
     await db.prepare(`INSERT INTO source_state VALUES(?,NULL,NULL,?,NULL,?,?) ON CONFLICT(id) DO UPDATE SET
       checked_at=excluded.checked_at,failures=excluded.failures,next_at=excluded.next_at`).bind(source.id, now, failures, next).run();
     await saveJob(db, job, {}, now, { next, error: error.message });

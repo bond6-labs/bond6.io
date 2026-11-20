@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,pollIntervalMs} from '../src/ingest.js';
+import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,poll,pollIntervalMs,retryIntervalMs,readBody} from '../src/ingest.js';
 import {classify,canonical,contentHash,usableText} from '../src/content.js';
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
@@ -37,12 +37,35 @@ test('unsafe URLs and document declarations are rejected',()=>{
   for(const url of ['javascript:alert(1)','http://127.0.0.1/a','https://name:password@example.org'])assert.equal(canonical(url),null);
   assert.throws(()=>fromRss('<!DOCTYPE x><rss/>',source));
 });
+test('feed reads stop after the bounded item window before a historic archive can exceed the body limit',async()=>{
+  const encoder=new TextEncoder();
+  const items=Array.from({length:40},(_,i)=>`<item><title>Entry ${i}</title></item>`).join('');
+  const stream=new ReadableStream({start(controller){
+    controller.enqueue(encoder.encode(`<rss><channel>${items}`));
+    controller.enqueue(encoder.encode('x'.repeat(1_100_000)));
+    controller.close();
+  }});
+  const body=await readBody(new Response(stream));
+  assert.match(body,/<item><title>Entry 39<\/title><\/item>/);
+  assert.ok(body.length<100_000);
+});
 test('source polling uses a bounded fast lane without accelerating every feed',()=>{
   assert.equal(pollIntervalMs({poll_minutes:10}),10*60_000);
   assert.equal(pollIntervalMs({}),45*60_000);
   assert.equal(pollIntervalMs({poll_minutes:1}),10*60_000);
   assert.equal(pollIntervalMs({poll_minutes:999}),999*60_000);
   assert.equal(pollIntervalMs({poll_minutes:9999}),1440*60_000);
+  assert.equal(retryIntervalMs({poll_minutes:45},9),45*60_000);
+  assert.equal(retryIntervalMs({poll_minutes:480},9),480*60_000);
+});
+test('declared poetry and cultural-audio feeds can use concise source notes without opening the general gate',async()=>{
+  assert.equal(classify('A new poem by Mira','A spare poem about memory.',{lane:'human',format:'poetry'}).lane,'human');
+  assert.equal(classify('Podcast episode: a poet on memory','A cultural conversation about poetry and writing.',{lane:'human',format:'podcast'}).lane,'human');
+  const body='<rss><channel><item><title>A new poem by Mira</title><link>https://example.org/poem</link><description>A small poem about memory, morning light, and returning home.</description></item></channel></rss>';
+  const result=await poll({id:'poetry',kind:'rss',url:'https://example.org/feed',language:'en',lane:'human',format:'poetry',short_excerpt:true},{},now,async()=>new Response(body,{headers:{etag:'test'}}));
+  assert.equal(result.usable_items,1);assert.equal(result.items.length,1);
+  const generic=await poll({id:'generic',kind:'rss',url:'https://example.org/feed',language:'en',lane:'human'},{},now,async()=>new Response(body));
+  assert.equal(generic.usable_items,0);
 });
 test('classification follows content, not publication names',()=>{
   assert.equal(classify('A musician rehearses a new jazz album','Music and guitar performances',{name:'AI Newspaper'}).lane,'human');

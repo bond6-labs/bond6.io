@@ -41,6 +41,17 @@ test('candidate sources retain their trial state and slow daily cadence when see
   assert.equal(source.language,'en');
 });
 
+test('high-yield Human Pulse sources get rapid cadence while watch sources keep their reviewed cadence',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now);
+  const human=await db.prepare('SELECT tier,expected_minutes FROM source_catalogue WHERE id=?').bind('hyperallergic').first();
+  assert.equal(human.tier,'rapid');assert.equal(human.expected_minutes,45);
+  await db.prepare("UPDATE source_catalogue SET state='watch',tier='slow',expected_minutes=1440 WHERE id='hyperallergic'").run();
+  await db.prepare("UPDATE source_catalogue_meta SET value='force-reseed' WHERE id='version'").run();
+  await ensureSourceCatalogue(db,now+1);
+  const watched=await db.prepare('SELECT tier,expected_minutes FROM source_catalogue WHERE id=?').bind('hyperallergic').first();
+  assert.equal(watched.tier,'slow');assert.equal(watched.expected_minutes,1440);
+});
+
 test('reference-only sources remain catalogued without being handed to the feed collector',async()=>{
   const db=database();await ensureSourceCatalogue(db,now);
   const reference=await db.prepare('SELECT kind,state,feed_url FROM source_catalogue WHERE id=?').bind('china-poetry-network').first();
@@ -70,10 +81,10 @@ test('daily observations preserve new-item evidence and produce a review recomme
   assert.ok((await db.prepare('SELECT count(*) AS n FROM source_evaluations WHERE source_id=?').bind('bandcamp').first()).n===1);
 });
 
-test('persistent technical failures can pause while weak editorial yield only recommends review',()=>{
+test('persistent technical failures pause early while weak editorial yield only recommends review',()=>{
   const base={checks:14,successes:0,errors:14,raw_items:0,usable_items:0,accepted_items:0,duplicate_items:0,last_success_at:null,last_new_item_at:null,expected_minutes:60,added_at:now-31*86_400_000,state:'active',pinned:0,failed_days:14};
   assert.equal(evaluateSource(base,now).recommendation,'retire-technical');
-  assert.equal(evaluateSource({...base,added_at:now-15*86_400_000},now).recommendation,'pause');
+  assert.equal(evaluateSource({...base,added_at:now-15*86_400_000,failed_days:3},now).recommendation,'pause');
   const weak={...base,checks:20,successes:20,errors:0,raw_items:100,usable_items:90,accepted_items:1,duplicate_items:0,last_success_at:now,last_new_item_at:now,failed_days:0};
   assert.equal(evaluateSource(weak,now).recommendation,'retire-review');
 });
@@ -86,4 +97,16 @@ test('a source that answers but no longer publishes new material moves to slow w
 test('a readable trial feed can earn promotion review after candidate becomes probation',()=>{
   const trial={checks:14,successes:14,errors:0,raw_items:30,usable_items:24,accepted_items:12,duplicate_items:1,last_success_at:now,last_new_item_at:now,expected_minutes:1440,added_at:now-15*86_400_000,state:'probation',pinned:0,failed_days:0};
   assert.equal(evaluateSource(trial,now).recommendation,'promote-review');
+});
+
+test('a high-confidence probation source is promoted automatically at a slow safe cadence',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now-15*86_400_000);
+  const row=await db.prepare('SELECT * FROM source_catalogue WHERE id=?').bind('atlas-obscura').first();
+  const source=sourceFromCatalogue(row);
+  for(let day=0;day<14;day++)await observeSource(db,source,{success:true,raw_items:4,usable_items:3,accepted_items:2,duplicate_items:0,last_new_item_at:now-day*86_400_000},now-day*86_400_000);
+  await db.prepare("UPDATE source_catalogue SET state='probation' WHERE id='atlas-obscura'").run();
+  await evaluateSourceVitality(db,now);
+  const promoted=await db.prepare('SELECT state,tier,expected_minutes,state_reason FROM source_catalogue WHERE id=?').bind('atlas-obscura').first();
+  assert.equal(promoted.state,'active');assert.equal(promoted.tier,'slow');assert.equal(promoted.expected_minutes,480);
+  assert.match(promoted.state_reason,/Automatically promoted/);
 });

@@ -7,7 +7,8 @@
     "test": "node --test test/*.test.js",
     "check": "node --check src/worker.js && node --check public/reader.js",
     "migrate": "wrangler d1 migrations apply DB --remote",
-    "report:rhythm": "node scripts/rhythm-report.mjs"
+    "report:rhythm": "node scripts/rhythm-report.mjs",
+    "report:sources": "node scripts/source-vitality-report.mjs"
   },
   "repository": {
     "type": "git",

@@ -6,15 +6,17 @@ const DAY=86_400_000;
 const STALE_SOURCE_DAYS=60;
 const clamp=(value,min=0,max=100)=>Math.max(min,Math.min(max,value));
 const languageFor=source=>source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en');
-// Only the sources where speed materially changes the AI Wave remain rapid.
-// Everything else earns collection capacity through evidence rather than a
-// historic per-feed interval that would overflow the free-tier poll budget.
-const rapidSourceIds=new Set(['platformer','404','techdirt','techcrunch-ai','verge-ai','the-decoder']);
+// Rapid polling is intentionally scarce. These sources consistently publish
+// timely, editorially usable work; the small Human Pulse set prevents the
+// homepage from becoming an AI-only current-affairs feed.
+const rapidSourceIds=new Set(['platformer','404','techdirt','techcrunch-ai','verge-ai','the-decoder','hyperallergic','literary-hub','creative-boom']);
 const tierFor=source=>source.state==='candidate'||source.tier==='candidate'?'candidate':rapidSourceIds.has(source.id)?'rapid':(source.tier==='flow'||Number(source.poll_minutes??240)<=90?'standard':'slow');
-const expectedMinutes=source=>tierFor(source)==='rapid'?45:tierFor(source)==='standard'?240:tierFor(source)==='candidate'?1440:480;
+const expectedMinutesForTier=tier=>tier==='rapid'?45:tier==='standard'?240:tier==='candidate'?1440:480;
+const expectedMinutes=source=>expectedMinutesForTier(tierFor(source));
 const configFor=source=>JSON.stringify({
   url:source.url??null,handle:source.handle??null,essays:source.essays===true,allPosts:source.allPosts===true,
-  title_prefixes:source.title_prefixes??[],lane:source.lane??null
+  title_prefixes:source.title_prefixes??[],lane:source.lane??null,format:source.format??null,
+  short_excerpt:source.short_excerpt===true,promotion_tier:source.promotion_tier??'slow'
 });
 
 export function catalogueSource(source, now=Date.now()) {
@@ -28,6 +30,7 @@ export function sourceFromCatalogue(row) {
   return {id:row.id,name:row.name,kind:row.kind,url:row.feed_url??config.url??undefined,handle:config.handle??undefined,
     site:row.site_url,topic:row.topic,language:row.language,lane:row.intended_lane??config.lane??undefined,
     essays:config.essays===true,allPosts:config.allPosts===true,title_prefixes:config.title_prefixes??[],
+    format:config.format??null,short_excerpt:config.short_excerpt===true,promotion_tier:config.promotion_tier??'slow',
     poll_minutes:row.expected_minutes,catalogue_state:row.state,tier:row.tier};
 }
 
@@ -41,7 +44,9 @@ export async function ensureSourceCatalogue(db, now=Date.now()) {
     statements.push(db.prepare(`INSERT INTO source_catalogue(id,name,feed_url,site_url,kind,config,language,intended_lane,topic,state,tier,expected_minutes,pinned,added_at,last_state_change,state_reason)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET name=excluded.name,feed_url=excluded.feed_url,site_url=excluded.site_url,kind=excluded.kind,
-      config=excluded.config,language=excluded.language,intended_lane=excluded.intended_lane,topic=excluded.topic`)
+      config=excluded.config,language=excluded.language,intended_lane=excluded.intended_lane,topic=excluded.topic,
+      tier=CASE WHEN source_catalogue.state IN ('active','candidate','probation') THEN excluded.tier ELSE source_catalogue.tier END,
+      expected_minutes=CASE WHEN source_catalogue.state IN ('active','candidate','probation') THEN excluded.expected_minutes ELSE source_catalogue.expected_minutes END`)
       .bind(row.id,row.name,row.feed_url,row.site_url,row.kind,row.config,row.language,row.intended_lane,row.topic,row.state,row.tier,row.expected_minutes,row.pinned,row.added_at,row.last_state_change,row.state_reason));
   }
   statements.push(db.prepare(`INSERT INTO source_catalogue_meta(id,value,updated_at) VALUES('version',?,?)
@@ -89,7 +94,7 @@ export function evaluateSource(row, now=Date.now()) {
   const stale=age>=STALE_SOURCE_DAYS*DAY&&(!row.last_new_item_at||now-Number(row.last_new_item_at)>=STALE_SOURCE_DAYS*DAY);
   let recommendation='keep',rationale='Evidence is still accumulating.';
   if(age>=30*DAY&&noSuccess){recommendation='retire-technical';rationale='No successful feed response in 30 days.';}
-  else if(failedDays>=14){recommendation='pause';rationale='No successful feed response on 14 observed days.';}
+  else if(failedDays>=3){recommendation='pause';rationale='No successful feed response on 3 observed days; pause it before repeated retries consume collection capacity.';}
   else if(row.state==='active'&&stale){recommendation='watch-stale';rationale=`No genuinely new item recorded in ${STALE_SOURCE_DAYS} days; slow collection and review before any retirement.`;}
   else if(raw>=100&&accepted<3&&!row.pinned){recommendation='retire-review';rationale='Fewer than 3 accepted items from at least 100 raw items.';}
   else if(raw>=40&&(accepted/raw)<.05&&!row.pinned){recommendation='watch';rationale='Accepted-item yield is below 5% after a meaningful sample.';}
@@ -116,6 +121,13 @@ export async function evaluateSourceVitality(db, now=Date.now()) {
       .bind(score.recommendation==='pause'?'paused':'retired',now,score.rationale,row.id));
     else if(score.recommendation==='watch-stale')statements.push(db.prepare(`UPDATE source_catalogue SET state='watch',tier='slow',expected_minutes=1440,last_state_change=?,state_reason=? WHERE id=? AND state='active'`)
       .bind(now,score.rationale,row.id));
+    else if(score.recommendation==='promote-review'){
+      const source=sourceFromCatalogue(row);
+      const tier=['rapid','standard','slow'].includes(source.promotion_tier)?source.promotion_tier:'slow';
+      const rationale='Automatically promoted after at least 14 days, 20 usable items, and a standing of 65 or higher.';
+      statements.push(db.prepare(`UPDATE source_catalogue SET state='active',tier=?,expected_minutes=?,last_state_change=?,state_reason=? WHERE id=? AND state IN ('candidate','probation')`)
+        .bind(tier,expectedMinutesForTier(tier),now,rationale,row.id));
+    }
   }
   if(statements.length)await db.batch(statements);
   return results.map(row=>({id:row.id,...evaluateSource(row,now)}));

@@ -1,6 +1,6 @@
 # Bond6 Source Vitality
 
-**Status:** implemented foundations; editorial promotion/retirement is review-gated
+**Status:** implemented; automatic technical protection and evidence-based trial promotion
 
 **Depends on:** Bond6 Rhythm, durable source state, D1 row-usage safeguards
 
@@ -56,7 +56,11 @@ The source is technically reachable but has declining editorial yield, excessive
 
 ### Paused and retired
 
-Broken feeds can be paused automatically. Editorial retirement should initially be a reviewed recommendation. A retired record retains the reason, score snapshot, and a cooldown date so the same weak feed is not repeatedly re-added.
+Broken feeds are paused automatically after three failed observation days, so a
+bad endpoint cannot repeatedly spend the free polling budget. Editorial
+retirement remains a reviewed recommendation. A retired record retains the
+reason, score snapshot, and a cooldown date so the same weak feed is not
+repeatedly re-added.
 
 A source that still responds but produces no genuinely new item for **60 days**
 automatically moves from `active` to `watch`, with a 24-hour collection cadence.
@@ -121,12 +125,12 @@ Ratios are smoothed with a small prior so three strong items out of ten are prom
 
 | Evidence | Recommended action |
 | --- | --- |
-| 14 days, 20+ usable items, strong standing, available language slot | Promote candidate to active. |
+| 14 days, 20+ usable items, standing ≥65 | Automatically promote probation source to active at a slow cadence. |
 | 14 days, fewer than 20 usable items | Continue probation; do not punish a genuinely slow source. |
 | 40+ raw items and very low accepted yield | Move to watch; reduce cadence. |
 | 100+ raw items and fewer than 2–3 accepted items | Recommend editorial retirement. |
 | Duplicate share above 60% over a meaningful sample | Reduce cadence, merge role with a better source, or retire. |
-| Repeated failed checks for 14 days | Pause automatically. |
+| Failed checks on 3 observed days | Pause automatically; preserve the feed and reason for repair/reactivation. |
 | No successful response for 30 days | Retire automatically with a technical reason. |
 | Successful responses but no genuinely new item for 60 days | Move to watch and collect once per day; review before retiring. |
 | Low-volume source with a high value score | Preserve as a pinned slow source. |
@@ -159,13 +163,19 @@ This leaves 104 collections/day for retries, one-off verification, and temporary
 
 ### Initial catalogue cadence
 
-The existing 53 Bond6 sources are seeded as active; none are discarded by this migration. Their old requested intervals exceeded the free-tier collection ceiling, so the initial Source Vitality policy sets six high-signal AI sources to 45 minutes, 20 standard sources to four hours, and 27 slower culture/essay sources to eight hours. This is approximately 393 planned checks/day, leaving capacity for retries. Future evaluation may recommend a tier change, but does not silently accelerate all sources.
+The existing sources are seeded without discarding any previous record. Nine
+high-yield editorial sources (six AI and three Human Pulse) use a 45-minute
+cadence; the rest use standard, slow, or trial intervals. Human rapid sources
+are deliberately limited to Hyperallergic, Literary Hub, and Creative Boom:
+they improve freshness without letting a cultural feed overwhelm the budget.
+Poetry and first-party cultural-audio feeds may use a smaller excerpt threshold
+only after they pass the same item-level Human Pulse gate.
 
 ## Operator controls
 
 The catalogue is data-driven at runtime. The current `src/sources.js` list is seeded once into `source_catalogue`; it remains the auditable record of Bond6's initial sources, while day-to-day state, cadence, and candidate entries live in D1. Re-running a deploy synchronizes harmless metadata (name, feed URL, declared language and role) but deliberately never overwrites a source's operational state, reason, pinned setting, or accumulated evidence.
 
-To trial a proposed source, add a row as `candidate` with a verified public feed URL, declared language and intended lane. Its first successful check automatically moves it to `probation`; it is observed but cannot appear in the public Flow. An editor reviews the stored evaluation before setting `state='active'`, or records a documented `watch`, `paused`, or `retired` outcome. Technical failures are the only automatic state actions.
+To trial a proposed source, add a row as `candidate` with a verified public feed URL, declared language and intended lane. Its first successful check automatically moves it to `probation`; it is observed but cannot appear in the public Flow. After at least 14 days, 20 usable items, and a standing of 65, a probation source is promoted to active at its declared `promotion_tier` (slow by default). An editor can still record a documented `watch`, `paused`, or `retired` outcome at any time.
 
 This separation means Bond6 can add, test, slow, pause, restore, or retire individual sources without a code deploy, while preserving the original source list and every decision's reason in the database.
 
@@ -195,15 +205,19 @@ Daily aggregates—not a record per reader or per rendering request—keep the s
 
 Run once per UTC day after collection and before pruning:
 
-1. Load active, watch, candidate, and paused sources with their rolling 14-, 30-, and 90-day aggregates.
+1. Load active, watch, candidate, probation, and paused sources with their rolling 14-, 30-, and 90-day aggregates.
 2. Calculate scores and confidence based on sample size.
-3. Apply automatic technical pauses only.
-4. Produce promotion, demotion, retirement, and cadence recommendations.
+3. Apply automatic technical pauses and high-confidence probation promotions.
+4. Produce demotion, retirement, and cadence recommendations.
 5. Enforce English/Chinese caps, source diversity, and pinned-source protection.
 6. Store a compact rationale and send it to an internal diagnostic report.
 7. Require review before editorial promotions or retirements during calibration.
 
-After at least four weeks of reliable observation, explicitly approved high-confidence rules may be automated. Every state change must remain reversible and attributable.
+Every state change remains reversible and attributable. Run `npm run report:sources`
+after a Wrangler login for the source-by-source diagnostic: fetches, successes,
+usable and accepted items, current Flow-eligible cards, last success/new content,
+scores, and the recorded reason. “Current Flow-eligible” is intentionally not a
+reader-impression count; Bond6 does not retain individual reader histories.
 
 ## Success criteria
 
