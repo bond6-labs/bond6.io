@@ -90,15 +90,20 @@ test('live feed continuations use a stable cursor and never repeat rendered stor
   const next=continuationText.match(/data-next-page href="([^"]+)"/);assert.ok(next);assert.match(next[1],/before=/);
 });
 test('Focusing labels emerging signals and Bonding renders a Bonding route',async()=>{
-  const db=database();
-  const human=story(310,{title:'A musician writes about care in creative work',excerpt:'A musician describes music, community care and authorship in a personal account.',source:'Human Journal',source_id:'human-journal'});
-  const humanTwo=story(311,{title:'Independent musicians build a caring community',excerpt:'A songwriter reflects on music, community and creative work.',source:'Human Journal Two',source_id:'human-journal-two'});
-  const ai=story(312,{title:'AI tools reshape authorship for artists',excerpt:'An AI system changes creative work, authorship and the rights of artists.',lane:'ai',subject:'digital',source:'AI Journal',source_id:'ai-journal'});
-  await storeItems(db,{...source,id:'human-journal',name:'Human Journal'},[human],now);
-  await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
-  await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
-  const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);
-  const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
+  // Focusing has a seven-day window. Keep this fixture independent of the
+  // wall clock so the deploy check does not expire as calendar time passes.
+  const realNow=Date.now;Date.now=()=>now;
+  try {
+    const db=database();
+    const human=story(310,{title:'A musician writes about care in creative work',excerpt:'A musician describes music, community care and authorship in a personal account.',source:'Human Journal',source_id:'human-journal'});
+    const humanTwo=story(311,{title:'Independent musicians build a caring community',excerpt:'A songwriter reflects on music, community and creative work.',source:'Human Journal Two',source_id:'human-journal-two'});
+    const ai=story(312,{title:'AI tools reshape authorship for artists',excerpt:'An AI system changes creative work, authorship and the rights of artists.',lane:'ai',subject:'digital',source:'AI Journal',source_id:'ai-journal'});
+    await storeItems(db,{...source,id:'human-journal',name:'Human Journal'},[human],now);
+    await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
+    await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
+    const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);
+    const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
+  } finally { Date.now=realNow; }
 });
 test('live Rhythm ordering is opt-in without exposing diagnostic controls',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);
