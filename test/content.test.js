@@ -10,6 +10,8 @@ test('RSS preserves Chinese, author and publication; Atom updated is not publica
   assert.equal(s.original_lang,'zh');assert.equal(s.author,'李明');assert.equal(s.lane,'human');assert.equal(s.original_published_at,now-86400000);assert.equal(s.url,'https://example.org/a');
   const [atom]=fromRss('<feed><entry><title>Writing a poem</title><link href="https://example.org/p"/><updated>2026-11-12T00:00Z</updated><author><name>Ada</name></author></entry></feed>',source);
   assert.equal(atom.original_published_at,null);assert.equal(atom.author,'Ada');
+  const [declaredChinese]=fromRss('<rss><channel><item><title>China’s AI Short-Drama Boom</title><link>https://example.org/chinese-publisher</link><description>An English metadata summary for a Chinese-language publication.</description></item></channel></rss>',{...source,language:'zh'});
+  assert.equal(declaredChinese.original_lang,'zh');
 });
 test('RSS media previews retain only public image, audio and video links',()=>{
   const [s]=fromRss('<rss><channel><item><title>一首歌的现场版本</title><link>https://example.org/live</link><description>一段关于音乐现场录制、听众与创作过程的中文文章。</description><media:thumbnail url="https://cdn.example.org/live.jpg" title="演出现场"/><enclosure url="https://cdn.example.org/live.mp3" type="audio/mpeg"/><media:content url="https://www.youtube.com/watch?v=abcdef12345" type="video/mp4"/></item></channel></rss>',source);

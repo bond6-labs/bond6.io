@@ -5,6 +5,7 @@ import {database} from './db.js';
 import {storeItems} from '../src/ingest.js';
 import {story,source,now,note} from './fixtures.js';
 import {snapshotStory} from '../src/publishing.js';
+import {ensureSourceCatalogue} from '../src/source-vitality.js';
 test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaScript or AI',async()=>{
   const db=database();const s=story();await storeItems(db,source,[s],now);
   const picked=await db.prepare(`SELECT s.*,r.rhythm_version,r.human_score AS rhythm_human_score,r.ai_score AS rhythm_ai_score,
@@ -121,8 +122,12 @@ test('stale cards that fail the current lane rule do not render or enter live RS
 test('language editions show only original-language stories and no translated-title fallback',async()=>{
   const db=database();const en=story(94,{title:'An English original headline',title_zh:'A translated headline that must not render'});
   const zh=story(95,{url:'https://example.org/zh/95',link:'https://example.org/zh/95',canonical_url:'https://example.org/zh/95',title:'一条中文原创标题',original_lang:'zh',source:'中文工作室'});
+  const mismatchedPublisher=story(99,{url:'https://example.org/tmtpost/99',link:'https://example.org/tmtpost/99',canonical_url:'https://example.org/tmtpost/99',title:'China’s AI Short-Drama Boom',excerpt:'English publisher metadata for a Chinese-language original.',source:'钛媒体',source_id:'tmtpost',original_lang:'en',lane:'ai',subject:'digital'});
+  await ensureSourceCatalogue(db,now);
   await storeItems(db,source,[en,zh],now);
+  await storeItems(db,{...source,id:'tmtpost',name:'钛媒体',language:'zh',lane:'ai'},[mismatchedPublisher],now);
   const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();assert.match(enText,/An English original headline/);assert.doesNotMatch(enText,/一条中文原创标题/);assert.doesNotMatch(enText,/A translated headline that must not render/);assert.match(enText,/aria-label="Search stories"/);assert.match(enText,/>中<\/a>/);
+  assert.doesNotMatch(enText,/China’s AI Short-Drama Boom/);
   const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();assert.match(zhText,/一条中文原创标题/);assert.doesNotMatch(zhText,/An English original headline/);assert.match(zhText,/>EN<\/a>/);
   const zhFeed=await worker.fetch(new Request('https://bond6.io/zh/feed.xml'),{DB:db});const zhXml=await zhFeed.text();assert.match(zhXml,/一条中文原创标题/);assert.doesNotMatch(zhXml,/An English original headline/);
 });

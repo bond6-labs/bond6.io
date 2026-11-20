@@ -17,10 +17,11 @@ async function rss(env,v) {
   if (kind==='live') {
     const [{results},{results:catalogue}]=await Promise.all([
       env.DB.prepare(`SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? ${lane?'AND lane=?':''} ORDER BY discovered_at DESC,url DESC LIMIT 50`).bind(v.zh?'zh':'en',...(lane?[lane]:[])).all(),
-      env.DB.prepare('SELECT id,state FROM source_catalogue').all()
+      env.DB.prepare('SELECT id,state,language FROM source_catalogue').all()
     ]);
-    const stateBySource=new Map(catalogue.map(source=>[source.id,source.state]));
-    items=results.filter(s=>!retiredSourceIds.has(s.source_id)&&!['paused','retired'].includes(stateBySource.get(s.source_id))&&classify(s.title??'',s.excerpt??'',sources.find(source=>source.id===s.source_id)).lane===s.lane)
+    const catalogueBySource=new Map(catalogue.map(source=>[source.id,source]));
+    const originalLanguage=v.zh?'zh':'en';
+    items=results.filter(s=>{const source=catalogueBySource.get(s.source_id);return !retiredSourceIds.has(s.source_id)&&!['paused','retired'].includes(source?.state)&&(!source||source.language===originalLanguage)&&classify(s.title??'',s.excerpt??'',sources.find(candidate=>candidate.id===s.source_id)).lane===s.lane;})
       .map(s=>({title:s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
   } else {
     const {results}=await env.DB.prepare('SELECT * FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 50').bind(kind).all();

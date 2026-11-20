@@ -39,7 +39,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   <link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="en" href="${en}"><link rel="alternate" hreflang="zh-Hans" href="${zh}"><link rel="alternate" hreflang="x-default" href="${en}">
   <meta property="og:type" content="${edition?'article':'website'}"><meta property="og:site_name" content="Bond6.io"><meta property="og:title" content="${esc(heading)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">
   <meta property="og:image" content="https://bond6.io/social-card.png"><meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
+  <link rel="icon" href="/favicon.svg?v=${esc(v.release??'local')}" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
   <script src="/reader.js?v=${esc(v.release??'local')}" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=Lora:wght@500;600&family=Noto+Serif+SC:wght@500;600&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">

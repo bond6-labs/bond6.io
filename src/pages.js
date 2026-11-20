@@ -122,6 +122,9 @@ function conversationStrip(topics,v,{empty=false}={}) {
 }
 export async function home(env,v,{trending=false}={}) {
   const db=env.DB, now=Date.now(), search=(v.url.searchParams.get('q')??'').trim().slice(0,120), originalLanguage=v.zh?'zh':'en';
+  // Keep a previously misclassified card out of the opposite edition while
+  // scheduled collection corrects its stored language on the next refresh.
+  const sourceLanguageGuard=alias=>`AND NOT EXISTS(SELECT 1 FROM source_catalogue language_catalogue WHERE language_catalogue.id=${alias}.source_id AND language_catalogue.language<>?)`;
   const subject=subjects.includes(v.url.searchParams.get('topic'))?v.url.searchParams.get('topic'):null;
   const signal=conversationTopic(v.url.searchParams.get('signal'));
   const requestedLane=['human','ai'].includes(v.url.searchParams.get('lane'))?v.url.searchParams.get('lane'):null;
@@ -133,8 +136,8 @@ export async function home(env,v,{trending=false}={}) {
   const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending||!!continuationLane;
   const cursor=archive?requestedCursor:null;
   const rhythmLive=env.RHYTHM_LIVE_RANKING==='true';
-  const where=`s.lane IS NOT NULL AND s.original_lang=? ${continuationLane?'AND s.lane=?':''} ${cursor?'AND (s.discovered_at<? OR (s.discovered_at=? AND s.url<?))':''} AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) AND NOT EXISTS(SELECT 1 FROM source_catalogue catalogue WHERE catalogue.id=s.source_id AND catalogue.state IN ('paused','retired')) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
-  const args=[originalLanguage,...(continuationLane?[continuationLane]:[]),...(cursor?[cursor.discoveredAt,cursor.discoveredAt,cursor.url]:[]),...(subject?[subject]:[]),...(search?[search]:[])];
+  const where=`s.lane IS NOT NULL AND s.original_lang=? ${sourceLanguageGuard('s')} ${continuationLane?'AND s.lane=?':''} ${cursor?'AND (s.discovered_at<? OR (s.discovered_at=? AND s.url<?))':''} AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) AND NOT EXISTS(SELECT 1 FROM source_catalogue catalogue WHERE catalogue.id=s.source_id AND catalogue.state IN ('paused','retired')) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
+  const args=[originalLanguage,originalLanguage,...(continuationLane?[continuationLane]:[]),...(cursor?[cursor.discoveredAt,cursor.discoveredAt,cursor.url]:[]),...(subject?[subject]:[]),...(search?[search]:[])];
   // Joining signals only behind the gate lets a deploy calculate and audit
   // Rhythm without changing the chronological public feed.
   // Relevance should guide the Flow, but a week-old high score must not pin
@@ -160,9 +163,9 @@ export async function home(env,v,{trending=false}={}) {
   if (!archive) {
     const columns=await db.batch([
       db.prepare(liveCandidates).bind(...args),
-      db.prepare(`SELECT count(CASE WHEN lane='human' THEN 1 END) AS human,count(CASE WHEN lane='ai' THEN 1 END) AS ai FROM stories WHERE original_lang=? AND discovered_at>=?`).bind(originalLanguage,now-7*DAY),
+      db.prepare(`SELECT count(CASE WHEN lane='human' THEN 1 END) AS human,count(CASE WHEN lane='ai' THEN 1 END) AS ai FROM stories s WHERE s.original_lang=? AND s.discovered_at>=? ${sourceLanguageGuard('s')}`).bind(originalLanguage,now-7*DAY,originalLanguage),
       db.prepare('SELECT max(ok_at) AS checked FROM source_state'),
-      db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 60').bind(originalLanguage,now-7*DAY)
+      db.prepare(`SELECT * FROM stories s WHERE s.lane IS NOT NULL AND s.original_lang=? AND s.discovered_at>=? ${sourceLanguageGuard('s')} ORDER BY s.discovered_at DESC,s.url DESC LIMIT 60`).bind(originalLanguage,now-7*DAY,originalLanguage)
     ]);
     stories=focusedStories(columns[0].results);rawStories=columns[0].results;mixStats=columns[1].results[0];last=columns[2].results[0]?.checked;
     liveBond=liveBondRoute(focusedStories(columns[3].results));
@@ -170,7 +173,7 @@ export async function home(env,v,{trending=false}={}) {
   } else {
     const supporting=trending?await db.batch([
       db.prepare('SELECT max(ok_at) AS checked FROM source_state'),
-      db.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 60').bind(originalLanguage,now-7*DAY),
+      db.prepare(`SELECT * FROM stories s WHERE s.lane IS NOT NULL AND s.original_lang=? AND s.discovered_at>=? ${sourceLanguageGuard('s')} ORDER BY s.discovered_at DESC,s.url DESC LIMIT 60`).bind(originalLanguage,now-7*DAY,originalLanguage),
       db.prepare("SELECT event,sum(count) AS count FROM metrics WHERE day>=? AND event LIKE 'focus:%' GROUP BY event").bind(dayKey(now-7*DAY))
     ]):await db.batch([db.prepare('SELECT max(ok_at) AS checked FROM source_state')]);
     last=supporting[0].results[0]?.checked;
@@ -233,7 +236,9 @@ export async function bondPage(env,v,id) {
   const now=Date.now();
   const [{results},{results:recent}]=await Promise.all([
     env.DB.prepare(`SELECT snapshot,correction FROM editions WHERE kind='bond' ORDER BY edition_date DESC LIMIT 50`).all(),
-    env.DB.prepare('SELECT * FROM stories WHERE lane IS NOT NULL AND original_lang=? AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120').bind(v.zh?'zh':'en',now-7*DAY).all()
+    env.DB.prepare(`SELECT * FROM stories s WHERE s.lane IS NOT NULL AND s.original_lang=? AND s.discovered_at>=?
+      AND NOT EXISTS(SELECT 1 FROM source_catalogue language_catalogue WHERE language_catalogue.id=s.source_id AND language_catalogue.language<>?)
+      ORDER BY s.discovered_at DESC,s.url DESC LIMIT 120`).bind(v.zh?'zh':'en',now-7*DAY,v.zh?'zh':'en').all()
   ]);
   const originalLanguage=v.zh?'zh':'en';
   const editions=[...results.map(parse),...legacyEditions].filter(edition=>edition.stories?.length&&edition.stories.every(story=>story.original_lang===originalLanguage)).slice(0,50);

@@ -11,6 +11,10 @@ export const pollIntervalMs = source => Math.min(1440, Math.max(10, Number(sourc
 const CURRENT_ITEM_WINDOW=30*DAY;
 const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
 const shortHosts = new Set(['t.co', 'bit.ly', 'buff.ly', 'ow.ly', 'tinyurl.com']);
+// A feed's declared language defines which edition it can enter. Individual
+// publishers occasionally supply an English metadata headline for a Chinese
+// article (or the reverse), but that does not make the source edition English.
+const itemLanguage = (source, text) => ['en','zh'].includes(source?.language) ? source.language : language(text);
 const attr = (node, ...names) => {
   for (const value of [node].flat()) for (const name of names) {
     const candidate = value?.[`@_${name}`] ?? value?.[name];
@@ -115,7 +119,7 @@ export function fromRss(body, source) {
     const excerpt = plain(rawDescription, 2200);
     const date = Date.parse(item.pubDate ?? item.published);
     const author = cleanAuthor(item['dc:creator'] ?? item.author?.name ?? item.author);
-    return { url, link: url, title, excerpt, author, original_lang: language(title + ' ' + excerpt), original_published_at: Number.isFinite(date) ? date : null,
+    return { url, link: url, title, excerpt, author, original_lang: itemLanguage(source,title + ' ' + excerpt), original_published_at: Number.isFinite(date) ? date : null,
       content_type: 'article', canonical_url: url, ...feedMedia(item, rawDescription, source), ...classify(title, excerpt, source) };
   });
 }
@@ -138,7 +142,7 @@ export function fromBluesky(body, source) {
     const video = videoPreview(external?.uri);
     return { url: distinctive ? link : article ?? link, link, title, excerpt,
       author: distinctive || !article ? cleanAuthor(post.author.displayName || post.author.handle) : null,
-      original_lang: language(title + ' ' + excerpt), original_published_at: distinctive || !article ? (Number.isFinite(posted) ? posted : null) : null,
+      original_lang: itemLanguage(source,title + ' ' + excerpt), original_published_at: distinctive || !article ? (Number.isFinite(posted) ? posted : null) : null,
       shared_at: Number.isFinite(posted) ? posted : null, content_type: distinctive || !article ? 'post' : 'shared-article',
       canonical_url: article ?? link, image_url, ...video, ...classify(title, excerpt, source) };
   });
