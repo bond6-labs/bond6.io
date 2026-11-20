@@ -34,6 +34,11 @@ export const sources = [
   { id: 'rumpus', name: 'The Rumpus', kind: 'rss', url: 'https://therumpus.net/feed/', site: 'https://therumpus.net/', topic: 'Independent arts, essays & poetry', lane: 'human', essays: true, poll_minutes: 480 },
   { id: 'stereogum', name: 'Stereogum', kind: 'rss', url: 'https://www.stereogum.com/feed/', site: 'https://www.stereogum.com/', topic: 'Music criticism & artists', lane: 'human', essays: true, poll_minutes: 480 },
   { id: 'pudding', name: 'The Pudding', kind: 'rss', url: 'https://pudding.cool/rss.xml', site: 'https://pudding.cool/', topic: 'Visual essays, culture & design', lane: 'human', essays: true, poll_minutes: 480 },
+  // Poetry is deliberately sourced from editorially selected feeds rather than
+  // generic quote sites, so a poem arrives with its poet and publication.
+  { id: 'poetry-daily', name: 'Poetry Daily', kind: 'rss', url: 'https://poems.com/?post_type=daily_poem&feed=rss2', site: 'https://poems.com/', topic: 'Contemporary poetry & poets', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'adroit-journal', name: 'The Adroit Journal', kind: 'rss', url: 'https://theadroitjournal.org/feed/', site: 'https://theadroitjournal.org/', topic: 'Contemporary poetry & literary arts', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'poetry-northwest', name: 'Poetry Northwest', kind: 'rss', url: 'https://www.poetrynw.org/feed/', site: 'https://www.poetrynw.org/', topic: 'Poetry, poets & craft', lane: 'human', essays: true, poll_minutes: 480 },
 
   // Candidate feeds are deliberately collected at a 24-hour cadence for
   // Source Vitality evidence. They never enter the public Flow until reviewed.
@@ -45,7 +50,12 @@ export const sources = [
   { id: 'print-magazine', name: 'PRINT Magazine', kind: 'rss', url: 'https://www.printmag.com/feed/', site: 'https://www.printmag.com/', topic: 'Design, illustration & creative practice', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'orion-magazine', name: 'Orion Magazine', kind: 'rss', url: 'https://orionmagazine.org/feed/', site: 'https://orionmagazine.org/', topic: 'Nature, place & cultural essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'emergence-magazine', name: 'Emergence Magazine', kind: 'rss', url: 'https://emergencemagazine.org/feed/', site: 'https://emergencemagazine.org/', topic: 'Ecology, culture, film & audio essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
-  { id: 'qingshu', name: '轻书散文小站', kind: 'rss', url: 'https://www.qingshu.art/feed.xml', site: 'https://www.qingshu.art/', topic: 'Essays & literary life', language: 'zh', essays: true, poll_minutes: 180 },
+  { id: 'qingshu', name: '轻书散文小站', kind: 'rss', url: 'https://qingshu.art/feed', site: 'https://qingshu.art/', topic: 'Essays & literary life', language: 'zh', lane: 'human', essays: true, poll_minutes: 480 },
+  // First-party programme feeds add Chinese spoken-word and poetry context.
+  // Their normal source caps still keep generic self-help material from
+  // dominating the Human Pulse.
+  { id: 'duzhe-podcast', name: '读者·官方播客', kind: 'rss', url: 'https://www.ximalaya.com/album/5088879.xml', site: 'https://www.duzhe.com/', topic: 'Personal essays, care & everyday life', language: 'zh', lane: 'human', essays: true, poll_minutes: 480 },
+  { id: 'here-is-poetry', name: '这里有诗', kind: 'rss', url: 'https://www.ximalaya.com/album/66643559.xml', site: 'https://www.xiaoyuzhoufm.com/', topic: 'Modern poetry, poets & readings', language: 'zh', lane: 'human', essays: true, poll_minutes: 480 },
   // Named programmes only: each has a public, first-party RSS feed and is
   // deliberately bounded to Human Pulse rather than a whole podcast directory.
   { id: 'random-waves', name: '随机波动', kind: 'rss', url: 'https://feeds.fireside.fm/stovol/rss', site: 'https://www.stovol.com/', topic: 'Culture, books & lived ideas', language: 'zh', lane: 'human', essays: true, poll_minutes: 180 },
@@ -71,6 +81,10 @@ export const sources = [
   { id: 'zhaoyuan-jian', name: '昭鸢笺', kind: 'rss', url: 'https://blog.mibase.top/index.xml', site: 'https://blog.mibase.top/', topic: 'Personal essays & literary notes', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'to-the-lighthouse', name: 'To the Lighthouse', kind: 'rss', url: 'https://owlswims.com/feed', site: 'https://owlswims.com/', topic: 'Reading, essays & reviews', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'tripper-press', name: 'Tripper Press', kind: 'rss', url: 'https://tripper.press/atom.xml', site: 'https://tripper.press/', topic: 'Photography, cities & travel culture', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  // This publication has a strong daily editor-selected poem, but no public
+  // RSS/Atom endpoint. Keep it visible for an eventual permissioned adapter;
+  // it is intentionally not fetched or scraped by the collector.
+  { id: 'china-poetry-network', name: '中国诗歌网·每日好诗', kind: 'reference', site: 'https://zgshige.com/mrhs/', topic: 'Original Chinese poetry', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', state_reason: 'Daily editor-selected poems; no public machine-readable feed verified. Retained for a permissioned adapter, not scraped.' },
 
   // AI Wave — primary labs plus reporting and critical analysis.
   { id: 'zitron-newsletter', name: 'Ed Zitron', kind: 'rss', url: 'https://www.wheresyoured.at/rss/', site: 'https://www.wheresyoured.at/', topic: 'First-person accounts', allPosts: true },

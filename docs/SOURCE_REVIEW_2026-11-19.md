@@ -66,3 +66,19 @@ These exclusions are reversible: the six feeds are catalogued as `retired` with
 their URLs and reasons, rather than removed. A source can return to the
 research queue or candidate pool when it resumes and exposes a current public
 feed.
+
+## Poetry and reading addendum — 2026-11-20
+
+This review used direct feed parsing as well as publication pages. The additions
+keep the live catalogue within its language ceilings: **49 English** and **22
+Simplified-Chinese** active sources at the time of review.
+
+| Source | State | Evidence and editorial role |
+| --- | --- | --- |
+| Poetry Daily | EN · active | Its visible general feed was empty, but the publisher's `daily_poem` RSS endpoint is readable and supplies attributed daily poems. |
+| The Adroit Journal | EN · active | A readable first-party feed; poetry, craft and literary-art items can pass the existing Human Pulse gate while unrelated posts remain out. |
+| Poetry Northwest | EN · active | A readable, lower-volume feed centred on poems, poets, interviews and craft. |
+| 轻书散文小站 | ZH · active | Corrected the prior broken `/feed.xml` address to its public `/feed` endpoint. It remains subject to the normal yield review because its output is broad. |
+| 《读者》官方播客 | ZH · active | A fresh first-party Ximalaya RSS feed; audio enclosures can be shown on Bond6. The Human Pulse gate and per-source cap protect the Flow from generic advice. |
+| 《这里有诗》 | ZH · active | A first-party Ximalaya RSS feed for modern-poetry readings and discussion, with usable audio enclosures. Its freshness will be monitored; it is not removed merely for a quiet period. |
+| 中国诗歌网·每日好诗 | ZH · reference candidate | The site offers a valuable daily editor-selected poem but no verified public RSS/Atom feed. It is retained in the catalogue without polling or scraping, pending a publisher-permitted machine-readable route. |

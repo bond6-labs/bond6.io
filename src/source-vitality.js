@@ -52,7 +52,7 @@ export async function ensureSourceCatalogue(db, now=Date.now()) {
 export async function dueSources(db, now, limit) {
   const {results}=await db.prepare(`SELECT c.*,s.next_at,s.etag,s.modified,s.failures,s.checked_at,s.ok_at
     FROM source_catalogue c LEFT JOIN source_state s ON s.id=c.id
-    WHERE c.state IN ('candidate','probation','active','watch') AND coalesce(s.next_at,0)<=?
+    WHERE c.state IN ('candidate','probation','active','watch') AND c.kind IN ('rss','bluesky') AND coalesce(s.next_at,0)<=?
     ORDER BY coalesce(s.next_at,0), CASE c.tier WHEN 'rapid' THEN 0 WHEN 'standard' THEN 1 WHEN 'slow' THEN 2 ELSE 3 END, c.id
     LIMIT ?`).bind(now,limit).all();
   return results;

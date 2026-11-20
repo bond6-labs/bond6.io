@@ -289,7 +289,7 @@ export async function sourcesPage(env,v) {
     return `<span class="source-health healthy">${v.say('Checked ','已检查：')}${date(Number(row.ok_at??row.checked_at),v)}</span>`;
   };
   const row=source=>{
-    const type=source.kind==='rss'?'RSS / Atom':'Bluesky', tier=source.tier==='rapid'?v.say('Rapid','快速'):source.tier==='slow'?v.say('Slow reading','慢速阅读'):source.tier==='candidate'?v.say('Candidate','候选'):v.say('Standard','常规');
+    const type=source.kind==='rss'?'RSS / Atom':source.kind==='bluesky'?'Bluesky':v.say('Reference','资料来源'), tier=source.tier==='rapid'?v.say('Rapid','快速'):source.tier==='slow'?v.say('Slow reading','慢速阅读'):source.tier==='candidate'?v.say('Candidate','候选'):v.say('Standard','常规');
     const score=Number.isFinite(Number(source.standing))?`<small class="source-standing">${v.say('Standing ','综合评分 ')}${Math.round(Number(source.standing))}/100</small>`:'';
     return `<li><div><a href="${esc(source.site_url??source.site)}">${esc(source.name)}</a><small>${esc(topic(source))} · ${type} · ${tier} · ${stateLabel(source.state)}</small>${score}</div>${health(source)}</li>`;
   };

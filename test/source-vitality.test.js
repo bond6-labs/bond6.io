@@ -41,6 +41,16 @@ test('candidate sources retain their trial state and slow daily cadence when see
   assert.equal(source.language,'en');
 });
 
+test('reference-only sources remain catalogued without being handed to the feed collector',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now);
+  const reference=await db.prepare('SELECT kind,state,feed_url FROM source_catalogue WHERE id=?').bind('china-poetry-network').first();
+  assert.equal(reference.kind,'reference');
+  assert.equal(reference.state,'candidate');
+  assert.equal(reference.feed_url,null);
+  const due=await dueSources(db,now,sources.length+1);
+  assert.ok(!due.some(source=>source.id==='china-poetry-network'));
+});
+
 test('retired sources remain catalogued with a reversible documented reason',async()=>{
   const db=database();await ensureSourceCatalogue(db,now);
   const row=await db.prepare('SELECT state,state_reason,feed_url FROM source_catalogue WHERE id=?').bind('gcores').first();
