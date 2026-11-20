@@ -18,7 +18,12 @@ const attr = (node, ...names) => {
   }
   return null;
 };
-const safeMediaUrl = value => canonical(typeof value === 'string' ? value.trim() : null);
+// Media appears directly in the reader's page. Restrict it to HTTPS so a
+// publisher's stale HTTP enclosure cannot become blocked mixed content.
+const safeMediaUrl = value => {
+  const url = canonical(typeof value === 'string' ? value.trim() : null);
+  return url?.startsWith('https://') ? url : null;
+};
 const mediaNodes = (item, key) => [item[key]].flat().filter(Boolean);
 const isImage = (url, type = '', medium = '') => /^image\//i.test(type) || /^image$/i.test(medium) || /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i.test(url ?? '');
 const isAudio = (url, type = '') => /^audio\//i.test(type) || /\.(?:mp3|m4a|aac|ogg|opus|wav)(?:$|[?#])/i.test(url ?? '');

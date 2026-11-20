@@ -36,7 +36,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .masthead { border-bottom: 1px solid var(--header-rule); background: #fff6e6; }
 .masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
 .wordmark { display: inline-flex; align-items: center; min-height: 44px; white-space: nowrap; }
-.brand-lockup { display: block; width: 180px; height: auto; }
+.brand-lockup { display: block; width: 118px; height: auto; }
 .tabs { display: flex; align-items: center; gap: clamp(6px, 3vw, 26px); }
 .tabs a { position: relative; display: flex; align-items: center; min-height: 44px; padding-inline: 7px; font-size: 12px; color: var(--muted); letter-spacing: .01em; }
 .tabs a[aria-current] { color: var(--gold); font-weight: 700; letter-spacing: .025em; }
@@ -351,7 +351,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 
 @media (max-width: 570px) {
   .shell { width: calc(100% - 32px); }
-  .brand-lockup { width: 158px; }
+  .brand-lockup { width: 110px; }
   .masthead-inner { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-top: 6px; }
   .tabs { grid-row: 2; grid-column: 1 / -1; margin-inline-start: 0; gap: 10px; }
   .reader-controls { grid-row: 1; grid-column: 2; }

@@ -18,6 +18,8 @@ test('RSS media previews retain only public image, audio and video links',()=>{
   assert.equal(s.video_url,'https://www.youtube-nocookie.com/embed/abcdef12345');
   const [unsafe]=fromRss('<rss><channel><item><title>A recording at home</title><link>https://example.org/recording</link><description>A long enough description of recording songs at home with friends and trying each arrangement before releasing it.</description><media:thumbnail url="http://127.0.0.1/private.jpg"/></item></channel></rss>',source);
   assert.equal(unsafe.image_url,null);
+  const [insecureVideo]=fromRss('<rss><channel><item><title>A recording at home</title><link>https://example.org/insecure-video</link><description>A long enough description of recording songs at home with friends and trying each arrangement before releasing it.</description><enclosure url="http://cdn.example.org/wrong-attachment.mp4" type="video/mp4"/></item></channel></rss>',source);
+  assert.equal(insecureVideo.video_url,null);
 });
 test('RSS publisher media supports medium=image and safe embedded feed previews',()=>{
   const [structured]=fromRss('<rss><channel><item><title>A working artist records music at home</title><link>https://example.org/structured</link><description>A detailed account of recording music with friends and testing arrangements over several evenings.</description><media:content url="https://cdn.example.org/ghost-cover.jpg" medium="image"/></item></channel></rss>',source);

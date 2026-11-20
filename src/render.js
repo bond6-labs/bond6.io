@@ -45,7 +45,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=Lora:wght@500;600&family=Noto+Serif+SC:wght@500;600&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css?v=${esc(v.release??'local')}"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
-  <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no"><img class="brand-lockup" src="/bond6-logo.png" width="1000" height="300" alt="" draggable="false"></a>
+  <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no"><img class="brand-lockup" src="/bond6-logo.png" width="1778" height="340" alt="" draggable="false"></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
   <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中'}</a>
   </div></div></header>
@@ -66,11 +66,14 @@ function mediaPreview(story,v) {
   const art=story.subject==='art';
   const image=story.image_url?`<a class="story-image${art?' preserve-media':''}" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><span class="story-image-frame"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" width="16" height="10" data-media-check data-min-width="${art?180:320}" data-min-height="${art?180:180}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="story-image-credit">${esc(credit)}</span></a>`:'';
   const audio=story.audio_url?`<div class="story-audio"><span>${v.say('Listen from ','收听：')}${esc(story.source)}</span><audio controls preload="none" src="${esc(story.audio_url)}">${v.say('Audio is available at the original source.','音频可在原始来源收听。')}</audio></div>`:'';
-  if (!story.video_url) return image+audio;
+  const videoUrl=typeof story.video_url==='string'&&story.video_url.startsWith('https://')?story.video_url:null;
+  if (!videoUrl) return image+audio;
   const title=v.say(`Play video from ${story.source}`,`播放 ${story.source} 的视频`);
-  const video=/^https:\/\/(?:www\.youtube-nocookie\.com|player\.vimeo\.com)\//.test(story.video_url)
-    ? `<iframe src="${esc(story.video_url)}" title="${esc(title)}" loading="lazy" referrerpolicy="no-referrer" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-    : `<video class="story-video-native" controls preload="metadata"${story.image_url?` poster="${esc(story.image_url)}"`:''}><source src="${esc(story.video_url)}">${v.say('Video is available at the original source.','视频可在原始来源观看。')}</video>`;
+  const video=/^https:\/\/(?:www\.youtube-nocookie\.com|player\.vimeo\.com)\//.test(videoUrl)
+    // YouTube requires the embedding site's origin to identify an iframe
+    // player. This sends only Bond6's origin, never the full story URL.
+    ? `<iframe src="${esc(videoUrl)}" title="${esc(title)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+    : `<video class="story-video-native" controls preload="metadata"${story.image_url?` poster="${esc(story.image_url)}"`:''}><source src="${esc(videoUrl)}">${v.say('Video is available at the original source.','视频可在原始来源观看。')}</video>`;
   return `${image}${audio}<details class="story-video"><summary>${esc(title)}</summary><div>${video}</div></details>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;

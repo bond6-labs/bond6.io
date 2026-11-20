@@ -125,9 +125,11 @@ test('publisher media previews render in the matching original-language edition'
   const db=database();
   const en=story(96,{image_url:'https://cdn.example.org/cover.jpg',audio_url:'https://cdn.example.org/listen.mp3',video_url:'https://www.youtube-nocookie.com/embed/abcdef12345'});
   const zh=story(97,{url:'https://example.org/zh/media',link:'https://example.org/zh/media',canonical_url:'https://example.org/zh/media',title:'一段中文声音记录',original_lang:'zh',image_url:'https://cdn.example.org/zh-cover.jpg',audio_url:'https://cdn.example.org/zh-listen.mp3'});
-  await storeItems(db,source,[en,zh],now);
+  const insecure=story(98,{url:'https://example.org/insecure-video',link:'https://example.org/insecure-video',canonical_url:'https://example.org/insecure-video',video_url:'http://cdn.example.org/wrong-attachment.mp4'});
+  await storeItems(db,source,[en,zh,insecure],now);
   const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();
-  assert.match(enText,/cdn\.example\.org\/cover\.jpg/);assert.match(enText,/<audio controls preload="none" src="https:\/\/cdn\.example\.org\/listen\.mp3">/);assert.match(enText,/youtube-nocookie\.com\/embed\/abcdef12345/);assert.match(english.headers.get('Content-Security-Policy'),/media-src https:/);
+  assert.match(enText,/cdn\.example\.org\/cover\.jpg/);assert.match(enText,/<audio controls preload="none" src="https:\/\/cdn\.example\.org\/listen\.mp3">/);assert.match(enText,/youtube-nocookie\.com\/embed\/abcdef12345/);assert.match(enText,/referrerpolicy="strict-origin-when-cross-origin"/);assert.match(english.headers.get('Content-Security-Policy'),/media-src https:/);
+  assert.doesNotMatch(enText,/<source src="http:\/\/cdn\.example\.org\/wrong-attachment\.mp4">/);
   const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();
   assert.match(zhText,/zh-cover\.jpg/);assert.match(zhText,/zh-listen\.mp3/);assert.doesNotMatch(zhText,/src="https:\/\/cdn\.example\.org\/cover\.jpg"/);
 });
