@@ -56,13 +56,17 @@ export function cleanAuthor(value) {
   return plain(value, 160).replace(/\s*\(GPG[^)]*\)/i, '').replace(/\s+@[^\s]+$/, '').trim() || null;
 }
 // These are transparent editorial topic definitions, not a measure of global popularity.
-// A topic appears only when it is present in at least three tracked sources.
+// A topic needs either independent-source evidence or clearly labelled reader interest.
 export const conversationTopics = [
   { key: 'creative-ai', en: 'AI & creative work', zh: 'AI 与创作', match: /\b(ai|artificial intelligence|generative|llms?|chatgpt|machine learning)\b.*\b(art|artist|music|musician|writ\w*|design|film|creative|creator)\b|\b(art|artist|music|musician|writ\w*|design|film|creative|creator)\b.*\b(ai|artificial intelligence|generative|llms?|chatgpt|machine learning)\b|人工智能.{0,32}(创作|艺术|音乐|写作|设计)|(?:创作|艺术|音乐|写作|设计).{0,32}人工智能/i },
   { key: 'ai-work', en: 'AI, work & labour', zh: 'AI、工作与劳动', match: /\b(ai|artificial intelligence|automation|algorithmic)\b.*\b(work|worker|job|labou?r|employment|pay|wage|union)\b|\b(work|worker|job|labou?r|employment|pay|wage|union)\b.*\b(ai|artificial intelligence|automation|algorithmic)\b|人工智能.{0,32}(工作|劳动|就业|薪酬)|(?:工作|劳动|就业|薪酬).{0,32}人工智能/i },
   { key: 'platform-power', en: 'Platforms & public life', zh: '平台与公共生活', match: /\b(social media|platforms?|content moderation|algorithmic feed|tiktok|instagram|youtube|bluesky|creator economy)\b|社交媒体|数字平台|内容审核|算法推荐|创作者经济/i },
   { key: 'rights-attribution', en: 'Copyright & attribution', zh: '版权与署名', match: /\b(copyright|licen[cs]e|attribution|authors?[’']? rights|intellectual property|piracy)\b|版权|著作权|署名|授权|知识产权/i },
   { key: 'digital-rights', en: 'Privacy & digital rights', zh: '隐私与数字权利', match: /\b(privacy|surveillance|digital rights|data protection|facial recognition|encryption)\b|隐私|监控|数字权利|数据保护|加密/i },
+  // Keep this deliberately conjunctive: ordinary science reporting, generic AI
+  // releases, and unverified mathematical claims without an AI connection do
+  // not belong in this focus.
+  { key: 'math-ai-proof', en: 'Mathematics, proof & AI', zh: '数学证明与 AI', match: /\b(?:ai|artificial intelligence|claude|chatgpt|llms?|machine learning|formal verification|lean)\b[\s\S]{0,220}\b(?:riemann|mathemat(?:ics|ical|ician)|proof|theorem|conjecture|hypothesis|number theory)\b|\b(?:riemann|mathemat(?:ics|ical|ician)|proof|theorem|conjecture|hypothesis|number theory)\b[\s\S]{0,220}\b(?:ai|artificial intelligence|claude|chatgpt|llms?|machine learning|formal verification|lean)\b|(?:人工智能|AI|大模型|形式化验证|Lean).{0,80}(?:黎曼|数学|证明|定理|猜想)|(?:黎曼|数学|证明|定理|猜想).{0,80}(?:人工智能|AI|大模型|形式化验证|Lean)/i },
   { key: 'independent-music', en: 'Independent music', zh: '独立音乐', match: /\b(independent music|record label|musician|album|songwriter|band|concert|touring)\b|独立音乐|唱片|音乐人|乐队|专辑|巡演/i },
   { key: 'books-writing', en: 'Books & writing', zh: '书籍与写作', match: /\b(book|books|poetry|poet|novel|fiction|essay|writer|writing|publishing)\b|书籍|诗歌|小说|散文|作家|写作|出版/i },
   { key: 'visual-culture', en: 'Art & design', zh: '艺术与设计', match: /\b(art|artist|exhibition|museum|painting|photography|illustration|design|designer|architecture)\b|艺术|画家|展览|博物馆|绘画|摄影|插画|设计|建筑/i }
@@ -74,16 +78,81 @@ export function storyTopics(story) {
   const text = `${story.title ?? ''} ${story.excerpt ?? ''}`;
   return conversationTopics.filter(topic => topic.match.test(text)).map(topic => topic.key);
 }
+
+// An event cross-current is not a declaration that a claim is true. It is a
+// narrow, auditable way to put independent reporting about one named event in
+// conversation when it genuinely contains both an AI and a human dimension.
+// The known names preserve language-specific labels; the generic matcher lets
+// future named hypotheses, conjectures, theorems, and problems form a cluster
+// without adding a new one-off rule each time.
+const namedMathEvents = [
+  { key: 'event:riemann-hypothesis', en: 'Riemann hypothesis', zh: '黎曼猜想', match: /\b(?:the\s+)?riemann hypothesis\b|黎曼猜想/i }
+];
+const namedMathPhrase = /\b(?:the\s+)?((?:[A-Z][\p{L}'’-]*\s+){0,3}(?:hypothesis|conjecture|theorem|problem))\b/u;
+const chineseMathPhrase = /([\u4e00-\u9fff]{2,10}(?:猜想|定理|问题))/;
+const eventSlug = value => String(value).toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0,72);
+const eventText = story => `${story?.title ?? ''} ${story?.excerpt ?? ''}`;
+
+export function storyEvents(story) {
+  const text=eventText(story);
+  // Event grouping is stricter than the broad topic: it needs a named
+  // mathematical question *and* the AI/proof connection on this specific item.
+  if (!conversationTopic('math-ai-proof').match.test(text)) return [];
+  const known=namedMathEvents.find(event=>event.match.test(text));
+  if (known) return [known];
+  const headline=String(story?.title??'');
+  const phrase=headline.match(namedMathPhrase)?.[1]?.replace(/^the\s+/i,'').trim()
+    ?? headline.match(chineseMathPhrase)?.[1]?.trim();
+  if (!phrase) return [];
+  const key=eventSlug(phrase);
+  if (!key) return [];
+  return [{key:`event:${key}`,en:phrase,zh:phrase}];
+}
+export const storyFocusKeys = story => [...new Set([...storyTopics(story),...storyEvents(story).map(event=>event.key)])];
+
+const eventRoles = story => {
+  const text=eventText(story);
+  return {
+    ai: /\b(?:ai|artificial intelligence|claude|chatgpt|llms?|machine learning|formal verification|lean)\b|(?:人工智能|大模型|形式化验证|Lean)/i.test(text),
+    human: /\b(?:human|mathematician|mathematicians|researcher|researchers|all-human|competing|independent)\b|(?:人类|数学家|研究者|人工证明|独立)/i.test(text),
+    claim: /\b(?:claim(?:ed|s|ing)?|proposed|proposal|draft|unverified|under review|verify|verification|scrutin\w*)\b|(?:声称|草稿|待验证|核验|审查)/i.test(text)
+  };
+};
+
+export function eventCrossCurrents(stories, now = Date.now()) {
+  const active=stories.filter(story=>(story?.discovered_at??0)>=now-7*DAY);
+  const groups=new Map();
+  for (const story of active) for (const event of storyEvents(story)) {
+    const group=groups.get(event.key)??{...event,stories:[],sources:new Set(),roles:{ai:false,human:false,claim:false},latest:0};
+    const roles=eventRoles(story);
+    group.stories.push(story); group.sources.add(story.source_id??story.source);
+    for (const key of Object.keys(group.roles)) group.roles[key] ||= roles[key];
+    group.latest=Math.max(group.latest,Number(story.discovered_at)||0);
+    groups.set(event.key,group);
+  }
+  return [...groups.values()].map(group=>{
+    const stories=[...group.stories].sort((a,b)=>(Number(b.discovered_at)||0)-(Number(a.discovered_at)||0));
+    const distinct=[]; const seen=new Set();
+    for(const story of stories){const source=story.source_id??story.source;if(seen.has(source))continue;seen.add(source);distinct.push(story);if(distinct.length===3)break;}
+    const sources=group.sources.size;
+    // Two independent publishers plus a visible AI/human contrast protects the
+    // route from becoming a single-source announcement or a generic AI cluster.
+    if (sources<2||!group.roles.ai||!group.roles.human) return null;
+    return {...group,kind:'event',stories:distinct,sources,strength:sources>=3?'strong':'emerging',status:group.roles.claim?'under-review':'reported'};
+  }).filter(Boolean).sort((a,b)=>b.sources-a.sources||b.latest-a.latest);
+}
+
 export function conversations(stories, now = Date.now(), readerInterest = new Map()) {
   const active = stories.filter(story => (story.discovered_at ?? 0) >= now - 7 * DAY);
-  return conversationTopics.map(topic => {
+  const topical=conversationTopics.map(topic => {
     const matches = active.filter(story => storyTopics(story).includes(topic.key));
     const sources = new Set(matches.map(story => story.source_id ?? story.source));
     const readers = Math.max(0,Number(readerInterest.get(topic.key)??0));
     const strength=sources.size>=3?'strong':sources.size>=2?'emerging':readers>=3?'reader':null;
     return { ...topic, stories: matches.length, sources: sources.size, readers, strength, latest: Math.max(0, ...matches.map(story => story.discovered_at ?? 0)) };
-  }).filter(topic => topic.strength)
-    .sort((a, b) => (b.strength==='strong')-(a.strength==='strong') || (b.strength==='emerging')-(a.strength==='emerging') || b.sources-a.sources || b.readers-a.readers || b.stories-a.stories || b.latest-a.latest).slice(0, 5);
+  }).filter(topic => topic.strength);
+  return [...eventCrossCurrents(active,now),...topical]
+    .sort((a, b) => (b.kind==='event')-(a.kind==='event') || (b.strength==='strong')-(a.strength==='strong') || (b.strength==='emerging')-(a.strength==='emerging') || b.sources-a.sources || b.readers-a.readers || b.stories-a.stories || b.latest-a.latest).slice(0, 5);
 }
 /** Normalize untrusted feed text into plain text before it reaches storage. */
 export const plain = (value, limit = 5000) => {

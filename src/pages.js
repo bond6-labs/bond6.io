@@ -1,5 +1,5 @@
 import { html, esc, date, card, qlink, correction, actions } from './render.js';
-import { DAY, classify, conversations, conversationTopic, dayKey, storyTopics, subjects, subjectLabels } from './content.js';
+import { DAY, classify, conversations, conversationTopic, dayKey, eventCrossCurrents, storyFocusKeys, storyTopics, subjects, subjectLabels } from './content.js';
 import { sources, archivedSources, retiredSourceIds } from './sources.js';
 import { editions as legacy } from './picks.js';
 import { RHYTHM_VERSION } from './rhythm.js';
@@ -51,6 +51,8 @@ const bondBridges=[
 const bondText=story=>`${story.title??''} ${story.excerpt??''}`;
 const bridgeScore=(story,bridge)=>bridge.pattern.test(String(story.title??''))?4:bridge.pattern.test(bondText(story))?1:0;
 const liveBondRoute=stories=>{
+  const crossCurrent=eventCrossCurrents(stories)[0];
+  if (crossCurrent) return {kind:'event',event:crossCurrent,freshness:crossCurrent.latest};
   const usable=stories.filter(story=>story?.lane==='human'||story?.lane==='ai');
   const routes=[];
   for(const bridge of bondBridges){
@@ -62,9 +64,19 @@ const liveBondRoute=stories=>{
   }
   return routes.sort((a,b)=>b.freshness-a.freshness)[0]??null;
 };
-const bondNode=(story,lane,v)=>`<a class="bond-route-node ${lane}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyTopics(story).join(','))}"><span>${laneName(lane,v)}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
-const bondRouteMap=(route,v)=>`<section class="bond-route-map" aria-labelledby="bonding-route-title"><header><span class="bond-kicker">${v.say('Bonding route','连结路线')}</span><h2 id="bonding-route-title">${v.say('A pressure to read together','一组值得一起读的张力')}</h2><p>${v.say('Bond6 pairs recent stories with a shared, visible bridge. This is an invitation to compare, not a claim that their authors agree.','Bond6 用可见的共同线索并置近期文章。这是一份并读邀请，并不意味着作者观点一致。')}</p></header><div class="bond-route-diagram">${bondNode(route.human,'human',v)}<div class="bond-bridge"><span>${v.say('Bridge','连结')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><i aria-hidden="true">↔</i></div>${bondNode(route.ai,'ai',v)}</div>${route.third?`<div class="bond-third">${v.say('A third reading','第三篇延伸阅读')} ${bondNode(route.third,route.third.lane,v)}</div>`:''}<div class="bond-response"><p>${esc(v.zh?route.bridge.question.zh:route.bridge.question.en)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 Bonding route | '+route.bridge.en)}">${v.t('Share your experience')}</a></div></section>`;
-const bondRouteTeaser=(route,v)=>`<aside class="bond-teaser bond-teaser-live"><div><span class="bond-kicker">${v.t('Bonding')}</span><p>${v.say('A Bonding route between Human Pulse and AI Wave.','一条连接「人文脉动」与「AI冲击波」的连结路线。')}</p></div><a href="${v.local('/bond')}"><span class="bond-route">${v.t('Human Pulse')} <b aria-hidden="true">×</b> ${v.t('AI Wave')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`;
+const bondNode=(story,lane,v)=>`<a class="bond-route-node ${lane}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${laneName(lane,v)}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
+const bondEventNode=(story,v)=>`<a class="bond-route-node event-source ${story.lane==='human'?'human':'ai'}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${v.say('Independent report','独立报道')}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
+const eventRouteMap=(route,v)=>{
+  const event=route.event, title=v.zh?event.zh:event.en;
+  const status=event.status==='under-review'?v.say('Claims under independent review','证明主张仍待独立核验'):v.say('Multiple independent reports','多个独立来源报道');
+  const explanation=event.status==='under-review'
+    ?v.say('Independent reporting tracks an AI-assisted claim alongside a human contribution. Bond6 presents this as a developing claim, not as a settled result.','独立报道同时追踪 AI 参与的证明主张与人类贡献。Bond6 将其作为正在发展的主张呈现，并不把它当作既成结论。')
+    :v.say('Independent reports connect human mathematical work with AI-assisted research.','独立报道将人类数学工作与 AI 参与的研究并置起来。');
+  const [first,second,...rest]=event.stories;
+  return `<section class="bond-route-map bond-event-route" aria-labelledby="bonding-route-title"><header><span class="bond-kicker">${v.say('Event cross-current','同题交汇')}</span><h2 id="bonding-route-title">${esc(title)}</h2><p>${explanation}</p></header><div class="bond-route-diagram">${bondEventNode(first,v)}<div class="bond-bridge"><span>${v.say('Status','状态')}</span><strong>${status}</strong><small>${v.say(`${event.sources} independent sources`,`来自 ${event.sources} 个独立来源`)}</small><i aria-hidden="true">↔</i></div>${bondEventNode(second,v)}</div>${rest[0]?`<div class="bond-third">${v.say('A third reading','第三篇延伸阅读')} ${bondEventNode(rest[0],v)}</div>`:''}<div class="bond-response"><p>${v.say('What does AI assistance change in mathematical discovery — and what must still be independently checked?','AI 的参与会怎样改变数学发现？又有哪些部分仍必须接受独立核验？')}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 event cross-current | '+event.en)}">${v.t('Share your experience')}</a></div></section>`;
+};
+const bondRouteMap=(route,v)=>route.kind==='event'?eventRouteMap(route,v):`<section class="bond-route-map" aria-labelledby="bonding-route-title"><header><span class="bond-kicker">${v.say('Bonding route','连结路线')}</span><h2 id="bonding-route-title">${v.say('A pressure to read together','一组值得一起读的张力')}</h2><p>${v.say('Bond6 pairs recent stories with a shared, visible bridge. This is an invitation to compare, not a claim that their authors agree.','Bond6 用可见的共同线索并置近期文章。这是一份并读邀请，并不意味着作者观点一致。')}</p></header><div class="bond-route-diagram">${bondNode(route.human,'human',v)}<div class="bond-bridge"><span>${v.say('Bridge','连结')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><i aria-hidden="true">↔</i></div>${bondNode(route.ai,'ai',v)}</div>${route.third?`<div class="bond-third">${v.say('A third reading','第三篇延伸阅读')} ${bondNode(route.third,route.third.lane,v)}</div>`:''}<div class="bond-response"><p>${esc(v.zh?route.bridge.question.zh:route.bridge.question.en)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 Bonding route | '+route.bridge.en)}">${v.t('Share your experience')}</a></div></section>`;
+const bondRouteTeaser=(route,v)=>route.kind==='event'?`<aside class="bond-teaser bond-teaser-live bond-event-teaser"><div><span class="bond-kicker">${v.say('Event cross-current','同题交汇')}</span><p>${v.say('Independent reports where human work and AI claims meet.','人类工作与 AI 主张相遇时的独立报道。')}</p></div><a href="${v.local('/bond')}"><span class="bond-route">${route.event.status==='under-review'?v.say('Under review','核验中'):v.say('Multiple reports','多源报道')} <b aria-hidden="true">·</b> ${v.say(`${route.event.sources} sources`,`${route.event.sources} 个来源`)}</span><strong>${esc(v.zh?route.event.zh:route.event.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`:`<aside class="bond-teaser bond-teaser-live"><div><span class="bond-kicker">${v.t('Bonding')}</span><p>${v.say('A Bonding route between Human Pulse and AI Wave.','一条连接「人文脉动」与「AI冲击波」的连结路线。')}</p></div><a href="${v.local('/bond')}"><span class="bond-route">${v.t('Human Pulse')} <b aria-hidden="true">×</b> ${v.t('AI Wave')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`;
 // A source refresh should take effect immediately. Historical records remain in
 // D1 for bounded retention and edition attribution, but must not keep appearing
 // in a live lane after their source has been retired.
@@ -117,8 +129,10 @@ function filters(v) {
 function conversationStrip(topics,v,{empty=false}={}) {
   if (!topics.length&&!empty) return '';
   const explanation=v.say('Strong signals have three or more independent sources. Emerging signals have two; reader pulse is anonymous, aggregate interest from Bond6 readers.','强信号来自至少三个独立来源；新兴信号来自两个。读者脉动是 Bond6 读者匿名汇总的兴趣信号。');
-  const label=topic=>topic.strength==='strong'?v.say(`Strong · ${topic.sources} sources`,`强信号 · ${topic.sources} 个来源`):topic.strength==='emerging'?v.say(`Emerging · ${topic.sources} sources`,`新兴 · ${topic.sources} 个来源`):v.say(`Reader pulse · ${topic.readers} opens`,`读者脉动 · ${topic.readers} 次打开`);
-  return `<section class="conversation-strip" aria-labelledby="conversation-heading"><div class="signal-copy"><span class="signal-kicker">${v.say('Focusing signals','关注信号')}</span><h2 id="conversation-heading">${v.say('What is gathering attention','正在形成关注的主题')}</h2><p>${explanation}</p></div>${topics.length?`<nav aria-label="${v.say('Focusing signals','关注信号')}">${topics.map(topic=>`<a class="signal-${topic.strength}" href="${esc(qlink(v,{signal:topic.key,view:'all',page:null,q:null,before:null,before_url:null},'/trending'))}"><span class="signal-topic">${v.zh?topic.zh:topic.en}</span><span class="signal-count">${label(topic)}</span></a>`).join('')}</nav>`:`<p class="signal-empty">${v.say('No emerging focus has formed in this language yet this week.','本周该语言版本暂未形成新兴关注主题。')}</p>`}</section>`;
+  const label=topic=>topic.kind==='event'
+    ?v.say(`${topic.status==='under-review'?'Under review':'Multiple reports'} · ${topic.sources} sources`,`${topic.status==='under-review'?'核验中':'多源报道'} · ${topic.sources} 个来源`)
+    :topic.strength==='strong'?v.say(`Strong · ${topic.sources} sources`,`强信号 · ${topic.sources} 个来源`):topic.strength==='emerging'?v.say(`Emerging · ${topic.sources} sources`,`新兴 · ${topic.sources} 个来源`):v.say(`Reader pulse · ${topic.readers} opens`,`读者脉动 · ${topic.readers} 次打开`);
+  return `<section class="conversation-strip" aria-labelledby="conversation-heading"><div class="signal-copy"><span class="signal-kicker">${v.say('Focusing signals','关注信号')}</span><h2 id="conversation-heading">${v.say('What is gathering attention','正在形成关注的主题')}</h2><p>${explanation}</p></div>${topics.length?`<nav aria-label="${v.say('Focusing signals','关注信号')}">${topics.map(topic=>`<a class="signal-${topic.strength}${topic.kind==='event'?' signal-event':''}" href="${esc(qlink(v,{signal:topic.key,view:'all',page:null,q:null,before:null,before_url:null},'/trending'))}"><span class="signal-topic">${v.zh?topic.zh:topic.en}</span><span class="signal-count">${label(topic)}</span></a>`).join('')}</nav>`:`<p class="signal-empty">${v.say('No emerging focus has formed in this language yet this week.','本周该语言版本暂未形成新兴关注主题。')}</p>`}</section>`;
 }
 export async function home(env,v,{trending=false}={}) {
   const db=env.DB, now=Date.now(), search=(v.url.searchParams.get('q')??'').trim().slice(0,120), originalLanguage=v.zh?'zh':'en';
@@ -126,14 +140,15 @@ export async function home(env,v,{trending=false}={}) {
   // scheduled collection corrects its stored language on the next refresh.
   const sourceLanguageGuard=alias=>`AND NOT EXISTS(SELECT 1 FROM source_catalogue language_catalogue WHERE language_catalogue.id=${alias}.source_id AND language_catalogue.language<>?)`;
   const subject=subjects.includes(v.url.searchParams.get('topic'))?v.url.searchParams.get('topic'):null;
-  const signal=conversationTopic(v.url.searchParams.get('signal'));
+  const requestedSignal=(v.url.searchParams.get('signal')??'').trim();
+  let signal=conversationTopic(requestedSignal);
   const requestedLane=['human','ai'].includes(v.url.searchParams.get('lane'))?v.url.searchParams.get('lane'):null;
   const lane=requestedLane==='ai'?'ai':'human', desktopLane=requestedLane??'both';
   const continuationLane=['human','ai'].includes(v.url.searchParams.get('load'))?v.url.searchParams.get('load'):null;
   const requestedCursor=cursorFrom(v);
   const page=Math.max(1,Number(v.url.searchParams.get('page'))||1);
   if (!Number.isSafeInteger(page)||page>50) return html(v,v.t('Page unavailable'),`<p>${v.t('This page is outside the current feed.')}</p>`,{status:404});
-  const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending||!!continuationLane;
+  const archive=v.url.searchParams.get('view')==='all'||page>1||!!search||trending||!!continuationLane||!!requestedSignal;
   const cursor=archive?requestedCursor:null;
   const rhythmLive=env.RHYTHM_LIVE_RANKING==='true';
   const where=`s.lane IS NOT NULL AND s.original_lang=? ${sourceLanguageGuard('s')} ${continuationLane?'AND s.lane=?':''} ${cursor?'AND (s.discovered_at<? OR (s.discovered_at=? AND s.url<?))':''} AND NOT (s.content_type='post' AND EXISTS(SELECT 1 FROM stories article WHERE article.url=s.canonical_url AND article.url<>s.url)) AND NOT EXISTS(SELECT 1 FROM source_catalogue catalogue WHERE catalogue.id=s.source_id AND catalogue.state IN ('paused','retired')) ${subject?'AND s.subject=?':''} ${search?"AND instr(lower(s.title || ' ' || s.source || ' ' || coalesce(s.author,'')),lower(?))>0":''}`;
@@ -177,7 +192,12 @@ export async function home(env,v,{trending=false}={}) {
       db.prepare("SELECT event,sum(count) AS count FROM metrics WHERE day>=? AND event LIKE 'focus:%' GROUP BY event").bind(dayKey(now-7*DAY))
     ]):await db.batch([db.prepare('SELECT max(ok_at) AS checked FROM source_state')]);
     last=supporting[0].results[0]?.checked;
-    if(trending)activeConversations=conversations(focusedStories(supporting[1].results),now,new Map(supporting[2].results.map(row=>[row.event.slice(6),Number(row.count)])));
+    if(trending) {
+      activeConversations=conversations(focusedStories(supporting[1].results),now,new Map(supporting[2].results.map(row=>[row.event.slice(6),Number(row.count)])));
+      // Event signals are calculated from current, language-specific reporting
+      // rather than accepted as arbitrary URL values.
+      if (!signal&&requestedSignal) signal=activeConversations.find(candidate=>candidate.key===requestedSignal)??null;
+    }
     const result=trending&&!signal?await db.prepare(`SELECT s.*,count(DISTINCT m.source) AS coverage FROM mentions m JOIN stories s USING(url) WHERE ${where} AND m.published_at>=?
       GROUP BY s.url HAVING count(DISTINCT m.source)>=3 ORDER BY coverage DESC,max(m.published_at) DESC LIMIT 21`).bind(...args,now-DAY).all()
       :signal?await db.prepare(`SELECT s.* FROM stories s WHERE ${where} AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120`).bind(...args,now-7*DAY).all()
@@ -186,10 +206,10 @@ export async function home(env,v,{trending=false}={}) {
         FROM stories s WHERE ${where}
       ) SELECT * FROM diverse WHERE source_rank<=3 ORDER BY discovered_at DESC,url DESC LIMIT 21${cursor?'':' OFFSET ?'}`).bind(...args,...(cursor?[]:[(page-1)*20])).all();
     rawStories=result.results;
-    stories=capBySource(focusedStories(signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyTopics(story).includes(signal.key)).slice(0,20):result.results));
+    stories=capBySource(focusedStories(signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyFocusKeys(story).includes(signal.key)).slice(0,20):result.results));
   }
   const {results:mentions}=stories.length?await db.prepare(`SELECT url,link,source FROM mentions WHERE url IN(${stories.map(()=>'?').join(',')}) ORDER BY published_at DESC`).bind(...stories.map(s=>s.url)).all():{results:[]};
-  const render=(s,{lead=false}={})=>card(s,v,{lead,rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url),focusKeys:storyTopics(s)});
+  const render=(s,{lead=false}={})=>card(s,v,{lead,rhythm:rhythmLive&&Number(s.rhythm_live_score)>0,mentions:mentions.filter(m=>m.url===s.url),focusKeys:storyFocusKeys(s)});
   const picks=(edition?.stories??[]).filter(s=>s.original_lang===originalLanguage&&(!subject||s.subject===subject));
   const caption=edition?`<a class="edition-date" href="${v.local('/edit/'+edition.id)}">${date(Date.parse(edition.date+'T12:00:00Z'),v)} <span aria-hidden="true">↗</span></a>`:'';
   const showDaily=Boolean(edition) || dailyLive;
@@ -251,8 +271,12 @@ export async function bondPage(env,v,id) {
     <section class="bond-feature">${!id?`<header class="bond-header"><h2><a href="${v.local('/bond/'+edition.id)}">${esc(copy.title)}</a></h2></header>`:''}<div class="bond-pair">${pair}</div><p class="bond-note">${esc(copy.note)}</p>
     <p class="bond-note note-disclosure">${edition.legacy?v.say('A researched editorial connection.','根据来源整理的编辑联想。'):v.say('Bond6’s interpretation · AI-assisted and checked against the selected sources.','Bond6 的联想 · 由 AI 辅助生成，并对照所选来源检查。')} ${correction(v,'https://bond6.io'+v.local('/bond/'+edition.id))}</p>
     ${copy.question?`<div class="bond-response"><p>${esc(copy.question)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 Bonding note | '+copy.title)}">${v.t('Share your experience')}</a></div>`:''}${edition.correction?`<p class="bond-note">${esc(edition.correction)}</p>`:''}${participation(v)}</section>`:'';
-  return html(v,id?copy.title:v.t('Bonding'),`<div class="bond-intro"><span>${v.t('Bonding')}</span><p>${v.say('Bonding routes pair recent Human Pulse and AI Wave stories through a visible shared bridge. Bonding notes keep longer, considered connections.','连结路线会用可见的共同线索并置近期「人文脉动」与「AI冲击波」文章；连结笔记则保留更长、更深入的思考。')}</p></div>${liveRoute?bondRouteMap(liveRoute,v):''}${editionMarkup}
-    ${editions.length?`<h2>${v.say('More Bonding notes','更多连结笔记')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition?.id).map(e=>`<li><a href="${v.local('/bond/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`:''}`,{wide:true,edition:!!id,description:metaSummary(copy?.note??(v.zh?liveRoute?.bridge.zh:liveRoute?.bridge.en))});
+  const liveEventTitle=liveRoute?.kind==='event'?(v.zh?liveRoute.event.zh:liveRoute.event.en):null;
+  const liveDescription=liveRoute?.kind==='event'
+    ?v.say(`Independent reports on ${liveRoute.event.en}; claims remain under review.`,`关于${liveRoute.event.zh}的独立报道；相关主张仍待核验。`)
+    :(v.zh?liveRoute?.bridge.zh:liveRoute?.bridge.en);
+  return html(v,id?copy.title:(liveEventTitle?`${liveEventTitle} · ${v.t('Bonding')}`:v.t('Bonding')),`<div class="bond-intro"><span>${v.t('Bonding')}</span><p>${v.say('Bonding routes pair recent Human Pulse and AI Wave stories through a visible shared bridge. When independent reports describe one named event from both human and AI perspectives, Bond6 can also show an explicitly labelled event cross-current. Bonding notes keep longer, considered connections.','连结路线会用可见的共同线索并置近期「人文脉动」与「AI冲击波」文章。当独立报道从人类与 AI 两个角度呈现同一命名事件时，Bond6 也会清晰标注为「同题交汇」。连结笔记则保留更长、更深入的思考。')}</p></div>${liveRoute?bondRouteMap(liveRoute,v):''}${editionMarkup}
+    ${editions.length?`<h2>${v.say('More Bonding notes','更多连结笔记')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition?.id).map(e=>`<li><a href="${v.local('/bond/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`:''}`,{wide:true,edition:!!id,description:metaSummary(copy?.note??liveDescription)});
 }
 export function about(v) {
   const contents=[

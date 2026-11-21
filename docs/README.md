@@ -6,6 +6,7 @@ These documents define Bond6's durable editorial systems. They are intentionally
 | --- | --- | --- |
 | [Bond6 Rhythm](BOND6_RHYTHM.md) | Implemented baseline | The deterministic method that decides whether a story belongs in Human Pulse or AI Wave and whether it can become a Daily pick. |
 | [Bond6 Source Vitality](SOURCE_VITALITY.md) | Implemented foundations | The living source-catalogue policy: how feeds enter, earn an active place, slow down, pause, or leave. |
+| [Event Cross-Currents](EVENT_CROSS_CURRENTS.md) | Implemented | The strict multi-source rule for named events where human work and AI claims need to be read together. |
 
 ## Change policy
 

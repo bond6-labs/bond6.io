@@ -106,6 +106,22 @@ test('Focusing labels emerging signals and Bonding renders a Bonding route',asyn
     const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
   } finally { Date.now=realNow; }
 });
+test('Focusing and Bonding surface a verified multi-source event cross-current without calling a proof settled',async()=>{
+  const realNow=Date.now;Date.now=()=>now;
+  try {
+    const db=database();
+    const decoder=story(313,{title:'Anthropic claims a Claude proof of the Riemann hypothesis; a human draft follows',excerpt:'Mathematicians are independently reviewing an AI-assisted proof formalized in Lean alongside an all-human competing draft.',lane:'ai',subject:'digital',source:'The Decoder',source_id:'decoder'});
+    const techcrunch=story(314,{title:'AI claimed a solution to the Riemann hypothesis — and a human did, too',excerpt:'The proposed proof remains under review while researchers compare the AI claim and human contribution.',lane:'ai',subject:'digital',source:'TechCrunch',source_id:'techcrunch'});
+    await storeItems(db,{...source,id:'decoder',name:'The Decoder',topic:'AI development & impact'},[decoder],now);
+    await storeItems(db,{...source,id:'techcrunch',name:'TechCrunch',topic:'AI industry & impact'},[techcrunch],now-1);
+    const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();
+    assert.match(focusingText,/Riemann hypothesis/);assert.match(focusingText,/Under review · 2 sources/);assert.match(focusingText,/signal=event%3Ariemann-hypothesis/);
+    const eventFeed=await worker.fetch(new Request('https://bond6.io/trending?signal=event%3Ariemann-hypothesis'),{DB:db});const eventText=await eventFeed.text();
+    assert.match(eventText,/Anthropic claims a Claude proof/);assert.match(eventText,/AI claimed a solution/);
+    const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();
+    assert.match(bondingText,/Event cross-current/);assert.match(bondingText,/Claims under independent review/);assert.match(bondingText,/not as a settled result/);
+  } finally { Date.now=realNow; }
+});
 test('live Rhythm ordering is opt-in without exposing diagnostic controls',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);
   const chronological=await worker.fetch(new Request('https://bond6.io/'),{DB:db});
