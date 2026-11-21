@@ -6,6 +6,8 @@
 
 **Last reviewed:** 2026-11-18
 
+**Related:** [Source Discovery](SOURCE_DISCOVERY.md) — coverage roles, candidate intake, and first-discovery lead-time evidence
+
 ## Purpose
 
 Bond6 should maintain a living reading catalogue, not a static list of feeds. **Source Vitality** is the operating system for that catalogue. It evaluates whether each source is:
@@ -110,6 +112,12 @@ Source Vitality has two distinct scores. Keeping them separate prevents a freque
 | Originality | 15% | unique stories rather than repeated shared links or duplicate coverage |
 | Fresh relevance | 15% | timely accepted items relative to its declared tier |
 | Reader signal, capped | 10% | anonymous aggregate source opens/saves, never raw clicks alone |
+
+Source Discovery adds a small, bounded timeliness contribution to value when a
+source supplies a trustworthy original publication time. It measures the delay
+between publication and Bond6’s first observation after the source baseline;
+it cannot outweigh editorial fit or usable yield. See
+[Source Discovery](SOURCE_DISCOVERY.md) for the full coverage-gap process.
 
 ```text
 Source standing =

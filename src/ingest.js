@@ -4,7 +4,7 @@ import { enqueue, claim, saveJob } from './jobs.js';
 import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_COLLECTS_PER_TICK, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
 import { saveRhythmSignals } from './rhythm.js';
-import { dueSources, observeSource, pruneSourceVitality, sourceFromCatalogue } from './source-vitality.js';
+import { dueSources, observeSource, pruneSourceVitality, recordSourceDiscoveries, sourceFromCatalogue } from './source-vitality.js';
 
 export const storyLimit = env => Math.min(MAX_STORIES, Math.max(20, Number.parseInt(env.MAX_STORIES, 10) || MAX_STORIES));
 export const pollIntervalMs = source => Math.min(1440, Math.max(10, Number(source.poll_minutes) || 45)) * 60_000;
@@ -266,20 +266,26 @@ async function collectOne(env, source, state, now) {
   if (!job) return false;
   try {
     const { items, rejectedUrls, raw_items, usable_items, etag, modified } = await poll(source, state, now);
-    const existing=items.length?await db.prepare(`SELECT url FROM stories WHERE url IN(${items.map(()=>'?').join(',')})`).bind(...items.map(item=>item.url)).all():{results:[]};
-    const existingUrls=new Set(existing.results.map(item=>item.url));
+    const fresh=await recordSourceDiscoveries(db,source,items,now);
     // Candidate/probation feeds are evaluated but do not enter the public Flow
     // until Source Vitality has recommended and an editor has promoted them.
     if(!['candidate','probation'].includes(source.catalogue_state)) {
       await storeItems(db, source, items, now);
       await suppressItems(db, source, rejectedUrls, now);
     }
-    const fresh=items.filter(item=>!existingUrls.has(item.url));
     // A feed may keep returning an old, successful XML document after its
     // publisher has stopped. Re-discovery after story retention expires must
     // not make that stale feed look newly active again.
     const recentlyPublished=fresh.filter(item=>!item.original_published_at||item.original_published_at>=now-CURRENT_ITEM_WINDOW);
-    await observeSource(db,source,{success:true,raw_items,usable_items,accepted_items:items.length,duplicate_items:items.length-fresh.length,last_new_item_at:recentlyPublished.length?now:null},now);
+    // The first successful read establishes a source's baseline. Only later
+    // genuinely new items count toward lead-time, preventing an old retained
+    // feed window from masquerading as slow discovery on day one.
+    const hasPriorSuccess=Boolean(state?.ok_at);
+    const lagged=hasPriorSuccess?recentlyPublished.filter(item=>item.original_published_at&&item.original_published_at<=now):[];
+    const lagMinutes=lagged.map(item=>Math.max(0,Math.round((now-item.original_published_at)/60_000)));
+    await observeSource(db,source,{success:true,raw_items,usable_items,accepted_items:items.length,duplicate_items:items.length-fresh.length,
+      last_new_item_at:hasPriorSuccess&&recentlyPublished.length?now:null,new_items:hasPriorSuccess?recentlyPublished.length:0,
+      discovery_lag_total_minutes:lagMinutes.reduce((sum,minutes)=>sum+minutes,0),discovery_lag_samples:lagMinutes.length},now);
     // A candidate has proved that its declared feed is readable. It remains
     // outside the public Flow while probation gathers enough useful evidence.
     if(source.catalogue_state==='candidate')await db.prepare(`UPDATE source_catalogue

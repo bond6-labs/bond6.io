@@ -108,6 +108,10 @@ export const sources = [
   { id: 'the-decoder', name: 'The Decoder', kind: 'rss', url: 'https://the-decoder.com/feed/', site: 'https://the-decoder.com/', topic: 'AI development & impact', tier: 'flow', poll_minutes: 30 },
   { id: 'ai-snake-oil', name: 'AI Snake Oil', kind: 'rss', url: 'https://www.aisnakeoil.com/feed', site: 'https://www.aisnakeoil.com/', topic: 'AI evidence & impact', poll_minutes: 90 },
   { id: 'import-ai', name: 'Import AI', kind: 'rss', url: 'https://jack-clark.net/feed/', site: 'https://jack-clark.net/', topic: 'AI research, policy & field direction', lane: 'ai', essays: true, poll_minutes: 480 },
+  // Quanta brings independently reported mathematics and computer-science
+  // breakthroughs into AI Wave, including formal-verification milestones.
+  // Its item-level lane gate still excludes unrelated science coverage.
+  { id: 'quanta', name: 'Quanta Magazine', kind: 'rss', url: 'https://www.quantamagazine.org/feed/', site: 'https://www.quantamagazine.org/', topic: 'Mathematics, computation & AI', lane: 'ai', coverage_role: 'independent-verification', essays: true, poll_minutes: 45 },
 
   // AI candidates diversify the research and practitioner perspective without
   // displacing the proven live catalogue before they earn a review.
@@ -123,6 +127,16 @@ export const sources = [
   { id: 'latent-space', name: 'Latent Space', kind: 'rss', url: 'https://www.latent.space/feed', site: 'https://www.latent.space/', topic: 'AI engineering & agent infrastructure', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'sakana-ai', name: 'Sakana AI Blog', kind: 'rss', url: 'https://sakana.ai/feed.xml', site: 'https://sakana.ai/', topic: 'AI research, world models & physical AI', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'venturebeat-ai', name: 'VentureBeat — AI', kind: 'rss', url: 'https://venturebeat.com/category/ai/feed/', site: 'https://venturebeat.com/category/ai/', topic: 'AI industry & enterprise adoption', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  // Broad science coverage is deliberately a candidate first. Its signals
+  // will show whether it contributes enough AI-and-people reporting without
+  // flooding the Flow with general science news.
+  { id: 'science-news', name: 'Science News', kind: 'rss', url: 'https://www.sciencenews.org/feed', site: 'https://www.sciencenews.org/', topic: 'Science, research & AI impacts', language: 'en', lane: 'ai', state: 'candidate', tier: 'candidate', poll_minutes: 1440 },
+  // Independent organisations with working first-party feeds. They begin as
+  // candidates so Source Discovery can measure both editorial fit and how
+  // quickly they surface consequential AI-and-people stories.
+  { id: 'data-society', name: 'Data & Society', kind: 'rss', url: 'https://datasociety.net/feed/', site: 'https://datasociety.net/', topic: 'AI, work, communities & public life', language: 'en', lane: 'ai', coverage_role: 'human-impact', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'algorithmwatch', name: 'AlgorithmWatch', kind: 'rss', url: 'https://algorithmwatch.org/en/feed/', site: 'https://algorithmwatch.org/en/', topic: 'Algorithmic systems & lived consequences', language: 'en', lane: 'ai', coverage_role: 'human-impact', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'ada-lovelace', name: 'Ada Lovelace Institute', kind: 'rss', url: 'https://www.adalovelaceinstitute.org/feed/', site: 'https://www.adalovelaceinstitute.org/', topic: 'AI, data & society', language: 'en', lane: 'ai', coverage_role: 'human-impact', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
 
   // Active Chinese AI reporting stays inside the Chinese-language cap. Strict
   // item-level AI signals still exclude general technology and commerce news.

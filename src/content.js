@@ -14,7 +14,7 @@ const sourceSubjects = {
   conge: 'practice', climbing: 'practice', 'creative-independent': 'practice', storyfm: 'practice',
   'poetry-daily': 'writing', 'adroit-journal': 'writing', 'poetry-northwest': 'writing', 'duzhe-podcast': 'writing', 'here-is-poetry': 'writing', 'random-waves': 'writing', 'kanlixiang-roundtable': 'writing', 'yixi-extratalk': 'practice', 'jiemian-culture-podcast': 'writing',
   'culture-unlimited': 'writing', 'famous-unknown': 'writing', crossing: 'writing', 'zhang-luoyuan': 'writing', 'times-culture': 'writing', 'voice-spinning-books': 'music', shinekid: 'writing', 'east-west-tones': 'writing', 'wandering-notes': 'writing', 'left-right': 'writing', 'east-west-voice': 'practice', 'bie-ren-xing': 'writing', 'zhaoyuan-jian': 'writing', 'to-the-lighthouse': 'writing', 'tripper-press': 'art',
-  sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', '404': 'digital', techdirt: 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', deepmind: 'digital', huggingface: 'digital', qbitai: 'digital', 'import-ai': 'digital', 'last-week-in-ai': 'digital', 'tldr-ai': 'digital', bair: 'digital', 'microsoft-research': 'digital', 'one-useful-thing': 'digital', 'exponential-view': 'digital', 'epoch-ai': 'digital', interconnects: 'digital', 'simon-willison': 'digital', 'latent-space': 'digital', 'sakana-ai': 'digital', 'venturebeat-ai': 'digital', huxiu: 'digital', tmtpost: 'digital', solidot: 'digital', ithome: 'digital', 'aigc-weekly': 'digital', 'chinaz-ai': 'digital', 'infoq-recommend': 'digital', jiqizhixin: 'digital', 'ai-era': 'digital', geekpark: 'digital', '36kr': 'digital', 'landian-news': 'digital'
+  sspai: 'digital', 'rest-of-world': 'digital', platformer: 'digital', 'mit-tech-review': 'digital', '404': 'digital', techdirt: 'digital', 'zitron-newsletter': 'digital', 'creative-commons': 'digital', deepmind: 'digital', huggingface: 'digital', qbitai: 'digital', 'import-ai': 'digital', quanta: 'digital', 'last-week-in-ai': 'digital', 'tldr-ai': 'digital', bair: 'digital', 'microsoft-research': 'digital', 'one-useful-thing': 'digital', 'exponential-view': 'digital', 'epoch-ai': 'digital', interconnects: 'digital', 'simon-willison': 'digital', 'latent-space': 'digital', 'sakana-ai': 'digital', 'venturebeat-ai': 'digital', 'science-news': 'digital', huxiu: 'digital', tmtpost: 'digital', solidot: 'digital', ithome: 'digital', 'aigc-weekly': 'digital', 'chinaz-ai': 'digital', 'infoq-recommend': 'digital', jiqizhixin: 'digital', 'ai-era': 'digital', geekpark: 'digital', '36kr': 'digital', 'landian-news': 'digital'
 };
 const sentenceEnd = (text, limit = 240) => {
   if (text.length <= limit) return text.trim();
@@ -111,6 +111,10 @@ const aiSystem = /\b(?:ai|artificial intelligence|llms?|large language model|cha
 const aiImpact = /\b(?:replace(?:s|d|ment|ing)?|automate(?:s|d|ion|ing)?|job(?:s)?|work(?:er|place|load)?|labou?r|wage|union|artist|writer|teacher|student|privacy|surveillance|copyright|authorship|rights|trust|education|creative work)\b|替代|自动化|工作|劳动|工资|工会|艺术家|作者|教师|学生|隐私|监控|版权|署名|权利|信任|教育|创作/i;
 const aiMovement = /\b(?:release(?:d|s)?|launch(?:ed|es)?|deploy(?:ed|ment|s)?|train(?:ed|ing)?|benchmark|capabilit(?:y|ies)|reasoning|agent(?:ic)?|infrastructure|compute|research(?:ers|ed)?|model(?:s)? (?:can|now|will))\b|发布|推出|部署|训练|基准测试|能力|推理|智能体|基础设施|算力|研究/i;
 const aiElite = /\b(?:ceo|founder|executive|researcher|scientist|lab|engineer|investor|critic)\b.{0,70}\b(?:said|says|argued|warned|called|announced)\b|首席执行官|创始人|高管|研究员|科学家|实验室|工程师|投资人|评论者.{0,50}(?:表示|认为|警告|宣布)/i;
+// A narrow route for consequential AI-assisted science. This is not a
+// general science permit: an AI-system signal is still required and the item
+// must concern a mathematical/scientific result, proof, or formal check.
+const aiScientificAdvance = /\b(?:mathematics?|mathematician|theorem|conjecture|hypothesis|proof|formal (?:verification|proof)|lean|scientific discovery|scientific breakthrough|physics|biology|chemistry)\b|数学|数学家|定理|猜想|假设|证明|形式化验证|科学发现|科学突破|物理|生物|化学/i;
 const reportedSpecificity = /\b(?:report|research|data|study|investigation|documents?|interview)\b|报告|研究|数据|调查|文件|访谈/i;
 
 /** Deterministic eligibility only. It never calls a model or ranks an item. */
@@ -121,7 +125,7 @@ export function selectionGate(title, excerpt = '', source = {}) {
   if (utilityLifestyle.test(text)) return { human:false, ai:false, exclusion_reason:'Utility lifestyle or product content, not an individual account' };
   const creative = humanCreative.test(text), making = humanMaking.test(text), voice = humanVoice.test(text);
   const care = humanCare.test(text), embodied = humanEmbodied.test(text), culture = culturalContext.test(text);
-  const system = aiSystem.test(text), impact = aiImpact.test(text), movement = aiMovement.test(text), elite = aiElite.test(text), reported = reportedSpecificity.test(text);
+  const system = aiSystem.test(text), impact = aiImpact.test(text), movement = aiMovement.test(text), elite = aiElite.test(text), scientific = aiScientificAdvance.test(text), reported = reportedSpecificity.test(text);
   if (commercial.test(text)) return { human:false, ai:false, exclusion_reason:'Commercial, funding, or property coverage is outside Bond6’s editorial flow' };
   // Poetry and editorial cultural audio regularly have a precise title and a
   // short publisher note rather than a conventional article excerpt. Declared
@@ -130,7 +134,7 @@ export function selectionGate(title, excerpt = '', source = {}) {
   const declaredPoetry = source.format==='poetry' && creative;
   const declaredCulturalAudio = source.format==='podcast' && (creative || voice || care || culture);
   const human_core = (creative && making) || voice || care || (embodied && (voice || culture || reported)) || declaredPoetry || declaredCulturalAudio;
-  const ai_core = system && (impact || movement || elite);
+  const ai_core = system && (impact || movement || elite || scientific);
   return {
     // The live flow may include a well-attributed cultural review/profile or
     // a reported AI development. Core items require stronger lived or human-
@@ -143,7 +147,7 @@ export function selectionGate(title, excerpt = '', source = {}) {
     ai: ai_core || (system && movement && reported),
     human_core, ai_core,
     exclusion_reason:null,
-    signals:{ creative, making, voice, care, embodied, culture, system, impact, movement, elite, reported }
+    signals:{ creative, making, voice, care, embodied, culture, system, impact, movement, elite, scientific, reported }
   };
 }
 export function classify(title, excerpt, source = {}) {

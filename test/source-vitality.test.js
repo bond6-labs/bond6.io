@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { database } from './db.js';
-import { now } from './fixtures.js';
-import { dueSources, ensureSourceCatalogue, evaluateSource, evaluateSourceVitality, observeSource, sourceFromCatalogue } from '../src/source-vitality.js';
+import { now, story } from './fixtures.js';
+import { auditSourceCoverage, dueSources, ensureSourceCatalogue, evaluateSource, evaluateSourceVitality, observeSource, recordSourceDiscoveries, sourceFromCatalogue } from '../src/source-vitality.js';
 import { sources, archivedSources } from '../src/sources.js';
 
 test('Source Vitality seeds every current source once without replacing its operational state',async()=>{
@@ -39,6 +39,21 @@ test('candidate sources retain their trial state and slow daily cadence when see
   assert.equal(source.catalogue_state,'candidate');
   assert.equal(source.lane,'human');
   assert.equal(source.language,'en');
+});
+
+test('Source Discovery records first sightings once and audits coverage roles',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now);
+  const row=await db.prepare('SELECT * FROM source_catalogue WHERE id=?').bind('quanta').first();
+  const source=sourceFromCatalogue(row);
+  assert.equal(source.coverage_role,'independent-verification');
+  assert.equal(source.coverage_lane,'ai');
+  const items=[story(501,{url:'https://example.org/discovery/one',original_published_at:now-75*60_000}),story(502,{url:'https://example.org/discovery/two',original_published_at:now-95*60_000})];
+  assert.equal((await recordSourceDiscoveries(db,source,items,now)).length,2);
+  assert.equal((await recordSourceDiscoveries(db,source,items,now+60_000)).length,0);
+  const audit=await auditSourceCoverage(db,now);
+  const role=audit.find(row=>row.language==='en'&&row.lane==='ai'&&row.role==='independent-verification');
+  assert.ok(role.active_sources>=1);
+  assert.ok((await db.prepare(`SELECT count(*) AS n FROM source_coverage_audits WHERE coverage_role='independent-verification'`).first()).n>=1);
 });
 
 test('high-yield Human Pulse sources get rapid cadence while watch sources keep their reviewed cadence',async()=>{

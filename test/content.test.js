@@ -88,6 +88,8 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('AI mentioned in a company announcement','A company has a meeting tomorrow.',{}).lane,null);
   assert.equal(classify('A lab publishes AI research','A report documents a new benchmark for model capabilities.',{}).lane,'ai');
   assert.equal(classify('An AI lab launches a model with new reasoning capabilities','A report documents the release and benchmark results.',{}).lane,'ai');
+  assert.equal(classify('Mathematician says AI found a proof of the Riemann hypothesis','A formal Lean verification is awaiting independent review.',{id:'quanta',lane:'ai'}).lane,'ai');
+  assert.equal(classify('A mathematician proves a theorem about prime numbers','The proof was published in a mathematics journal.',{id:'quanta',lane:'ai'}).lane,null);
   assert.equal(classify('I learned to climb after an injury','A personal account of recovery, training and returning to a mountain route.',{}).lane,'human');
   assert.equal(classify('A photographer documents a changing shoreline','A reported account follows the artist’s fieldwork and photographs over a decade.',{}).lane,'human');
   assert.equal(classify('An artist discusses AI tools','A detailed conversation about art, creative work and how an algorithm changes the studio.',{lane:'human',essays:true}).lane,'human');
