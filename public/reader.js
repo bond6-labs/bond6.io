@@ -10,7 +10,7 @@
   const countEvents=!navigator.globalPrivacyControl&&navigator.doNotTrack!=='1';
   function metric(event){if(countEvents)fetch('/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event}),keepalive:true}).catch(()=>{});}
   function persist(){try{localStorage.setItem(key,JSON.stringify(saved));return true;}catch{notify(say('Browser storage is unavailable; your change could not be saved.','浏览器存储不可用，无法保存这次更改。'));return false;}}
-  function refreshButtons(){document.querySelectorAll('.save-story').forEach(b=>{let s;try{s=JSON.parse(b.dataset.story);}catch{return;}const active=saved.some(x=>x.url===s.url);b.textContent=active?say('Saved','已收藏'):say('Save','收藏');b.setAttribute('aria-pressed',String(active));});}
+  function refreshButtons(){document.querySelectorAll('.save-story').forEach(b=>{let s;try{s=JSON.parse(b.dataset.story);}catch{return;}const active=saved.some(x=>x.url===s.url);b.textContent=active?say('Saved','已收藏'):say('Save','收藏');b.setAttribute('aria-pressed',String(active));});const count=document.querySelector('[data-saved-count]');if(count){count.hidden=!saved.length;count.textContent=String(saved.length);}}
   function showUndo(message){notify(message+' ');const button=document.createElement('button');button.type='button';button.textContent=say('Undo','撤销');button.addEventListener('click',()=>{if(undo){saved=undo;undo=null;persist();renderSaved();refreshButtons();notify(say('Restored.','已恢复。'));}});status?.append(button);}
   function bindSave(button){
     if(button.dataset.readerBound)return;button.dataset.readerBound='true';

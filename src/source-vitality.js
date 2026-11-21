@@ -41,7 +41,8 @@ const expectedMinutes=source=>expectedMinutesForTier(tierFor(source));
 const configFor=source=>JSON.stringify({
   url:source.url??null,handle:source.handle??null,essays:source.essays===true,allPosts:source.allPosts===true,
   title_prefixes:source.title_prefixes??[],lane:source.lane??null,format:source.format??null,
-  short_excerpt:source.short_excerpt===true,promotion_tier:source.promotion_tier??'slow',coverage_role:coverageRoleFor(source),coverage_lane:coverageLaneFor(source)
+  short_excerpt:source.short_excerpt===true,article_preview:source.article_preview===true,
+  promotion_tier:source.promotion_tier??'slow',coverage_role:coverageRoleFor(source),coverage_lane:coverageLaneFor(source)
 });
 
 export function catalogueSource(source, now=Date.now()) {
@@ -55,7 +56,8 @@ export function sourceFromCatalogue(row) {
   return {id:row.id,name:row.name,kind:row.kind,url:row.feed_url??config.url??undefined,handle:config.handle??undefined,
     site:row.site_url,topic:row.topic,language:row.language,lane:row.intended_lane??config.lane??undefined,
     essays:config.essays===true,allPosts:config.allPosts===true,title_prefixes:config.title_prefixes??[],
-    format:config.format??null,short_excerpt:config.short_excerpt===true,promotion_tier:config.promotion_tier??'slow',coverage_role:config.coverage_role??coverageRoleFor(row),coverage_lane:config.coverage_lane??coverageLaneFor(row),
+    format:config.format??null,short_excerpt:config.short_excerpt===true,article_preview:config.article_preview===true,
+    promotion_tier:config.promotion_tier??'slow',coverage_role:config.coverage_role??coverageRoleFor(row),coverage_lane:config.coverage_lane??coverageLaneFor(row),
     poll_minutes:row.expected_minutes,catalogue_state:row.state,tier:row.tier};
 }
 

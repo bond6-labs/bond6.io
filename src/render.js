@@ -46,7 +46,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   <link rel="stylesheet" href="/style.css?v=${esc(v.release??'local')}"></head><body class="${wide?'wide':''}" data-edition="${edition?'true':'false'}">
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no"><img class="brand-lockup" src="/bond6-logo.png" width="1778" height="340" alt="" draggable="false"></a>
-  <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls">${searchForm(v)}
+  <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls"><a class="saved-link" href="${v.local('/saved')}" aria-label="${v.t('Saved stories')}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 4.5h11v15l-5.5-3.6-5.5 3.6z"></path></svg><span class="saved-count" data-saved-count hidden>0</span></a>${searchForm(v)}
   <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中'}</a>
   </div></div></header>
   <main class="shell" id="main" tabindex="-1"><div class="intro${homepage?' homepage-intro':''}"><div><h1>${esc(heading)}</h1>${subtitle?`<p class="homepage-subtitle">${esc(subtitle)}</p>`:!title?`<p>${esc(intro)}</p>`:''}</div></div>${content}</main>
@@ -91,7 +91,10 @@ export function card(s,v,{pick=false,lead=false,rhythm=false,editionId,mentions=
   const evidence=[...new Map(mentions.map(m=>[m.source,m])).values()];
   const discussion=evidence.filter(m=>m.link!==s.url).map(m=>`<a href="${esc(m.link)}" data-event="original">${esc(m.source)}</a>`).join('');
   const share=editionId?`https://bond6.io${v.local('/edit/'+editionId)}#story-${s.content_hash.slice(0,12)}`:s.url;
-  const deck=lead&&s.excerpt?deckPreview(s.excerpt,v.zh?180:260):null;
+  // A headline alone is not enough to judge whether a story is worth opening.
+  // Leads get a fuller deck; every other card keeps a compact, source-supplied
+  // preview. We deliberately do not manufacture or scrape article prose here.
+  const deck=s.excerpt?deckPreview(s.excerpt,lead?(v.zh?180:260):(v.zh?130:190)):null;
   return `<article class="story${pick?' daily-pick':''}${lead?' story-lead':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}"${focusKeys.length?` data-focus="${esc(focusKeys.join(','))}"`:''}>
     <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
     <h3><a href="${esc(s.url)}" data-event="original" lang="${s.original_lang==='zh'?'zh-Hans':'en'}">${esc(title)}</a></h3>

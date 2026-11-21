@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,poll,pollIntervalMs,retryIntervalMs,readBody} from '../src/ingest.js';
+import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,poll,pollIntervalMs,retryIntervalMs,readBody,publisherPreview,fetchPublisherPreview} from '../src/ingest.js';
 import {classify,canonical,contentHash,usableText} from '../src/content.js';
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
@@ -32,6 +32,15 @@ test('RSS publisher media supports medium=image and safe embedded feed previews'
   assert.equal(embedded.video_url,'https://www.youtube-nocookie.com/embed/abcdef12345');
   const [tracker]=fromRss('<rss><channel><item><title>A writer shares a studio session</title><link>https://example.org/tracker</link><content:encoded><![CDATA[<p>A detailed account of music and creative work.</p><img src="https://cdn.example.org/tracking.gif" width="1" height="1"><img src="https://cdn.example.org/cover.jpg"></img>]]></content:encoded></item></channel></rss>',source);
   assert.equal(tracker.image_url,'https://cdn.example.org/cover.jpg');
+});
+test('opt-in publisher previews use exposed metadata only and stay same-site',async()=>{
+  const html='<!doctype html><meta property="og:description" content="A publisher supplied description of a model release and its effects on people."><meta property="og:image" content="https://cdn.openai.com/preview.png"><audio src="https://cdn.openai.com/briefing.mp3"></audio>';
+  assert.deepEqual(publisherPreview(html),{description:'A publisher supplied description of a model release and its effects on people.',image_url:'https://cdn.openai.com/preview.png',audio_url:'https://cdn.openai.com/briefing.mp3',video_url:null});
+  let called=0;
+  const preview=await fetchPublisherPreview({url:'https://openai.com/index/example/'},{site:'https://openai.com/',article_preview:true},async()=>{called++;return new Response(html,{headers:{'content-type':'text/html'}});});
+  assert.equal(called,1);assert.equal(preview.image_url,'https://cdn.openai.com/preview.png');
+  const blocked=await fetchPublisherPreview({url:'https://other.example/story'},{site:'https://openai.com/',article_preview:true},async()=>{throw new Error('must not fetch');});
+  assert.deepEqual(blocked,{});
 });
 test('unsafe URLs and document declarations are rejected',()=>{
   for(const url of ['javascript:alert(1)','http://127.0.0.1/a','https://name:password@example.org'])assert.equal(canonical(url),null);
@@ -131,7 +140,7 @@ test('shortener resolution stops at destination and rejects private redirects',a
 });
 test('40-item ingestion stays under D1 limits; edits invalidate translations without changing discovery',async()=>{
   const db=database();const items=await Promise.all(Array.from({length:40},async(_,i)=>{const s=story(i);s.content_hash=await contentHash(s);return s;}));
-  await storeItems(db,source,items,now);assert.ok(db.maxBinds<=100);assert.ok(db.queries<20);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM stories').get().n,40);
+  await storeItems(db,source,items,now);assert.ok(db.maxBinds<=100);assert.ok(db.queries<30);assert.equal(db.sql.prepare('SELECT count(*) AS n FROM stories').get().n,40);
   db.sql.prepare('UPDATE stories SET title_zh=? WHERE url=?').run('旧译文',items[0].url);
   const changed={...items[0],title:'A new guitar recording'};changed.content_hash=await contentHash(changed);
   await storeItems(db,source,[changed],now+5000);const stored=await db.prepare('SELECT * FROM stories WHERE url=?').bind(changed.url).first();

@@ -1,7 +1,8 @@
 import { XMLParser } from 'fast-xml-parser';
 import { DAY, canonical, cleanAuthor, cleanHeadline, cleanPostText, cleanSocialHeadline, hasLeadingPreviewLabel, plain, language, classify, contentHash } from './content.js';
+import { decodeHeadline } from './headline.js';
 import { enqueue, claim, saveJob } from './jobs.js';
-import { AI_RETENTION_DAYS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_COLLECTS_PER_TICK, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
+import { AI_RETENTION_DAYS, ARTICLE_PREVIEW_BODY_LIMIT, ARTICLE_PREVIEW_PER_POLL, ARTICLE_PREVIEW_TIMEOUT_MS, CULTURE_RETENTION_DAYS, FEED_ITEM_LIMIT, FEED_SIZE_LIMIT, HTTP_REQUEST_TIMEOUT_MS, MAX_COLLECTS_PER_TICK, MAX_STORIES, REDIRECT_MAX_HOPS, REDIRECT_TIMEOUT_MS, RHYTHM_AUDIT_RETENTION } from './config.js';
 import { validateStorySchema } from './validation.js';
 import { saveRhythmSignals } from './rhythm.js';
 import { dueSources, observeSource, pruneSourceVitality, recordSourceDiscoveries, sourceFromCatalogue } from './source-vitality.js';
@@ -32,14 +33,14 @@ const attr = (node, ...names) => {
 // Media appears directly in the reader's page. Restrict it to HTTPS so a
 // publisher's stale HTTP enclosure cannot become blocked mixed content.
 const safeMediaUrl = value => {
-  const url = canonical(typeof value === 'string' ? value.trim() : null);
+  const url = canonical(typeof value === 'string' ? decodeHeadline(value).trim() : null);
   return url?.startsWith('https://') ? url : null;
 };
 const mediaNodes = (item, key) => [item[key]].flat().filter(Boolean);
 const isImage = (url, type = '', medium = '') => /^image\//i.test(type) || /^image$/i.test(medium) || /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i.test(url ?? '');
 const isAudio = (url, type = '') => /^audio\//i.test(type) || /\.(?:mp3|m4a|aac|ogg|opus|wav)(?:$|[?#])/i.test(url ?? '');
 const isVideo = (url, type = '') => /^video\//i.test(type) || /\.(?:mp4|webm|ogv|mov)(?:$|[?#])/i.test(url ?? '');
-const tagAttr = (tag, name) => tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i'))?.slice(1).find(value => value != null) ?? null;
+const tagAttr = (tag, name) => typeof tag === 'string' ? (tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i'))?.slice(1).find(value => value != null) ?? null) : null;
 const isTracker = (tag, url) => {
   const width = Number(tagAttr(tag, 'width'));
   const height = Number(tagAttr(tag, 'height'));
@@ -94,6 +95,103 @@ function feedMedia(item, description, source) {
   const videoNode = [...enclosure, ...content].find(node => isVideo(attr(node, 'url', 'href'), attr(node, 'type') ?? ''));
   const linkedVideo = videoPreview(attr(videoNode, 'url', 'href'), attr(videoNode, 'type') ?? '');
   return { image_url, audio_url, video_url: linkedVideo.video_url ?? embedded.video_url ?? null };
+}
+
+const htmlTags = (body, name) => Array.from(String(body ?? '').matchAll(new RegExp(`<${name}\\b[^>]*>`, 'gi'))).map(match => match[0]);
+const metaValue = (body, ...keys) => {
+  const wanted = new Set(keys.map(key => key.toLowerCase()));
+  for (const tag of htmlTags(body, 'meta')) {
+    const name = (tagAttr(tag, 'property') ?? tagAttr(tag, 'name') ?? '').toLowerCase();
+    if (wanted.has(name)) return tagAttr(tag, 'content');
+  }
+  return null;
+};
+
+/**
+ * Extract a publisher's intentionally exposed preview metadata. This does not
+ * read, retain, or reproduce an article body: it accepts only the same social
+ * description and media links publishers put in their public page metadata.
+ */
+export function publisherPreview(body) {
+  const description = plain(metaValue(body, 'og:description', 'twitter:description', 'description'), 700);
+  const image_url = safeMediaUrl(metaValue(body, 'og:image', 'twitter:image'));
+  const audioTag = [...htmlTags(body, 'audio'), ...htmlTags(body, 'source')]
+    .find(tag => isAudio(tagAttr(tag, 'src'), tagAttr(tag, 'type') ?? ''));
+  const videoTag = [...htmlTags(body, 'video'), ...htmlTags(body, 'source')]
+    .find(tag => isVideo(tagAttr(tag, 'src'), tagAttr(tag, 'type') ?? ''));
+  const audio_url = safeMediaUrl(metaValue(body, 'og:audio', 'twitter:audio')) ?? safeMediaUrl(tagAttr(audioTag, 'src'));
+  const video_url = videoPreview(metaValue(body, 'og:video', 'twitter:player') ?? tagAttr(videoTag, 'src'), tagAttr(videoTag, 'type') ?? '').video_url ?? null;
+  return { description, image_url, audio_url, video_url };
+}
+
+async function previewBody(response) {
+  const reader = response.body?.getReader();
+  if (!reader) return '';
+  const decoder = new TextDecoder();
+  let body = '', bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return body + decoder.decode();
+    bytes += value.length;
+    body += decoder.decode(value, { stream: true });
+    if (bytes >= ARTICLE_PREVIEW_BODY_LIMIT) {
+      await reader.cancel();
+      return body;
+    }
+  }
+}
+
+function previewUrlFor(story, source) {
+  const page = canonical(story?.url), site = canonical(source?.site ?? source?.url);
+  if (!page || !site || !page.startsWith('https://')) return null;
+  // Feed item links are untrusted input. Preview only a configured publisher's
+  // own canonical host and reject redirects, so a feed cannot turn collection
+  // into an internal-network fetch or a third-party crawl.
+  return new URL(page).hostname === new URL(site).hostname ? page : null;
+}
+
+export async function fetchPublisherPreview(story, source, fetcher = fetch) {
+  const url = previewUrlFor(story, source);
+  if (!url) return {};
+  try {
+    const response = await fetcher(url, {
+      headers: { 'User-Agent': 'Bond6 (+https://bond6.io/about)', Accept: 'text/html,application/xhtml+xml' },
+      redirect: 'error', signal: AbortSignal.timeout(ARTICLE_PREVIEW_TIMEOUT_MS)
+    });
+    if (!response.ok || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) return {};
+    return publisherPreview(await previewBody(response));
+  } catch {
+    // A preview is optional. The original RSS item remains publishable if a
+    // publisher blocks this small metadata request or times out.
+    return {};
+  }
+}
+
+const needsPublisherPreview = item => (item.excerpt?.length ?? 0) < 180 || (!item.image_url && !item.audio_url && !item.video_url);
+
+/** Enrich at most one unpreviewed current item for an explicitly opted-in source. */
+export async function enrichPublisherPreviews(db, source, items, now, fetcher = fetch) {
+  if (!source.article_preview || !items.length) return items;
+  const checked = new Map();
+  for (let start = 0; start < items.length; start += 80) {
+    const chunk = items.slice(start, start + 80);
+    const { results } = await db.prepare(`SELECT url,article_preview_checked_at FROM stories WHERE url IN(${chunk.map(() => '?').join(',')})`).bind(...chunk.map(item => item.url)).all();
+    for (const row of results) checked.set(row.url, row.article_preview_checked_at);
+  }
+  let remaining = ARTICLE_PREVIEW_PER_POLL;
+  for (const item of items) {
+    if (!remaining || checked.get(item.url) || !needsPublisherPreview(item)) continue;
+    const preview = await fetchPublisherPreview(item, source, fetcher);
+    const description = preview.description ?? '';
+    if (description.length >= 80 && ((item.excerpt?.length ?? 0) < 80 || description.length > item.excerpt.length + 40)) item.excerpt = description;
+    item.image_url ??= preview.image_url ?? null;
+    item.audio_url ??= preview.audio_url ?? null;
+    item.video_url ??= preview.video_url ?? null;
+    item.article_preview_checked_at = now;
+    item.content_hash = await contentHash(item);
+    remaining--;
+  }
+  return items;
 }
 
 export async function resolveShortLink(value, fetcher = fetch) {
@@ -224,17 +322,17 @@ export async function storeItems(db, source, items, now) {
     catch (error) { console.warn('Story rejected before storage', {source_id:source.id, url:item?.url ?? null, reason:error.message}); }
   }
   const statements = [];
-  // 25 values x 4 rows stays within D1's 100 bound parameter limit.
-  for (let start = 0; start < validItems.length; start += 4) {
-    const chunk = validItems.slice(start, start + 4);
+  // 26 values x 3 rows stays within D1's 100 bound parameter limit.
+  for (let start = 0; start < validItems.length; start += 3) {
+    const chunk = validItems.slice(start, start + 3);
     const values = chunk.flatMap(i => [i.url, i.title, source.name, source.topic, i.original_published_at ?? now, Number(source.kind === 'rss'), source.id, i.author,
       i.original_lang, i.content_type, i.original_published_at, now, i.canonical_url, i.excerpt, i.parent_context ?? null, i.lane, i.subject,
       i.original_lang === 'zh' ? i.title : null, i.original_lang === 'en' ? i.title : null, i.content_hash, now, 0,
-      i.image_url ?? null, i.audio_url ?? null, i.video_url ?? null]);
+      i.image_url ?? null, i.audio_url ?? null, i.video_url ?? null, i.article_preview_checked_at ?? null]);
     statements.push(db.prepare(`INSERT INTO stories(url,title,source,topic,published_at,is_article,source_id,author,original_lang,content_type,
       original_published_at,discovered_at,canonical_url,excerpt,parent_context,lane,subject,title_zh,title_en,content_hash,updated_at,translate_after,
-      image_url,audio_url,video_url)
-      VALUES ${chunk.map(() => '(' + Array(25).fill('?').join(',') + ')').join(',')}
+      image_url,audio_url,video_url,article_preview_checked_at)
+      VALUES ${chunk.map(() => '(' + Array(26).fill('?').join(',') + ')').join(',')}
       ON CONFLICT(url) DO UPDATE SET title=excluded.title,source=excluded.source,topic=excluded.topic,published_at=excluded.published_at,
       is_article=excluded.is_article,source_id=excluded.source_id,author=excluded.author,original_lang=excluded.original_lang,
       content_type=excluded.content_type,original_published_at=excluded.original_published_at,
@@ -243,9 +341,11 @@ export async function storeItems(db, source, items, now) {
       title_zh=CASE WHEN stories.title=excluded.title THEN coalesce(stories.title_zh,excluded.title_zh) ELSE excluded.title_zh END,
       title_en=CASE WHEN stories.title=excluded.title THEN coalesce(stories.title_en,excluded.title_en) ELSE excluded.title_en END,
       translate_after=CASE WHEN stories.title=excluded.title THEN stories.translate_after ELSE 0 END,
-      image_url=excluded.image_url,audio_url=excluded.audio_url,video_url=excluded.video_url
+      image_url=excluded.image_url,audio_url=excluded.audio_url,video_url=excluded.video_url,
+      article_preview_checked_at=coalesce(excluded.article_preview_checked_at,stories.article_preview_checked_at)
       WHERE (excluded.is_article>=stories.is_article OR stories.source_id IS NULL)
-        AND stories.content_hash IS NOT excluded.content_hash`).bind(...values));
+        AND (stories.content_hash IS NOT excluded.content_hash
+          OR (stories.article_preview_checked_at IS NULL AND excluded.article_preview_checked_at IS NOT NULL))`).bind(...values));
   }
   for (let start = 0; start < validItems.length; start += 20) {
     const chunk = validItems.slice(start, start + 20);
@@ -267,6 +367,7 @@ async function collectOne(env, source, state, now) {
   try {
     const { items, rejectedUrls, raw_items, usable_items, etag, modified } = await poll(source, state, now);
     const fresh=await recordSourceDiscoveries(db,source,items,now);
+    await enrichPublisherPreviews(db,source,items,now);
     // Candidate/probation feeds are evaluated but do not enter the public Flow
     // until Source Vitality has recommended and an editor has promoted them.
     if(!['candidate','probation'].includes(source.catalogue_state)) {

@@ -10,6 +10,12 @@ export const FEED_ITEM_LIMIT = 40; // Max items to process per feed
 export const MAX_EVENT_BODY_BYTES = 128; // Max size for analytics events
 export const MAX_QUERY_LENGTH = 1500; // Max query string length
 export const HTTP_REQUEST_TIMEOUT_MS = 8_000;
+// Publisher-page previews are an opt-in recovery path for feeds that provide
+// a canonical link but omit their own description or preview image. They read
+// only a bounded publisher page head/body prefix; they are never a crawler.
+export const ARTICLE_PREVIEW_BODY_LIMIT = 320_000;
+export const ARTICLE_PREVIEW_TIMEOUT_MS = 6_000;
+export const ARTICLE_PREVIEW_PER_POLL = 1;
 // A scheduled invocation may collect this many due feeds. Keeping this bounded
 // lets a growing source list stay fresh without turning one cron run into an
 // unbounded crawl.
@@ -17,7 +23,7 @@ export const MAX_COLLECTS_PER_TICK = 2;
 export const SOURCE_VITALITY_RETENTION_DAYS = 90;
 export const SOURCE_EVALUATION_HOUR_UTC = 0;
 export const SOURCE_EVALUATION_MINUTE_UTC = 50;
-export const SOURCE_CATALOGUE_VERSION = 'source-vitality-v7';
+export const SOURCE_CATALOGUE_VERSION = 'source-vitality-v8';
 
 // Cache configuration
 export const CACHE_TTL_SECONDS = 60;

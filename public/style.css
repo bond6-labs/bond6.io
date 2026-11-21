@@ -303,6 +303,11 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .search-control summary::-webkit-details-marker { display: none; }
 .search-control summary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; }
 .search-control summary:hover { color: var(--gold); }
+.saved-link { position: relative; display: inline-grid; place-items: center; width: 44px; min-height: 44px; color: var(--ink); }
+.saved-link:hover { color: var(--gold); }
+.saved-link svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linejoin: round; }
+.saved-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.saved-count { position: absolute; inset-block-start: 4px; inset-inline-end: 2px; display: grid; min-width: 15px; height: 15px; padding: 0 3px; place-items: center; border-radius: 99px; background: var(--gold); color: var(--ground); font: 700 9px/1 Inter,ui-sans-serif,system-ui,sans-serif; font-variant-numeric: tabular-nums; }
 .story-search { padding-top: 8px; }
 .activity-bar { margin-top: 18px; padding: 13px 14px; background: var(--surface); }
 .activity-heading, .activity-labels { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }

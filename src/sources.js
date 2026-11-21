@@ -99,7 +99,10 @@ export const sources = [
   { id: 'ifanr', name: '爱范儿', kind: 'rss', url: 'https://www.ifanr.com/feed', site: 'https://www.ifanr.com/', topic: 'AI, products & digital life', language: 'zh', tier: 'flow', poll_minutes: 30 },
   { id: '404', name: '404 Media', kind: 'rss', url: 'https://www.404media.co/rss/', site: 'https://www.404media.co/', topic: 'Life online', poll_minutes: 10 },
   { id: 'techdirt', name: 'Techdirt', kind: 'rss', url: 'https://www.techdirt.com/feed/', site: 'https://www.techdirt.com/', topic: 'Life online', poll_minutes: 10 },
-  { id: 'openai-news', name: 'OpenAI News', kind: 'rss', url: 'https://openai.com/news/rss.xml', site: 'https://openai.com/news/', topic: 'AI systems & releases', poll_minutes: 30 },
+  // OpenAI's feed can omit its publisher-selected social image and summary.
+  // This explicit opt-in permits one bounded same-site metadata preview per
+  // collection, rather than turning Bond6 into an unrestricted page crawler.
+  { id: 'openai-news', name: 'OpenAI News', kind: 'rss', url: 'https://openai.com/news/rss.xml', site: 'https://openai.com/news/', topic: 'AI systems & releases', article_preview: true, poll_minutes: 30 },
   { id: 'google-ai', name: 'Google AI', kind: 'rss', url: 'https://blog.google/technology/ai/rss/', site: 'https://blog.google/technology/ai/', topic: 'AI systems & research', poll_minutes: 30 },
   { id: 'ieee-ai', name: 'IEEE Spectrum — AI', kind: 'rss', url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss', site: 'https://spectrum.ieee.org/artificial-intelligence/', topic: 'AI research & society', poll_minutes: 45 },
   { id: 'noema', name: 'Noema', kind: 'rss', url: 'https://www.noemamag.com/feed/', site: 'https://www.noemamag.com/', topic: 'Technology & society', essays: true, poll_minutes: 90 },
