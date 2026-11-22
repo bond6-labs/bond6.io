@@ -28,8 +28,12 @@ export const sources = [
   { id: 'climbing', name: 'Climbing', kind: 'rss', url: 'https://www.climbing.com/feed/', site: 'https://www.climbing.com/', topic: 'Climbing & embodied life', tier: 'flow', poll_minutes: 45 },
   { id: 'open-culture', name: 'Open Culture', kind: 'rss', url: 'https://www.openculture.com/feed', site: 'https://www.openculture.com/', topic: 'Culture & learning', tier: 'flow', poll_minutes: 90 },
   { id: 'kottke', name: 'Kottke.org', kind: 'rss', url: 'https://feeds.kottke.org/main', site: 'https://kottke.org/', topic: 'Culture, design & curiosities', tier: 'flow', poll_minutes: 45 },
-  // Batch 1: each active addition fills a specific gap in the English reading
-  // without pushing the live catalogue beyond its 50-source operating ceiling.
+  // Verified high-cadence editorial sources. Item-level Human Pulse gates keep
+  // general entertainment, politics, commerce, and event listings out.
+  { id: 'guardian-culture', name: 'The Guardian — Culture', kind: 'rss', url: 'https://www.theguardian.com/culture/rss', site: 'https://www.theguardian.com/culture/', topic: 'Books, arts & culture', language: 'en', lane: 'human', tier: 'flow', poll_minutes: 60 },
+  { id: 'designboom', name: 'designboom', kind: 'rss', url: 'https://www.designboom.com/feed/', site: 'https://www.designboom.com/', topic: 'Design, art & architecture', language: 'en', lane: 'human', tier: 'flow', poll_minutes: 60 },
+  // Batch 1: each active addition fills a specific gap in the English reading.
+  // The vitality budget, rather than a blind source-count cutoff, limits growth.
   { id: 'granta', name: 'Granta', kind: 'rss', url: 'https://granta.com/feed/', site: 'https://granta.com/', topic: 'Literature, memoir & reportage', lane: 'human', essays: true, poll_minutes: 480 },
   { id: 'rumpus', name: 'The Rumpus', kind: 'rss', url: 'https://therumpus.net/feed/', site: 'https://therumpus.net/', topic: 'Independent arts, essays & poetry', lane: 'human', essays: true, poll_minutes: 480 },
   { id: 'stereogum', name: 'Stereogum', kind: 'rss', url: 'https://www.stereogum.com/feed/', site: 'https://www.stereogum.com/', topic: 'Music criticism & artists', lane: 'human', essays: true, poll_minutes: 480 },
@@ -50,6 +54,10 @@ export const sources = [
   { id: 'print-magazine', name: 'PRINT Magazine', kind: 'rss', url: 'https://www.printmag.com/feed/', site: 'https://www.printmag.com/', topic: 'Design, illustration & creative practice', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'orion-magazine', name: 'Orion Magazine', kind: 'rss', url: 'https://orionmagazine.org/feed/', site: 'https://orionmagazine.org/', topic: 'Nature, place & cultural essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'emergence-magazine', name: 'Emergence Magazine', kind: 'rss', url: 'https://emergencemagazine.org/feed/', site: 'https://emergencemagazine.org/', topic: 'Ecology, culture, film & audio essays', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  // Independently verified feeds held for Source Vitality evidence before
+  // entering the live Flow. They provide music and international art coverage.
+  { id: 'npr-music', name: 'NPR Music', kind: 'rss', url: 'https://feeds.npr.org/1039/rss.xml', site: 'https://www.npr.org/music/', topic: 'Music, artists & listening', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'art-newspaper', name: 'The Art Newspaper', kind: 'rss', url: 'https://www.theartnewspaper.com/rss.xml', site: 'https://www.theartnewspaper.com/', topic: 'Art, exhibitions & artists', language: 'en', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'qingshu', name: '轻书散文小站', kind: 'rss', url: 'https://qingshu.art/feed', site: 'https://qingshu.art/', topic: 'Essays & literary life', language: 'zh', lane: 'human', essays: true, poll_minutes: 480 },
   // First-party programme feeds add Chinese spoken-word and poetry context.
   // Their normal source caps still keep generic self-help material from
@@ -64,6 +72,9 @@ export const sources = [
   { id: 'jiemian-culture-podcast', name: '界面文化·编辑部聊天室', kind: 'rss', url: 'https://feed.xyzfm.space/yngbfgflw4qk', site: 'https://www.jiemian.com/', topic: 'Culture & public life', language: 'zh', lane: 'human', tier: 'flow', format: 'podcast', short_excerpt: true, poll_minutes: 180 },
   { id: 'storyfm', name: '故事FM', kind: 'rss', url: 'https://feeds.storyfm.cn/storyfm.xml', site: 'https://storyfm.cn/', topic: 'First-person lives, work & memory', language: 'zh', lane: 'human', essays: true, format: 'podcast', short_excerpt: true, poll_minutes: 480 },
   { id: 'culture-unlimited', name: '文化有限', kind: 'rss', url: 'https://www.ximalaya.com/album/29887212.xml', site: 'https://www.ximalaya.com/album/29887212', topic: 'Books, film & cultural conversation', language: 'zh', lane: 'human', essays: true, format: 'podcast', short_excerpt: true, poll_minutes: 480 },
+  // 澎湃的栏目源通过公开 RSSHub 路由提供；只选择文化和艺术栏目，
+  // 不接入其综合新闻流。
+  { id: 'thepaper-culture', name: '澎湃·文化课', kind: 'rss', url: 'https://rsshub.bestblogs.dev/thepaper/list/25450', site: 'https://www.thepaper.cn/', topic: 'Culture, books & creative life', language: 'zh', lane: 'human', tier: 'flow', essays: true, poll_minutes: 360 },
 
   // Chinese Human Pulse candidates. Traditional-script or mirror-only sources
   // are held for script, reliability, and usable-excerpt review before display.
@@ -81,6 +92,7 @@ export const sources = [
   { id: 'zhaoyuan-jian', name: '昭鸢笺', kind: 'rss', url: 'https://blog.mibase.top/index.xml', site: 'https://blog.mibase.top/', topic: 'Personal essays & literary notes', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'to-the-lighthouse', name: 'To the Lighthouse', kind: 'rss', url: 'https://owlswims.com/feed', site: 'https://owlswims.com/', topic: 'Reading, essays & reviews', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
   { id: 'tripper-press', name: 'Tripper Press', kind: 'rss', url: 'https://tripper.press/atom.xml', site: 'https://tripper.press/', topic: 'Photography, cities & travel culture', language: 'zh', lane: 'human', state: 'candidate', tier: 'candidate', essays: true, poll_minutes: 1440 },
+  { id: 'thepaper-art', name: '澎湃·艺术评论', kind: 'rss', url: 'https://rsshub.bestblogs.dev/thepaper/list/25455', site: 'https://www.thepaper.cn/', topic: 'Art, exhibitions & criticism', language: 'zh', lane: 'human', tier: 'flow', essays: true, poll_minutes: 360 },
   // This publication has a strong daily editor-selected poem, but no public
   // RSS/Atom endpoint. Keep it visible for an eventual permissioned adapter;
   // it is intentionally not fetched or scraped by the collector.

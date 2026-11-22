@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { database } from './db.js';
 import { now, story } from './fixtures.js';
-import { auditSourceCoverage, dueSources, ensureSourceCatalogue, evaluateSource, evaluateSourceVitality, observeSource, recordSourceDiscoveries, sourceFromCatalogue } from '../src/source-vitality.js';
+import { auditSourceCoverage, dueSources, ensureSourceCatalogue, evaluateSource, evaluateSourceVitality, observeSource, projectedDailyCollections, recordSourceDiscoveries, sourceFromCatalogue } from '../src/source-vitality.js';
 import { sources, archivedSources } from '../src/sources.js';
 
 test('Source Vitality seeds every current source once without replacing its operational state',async()=>{
@@ -59,7 +59,7 @@ test('Source Discovery records first sightings once and audits coverage roles',a
 test('high-yield Human Pulse sources get rapid cadence while watch sources keep their reviewed cadence',async()=>{
   const db=database();await ensureSourceCatalogue(db,now);
   const human=await db.prepare('SELECT tier,expected_minutes FROM source_catalogue WHERE id=?').bind('hyperallergic').first();
-  assert.equal(human.tier,'rapid');assert.equal(human.expected_minutes,45);
+  assert.equal(human.tier,'rapid');assert.equal(human.expected_minutes,60);
   await db.prepare("UPDATE source_catalogue SET state='watch',tier='slow',expected_minutes=1440 WHERE id='hyperallergic'").run();
   await db.prepare("UPDATE source_catalogue_meta SET value='force-reseed' WHERE id='version'").run();
   await ensureSourceCatalogue(db,now+1);
@@ -122,6 +122,13 @@ test('a high-confidence probation source is promoted automatically at a slow saf
   await db.prepare("UPDATE source_catalogue SET state='probation' WHERE id='atlas-obscura'").run();
   await evaluateSourceVitality(db,now);
   const promoted=await db.prepare('SELECT state,tier,expected_minutes,state_reason FROM source_catalogue WHERE id=?').bind('atlas-obscura').first();
-  assert.equal(promoted.state,'active');assert.equal(promoted.tier,'slow');assert.equal(promoted.expected_minutes,480);
+  assert.equal(promoted.state,'active');assert.equal(promoted.tier,'slow');assert.equal(promoted.expected_minutes,720);
   assert.match(promoted.state_reason,/Automatically promoted/);
+});
+
+test('catalogue cadence leaves room below the scheduled collection capacity',()=>{
+  // 286 normal five-minute ticks × two collections = 572. Keep a practical
+  // reserve for retries and temporary source failures rather than planning to
+  // consume every possible scheduled fetch.
+  assert.ok(projectedDailyCollections(sources)<=500);
 });

@@ -34,10 +34,16 @@ export const coverageLaneFor=source=>source.coverage_lane
 // Rapid polling is intentionally scarce. These sources consistently publish
 // timely, editorially usable work; the small Human Pulse set prevents the
 // homepage from becoming an AI-only current-affairs feed.
-const rapidSourceIds=new Set(['platformer','404','techdirt','techcrunch-ai','verge-ai','the-decoder','hyperallergic','literary-hub','creative-boom']);
+const rapidSourceIds=new Set(['platformer','404','techdirt','techcrunch-ai','verge-ai','the-decoder','hyperallergic','literary-hub','creative-boom','guardian-culture','designboom']);
 const tierFor=source=>source.state==='candidate'||source.tier==='candidate'?'candidate':rapidSourceIds.has(source.id)?'rapid':(source.tier==='flow'||Number(source.poll_minutes??240)<=90?'standard':'slow');
-const expectedMinutesForTier=tier=>tier==='rapid'?45:tier==='standard'?240:tier==='candidate'?1440:480;
+// Keep a meaningful reserve below the 5-minute scheduler's collection limit.
+// Rapid sources stay timely at an hourly check; a crowded catalogue otherwise
+// starves lower-frequency cultural feeds and produces apparent stalled lanes.
+const expectedMinutesForTier=tier=>tier==='rapid'?60:tier==='standard'?360:tier==='candidate'?1440:720;
 const expectedMinutes=source=>expectedMinutesForTier(tierFor(source));
+export const projectedDailyCollections = (catalogue = sources) => catalogue
+  .filter(source=>source.kind!=='reference')
+  .reduce((total,source)=>total+1440/expectedMinutes(source),0);
 const configFor=source=>JSON.stringify({
   url:source.url??null,handle:source.handle??null,essays:source.essays===true,allPosts:source.allPosts===true,
   title_prefixes:source.title_prefixes??[],lane:source.lane??null,format:source.format??null,

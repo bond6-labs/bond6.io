@@ -25,8 +25,8 @@ It rewards editorial fit and useful specificity, not publisher size, political v
 
 | State | English | Simplified Chinese | Meaning |
 | --- | ---: | ---: | --- |
-| Active | up to 50 | up to 25 | May contribute to the public Flow. |
-| Candidate | up to 20 | up to 20 | Trial feeds; not eligible for public display until promoted. |
+| Active | target 50; capacity-led exceptions | target 25; capacity-led exceptions | May contribute to the public Flow. Sources are not silently removed merely to meet a count. |
+| Candidate | target 30 | target 25 | Trial feeds; not eligible for public display until promoted. |
 | Watch | included in active cap | included in active cap | Still collected, but under review for weak value or declining health. |
 | Paused / retired | no limit | no limit | Kept as a compact record with a reason and date. |
 
@@ -147,35 +147,39 @@ Ratios are smoothed with a small prior so three strong items out of ten are prom
 
 ## Polling budget
 
-Bond6 currently permits at most 576 source collections per UTC day:
+Bond6 has at most 572 normal source-collection slots per UTC day:
 
 ```text
-288 five-minute scheduler ticks × 2 collections per tick
+286 five-minute collection ticks × 2 collections per tick
 ```
 
-The active catalogue must fit that budget with margin for retries. The current
-operating configuration supports a 66-source live catalogue and a deliberately
-broad 40-source trial pool. Candidate feeds are checked only once per day and
-are never reader-visible, so this lets Bond6 learn from promising sources
-without treating a research list as public editorial endorsement.
+The catalogue must fit that ceiling with a material margin for retries. The
+current allocation intentionally stays at or below 500 planned checks/day.
+Candidate feeds are checked only once per day and are never reader-visible, so
+Bond6 can learn from promising sources without treating a research list as
+public editorial endorsement.
 
 | Tier | Typical use | Count | Interval | Polls/day |
 | --- | --- | ---: | ---: | ---: |
-| Rapid | a few high-signal AI / technology sources | 6 | 45 minutes | 192 |
-| Standard | dependable news and culture publishers | 20 | 4 hours | 120 |
-| Slow | essays, art, literature, research, podcasts | 40 | 8 hours | 120 |
-| Candidate | trial sources | 40 | 24 hours | 40 |
-| **Planned total** |  | **106** |  | **472** |
+| Rapid | a few timely AI and culture desks | 11 | 60 minutes | 264 |
+| Standard | dependable news and culture publishers | 23 | 6 hours | 92 |
+| Slow | essays, art, literature, research, podcasts | 42 | 12 hours | 84 |
+| Candidate | trial sources | 46 | 24 hours | 46 |
+| **Planned total** |  | **122** |  | **486** |
 
-This leaves 104 collections/day for retries, one-off verification, and temporary escalation. The implementation supports source intervals up to 24 hours and uses an indexed “sources due now” query instead of loading every source state at every scheduler tick.
+This leaves at least 72 collection slots/day for retries, one-off verification,
+and temporary escalation. The implementation supports source intervals up to 24
+hours and uses an indexed “sources due now” query instead of loading every
+source state at every scheduler tick.
 
 ### Initial catalogue cadence
 
-The existing sources are seeded without discarding any previous record. Nine
-high-yield editorial sources (six AI and three Human Pulse) use a 45-minute
+The existing sources are seeded without discarding any previous record. Eleven
+high-yield editorial sources (six AI and five Human Pulse) use an hourly
 cadence; the rest use standard, slow, or trial intervals. Human rapid sources
-are deliberately limited to Hyperallergic, Literary Hub, and Creative Boom:
-they improve freshness without letting a cultural feed overwhelm the budget.
+are deliberately limited to Hyperallergic, Literary Hub, Creative Boom, The
+Guardian Culture, and designboom: they improve freshness without letting a
+cultural feed overwhelm the budget.
 Poetry and first-party cultural-audio feeds may use a smaller excerpt threshold
 only after they pass the same item-level Human Pulse gate.
 

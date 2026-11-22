@@ -308,7 +308,7 @@ export async function sourcesPage(env,v) {
   const stateById=new Map(sourceStates.map(state=>[state.id,state]));
   const fallback=[...sources,...archivedSources].map(source=>({...source,...stateById.get(source.id),feed_url:source.url,site_url:source.site,
     language:source.language ?? (['sspai','qbitai','kaix','maohang','conge','hehew'].includes(source.id)?'zh':'en'),
-    state:source.state??'active',tier:source.state==='candidate'||source.tier==='candidate'?'candidate':source.tier==='flow'?'rapid':'standard'}));
+    state:source.state??'active',tier:source.state==='candidate'||source.tier==='candidate'?'candidate':source.tier==='slow'?'slow':source.tier==='rapid'?'rapid':'standard'}));
   const rows=catalogue.length?catalogue:fallback;
   const topic=row=>v.zh?sourceTopics[row.topic]??row.topic:row.topic;
   const stateLabel=state=>({active:v.say('Active','启用中'),watch:v.say('Watching','观察中'),candidate:v.say('Candidate','候选来源'),probation:v.say('In review','评估中'),paused:v.say('Paused','已暂停'),retired:v.say('Retired','已退出')}[state]??state);
