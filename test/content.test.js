@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,poll,pollIntervalMs,retryIntervalMs,readBody,publisherPreview,fetchPublisherPreview} from '../src/ingest.js';
-import {classify,canonical,contentHash,usableText} from '../src/content.js';
+import {classify,selectionGate,canonical,contentHash,usableText} from '../src/content.js';
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
 import {story,source,now,note,review} from './fixtures.js';
@@ -109,6 +109,16 @@ test('classification follows content, not publication names',()=>{
   assert.equal(classify('A design publisher announces a new page','The publication shares a brief site update.',{essays:true}).lane,null);
   assert.equal(classify('A painter reflects on a decade in the studio','An interview follows the artist’s process, materials and changing practice.',{essays:true}).lane,'human');
   assert.equal(classify('An AI benchmark launches','A report documents a new model capability.',{lane:'human'}).lane,null);
+});
+test('incidental AI references and metaphorical deployment stay out of AI Wave',()=>{
+  const title='How to Criticize with Kindness: Philosopher Daniel Dennett on the Four Steps to Arguing Intelligently';
+  const excerpt='In disputes upon moral or scientific points, Arthur Martine counseled in his guide to the art of conversation. When we argue, we deploy the artillery of righteousness behind a keyboard. Daniel Dennett, whom artificial intelligence pioneer Marvin Minsky called a philosopher, offers a critique of how to argue charitably.';
+  const source={id:'marginalian',lane:'human',essays:true};
+  const gate=selectionGate(title,excerpt,source);
+  assert.equal(gate.signals.system,true);
+  assert.equal(gate.signals.movement,false);
+  assert.equal(gate.ai,false);
+  assert.deepEqual(classify(title,excerpt,source),{lane:'human',subject:'writing'});
 });
 test('headlines retain their final word and long social posts are not chopped into headlines',()=>{
   const [rss]=fromRss('<rss><channel><item><title>Trump DOJ Folds, Agrees To Permanent Ban On Censoring ICE Tracking Group And App</title><link>https://example.org/a</link><description>AI policy and the impact on people and culture gives this feed item enough source text for a focused classification.</description></item></channel></rss>',source);

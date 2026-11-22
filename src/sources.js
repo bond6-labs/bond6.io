@@ -23,7 +23,7 @@ export const sources = [
   { id: 'electric-literature', name: 'Electric Literature', kind: 'rss', url: 'https://electricliterature.com/feed/', site: 'https://electricliterature.com/', topic: 'Literature & writers', essays: true, poll_minutes: 90 },
   { id: 'paris-review', name: 'The Paris Review', kind: 'rss', url: 'https://www.theparisreview.org/blog/feed/', site: 'https://www.theparisreview.org/', topic: 'Writers & literature', essays: true, poll_minutes: 90 },
   { id: 'longreads', name: 'Longreads', kind: 'rss', url: 'https://longreads.com/feed/', site: 'https://longreads.com/', topic: 'Long-form writing', essays: true, poll_minutes: 90 },
-  { id: 'marginalian', name: 'The Marginalian', kind: 'rss', url: 'https://www.themarginalian.org/feed/', site: 'https://www.themarginalian.org/', topic: 'Culture & ideas', essays: true, poll_minutes: 180 },
+  { id: 'marginalian', name: 'The Marginalian', kind: 'rss', url: 'https://www.themarginalian.org/feed/', site: 'https://www.themarginalian.org/', topic: 'Culture & ideas', language: 'en', lane: 'human', essays: true, poll_minutes: 180 },
   { id: 'dezeen', name: 'Dezeen', kind: 'rss', url: 'https://www.dezeen.com/feed/', site: 'https://www.dezeen.com/', topic: 'Design & architecture', tier: 'flow', poll_minutes: 20 },
   { id: 'climbing', name: 'Climbing', kind: 'rss', url: 'https://www.climbing.com/feed/', site: 'https://www.climbing.com/', topic: 'Climbing & embodied life', tier: 'flow', poll_minutes: 45 },
   { id: 'open-culture', name: 'Open Culture', kind: 'rss', url: 'https://www.openculture.com/feed', site: 'https://www.openculture.com/', topic: 'Culture & learning', tier: 'flow', poll_minutes: 90 },

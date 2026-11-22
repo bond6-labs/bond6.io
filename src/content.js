@@ -176,9 +176,12 @@ const humanVoice = /\b(?:i|my|me|we|our)\b.{0,90}\b(?:think|feel|believe|wonder|
 const humanCare = /\b(?:mutual aid|care(?:giving)?|support(?:ing)?|solidarity|neighbou?r(?:hood)?|community(?:-led)?|co-?op|volunteer(?:ing)?|friendship|family|grief|empathy|sympathy)\b|互助|关怀|照料|支持|团结|邻里|社区|合作社|志愿|友谊|家人|共情|同情/i;
 const humanEmbodied = /\b(?:climb(?:ing)?|mountain(?:eer(?:ing)?)?|trail running|marathon|ultra(?:run)?|surf(?:ing)?|skate(?:boarding)?|dance|injury|recovery|farm(?:ing)?|garden(?:ing)?)\b|登山|攀岩|越野|马拉松|冲浪|滑板|舞蹈|受伤|康复|农场|园艺/i;
 const culturalContext = /\b(?:review|interview|profile|conversation|criticism|critique|exhibition|performance|retrospective|reading|listening)\b|乐评|书评|影评|访谈|专访|人物|对谈|评论|批评|展览|演出|回顾|阅读|聆听/i;
+const humanReflection = /\b(?:philosoph(?:y|er|ical)|ethics?|moral(?:ity)?|kindness|critical thinking|argument(?:s|ation)?|consciousness)\b|哲学|伦理|道德|善意|批判性思维|论证|意识/i;
 const aiSystem = /\b(?:ai|artificial intelligence|llms?|large language model|chatgpt|openai|anthropic|generative ai|machine learning|deepfake|model training|data cent(?:er|re)|ai agent|algorithmic (?:feed|ranking|recommendation)|recommender system|automated decision(?:-making)?|facial recognition|biometric (?:system|surveillance))\b|人工智能|大模型|生成式|机器学习|深度伪造|训练模型|数据中心|智能体|算法推荐|自动化决策|人脸识别|生物识别/i;
 const aiImpact = /\b(?:replace(?:s|d|ment|ing)?|automate(?:s|d|ion|ing)?|job(?:s)?|work(?:er|place|load)?|labou?r|wage|union|artist|writer|teacher|student|privacy|surveillance|copyright|authorship|rights|trust|education|creative work)\b|替代|自动化|工作|劳动|工资|工会|艺术家|作者|教师|学生|隐私|监控|版权|署名|权利|信任|教育|创作/i;
-const aiMovement = /\b(?:release(?:d|s)?|launch(?:ed|es)?|deploy(?:ed|ment|s)?|train(?:ed|ing)?|benchmark|capabilit(?:y|ies)|reasoning|agent(?:ic)?|infrastructure|compute|research(?:ers|ed)?|model(?:s)? (?:can|now|will))\b|发布|推出|部署|训练|基准测试|能力|推理|智能体|基础设施|算力|研究/i;
+// “Deploy” is common metaphorical prose. It only signals AI movement when
+// the deployed object is itself an AI system, model, agent, tool, or algorithm.
+const aiMovement = /\b(?:release(?:d|s)?|launch(?:ed|es)?|deploy(?:ed|ment|s)?\s+(?:(?:an?|the)\s+)?(?:ai|artificial intelligence|model|system|agent|tool|algorithm)|train(?:ed|ing)?\s+(?:(?:an?|the)\s+)?(?:ai|model|system)|benchmark|capabilit(?:y|ies)|reasoning|agent(?:ic)?|infrastructure|compute|research(?:ers|ed)?|model(?:s)? (?:can|now|will))\b|发布|推出|部署|训练|基准测试|能力|推理|智能体|基础设施|算力|研究/i;
 const aiElite = /\b(?:ceo|founder|executive|researcher|scientist|lab|engineer|investor|critic)\b.{0,70}\b(?:said|says|argued|warned|called|announced)\b|首席执行官|创始人|高管|研究员|科学家|实验室|工程师|投资人|评论者.{0,50}(?:表示|认为|警告|宣布)/i;
 // A narrow route for consequential AI-assisted science. This is not a
 // general science permit: an AI-system signal is still required and the item
@@ -194,6 +197,7 @@ export function selectionGate(title, excerpt = '', source = {}) {
   if (utilityLifestyle.test(text)) return { human:false, ai:false, exclusion_reason:'Utility lifestyle or product content, not an individual account' };
   const creative = humanCreative.test(text), making = humanMaking.test(text), voice = humanVoice.test(text);
   const care = humanCare.test(text), embodied = humanEmbodied.test(text), culture = culturalContext.test(text);
+  const reflective = humanReflection.test(text);
   const system = aiSystem.test(text), impact = aiImpact.test(text), movement = aiMovement.test(text), elite = aiElite.test(text), scientific = aiScientificAdvance.test(text), reported = reportedSpecificity.test(text);
   if (commercial.test(text)) return { human:false, ai:false, exclusion_reason:'Commercial, funding, or property coverage is outside Bond6’s editorial flow' };
   // Poetry and editorial cultural audio regularly have a precise title and a
@@ -202,7 +206,10 @@ export function selectionGate(title, excerpt = '', source = {}) {
   // a cultural signal; a publisher name alone still never qualifies an item.
   const declaredPoetry = source.format==='poetry' && creative;
   const declaredCulturalAudio = source.format==='podcast' && (creative || voice || care || culture);
-  const human_core = (creative && making) || voice || care || (embodied && (voice || culture || reported)) || declaredPoetry || declaredCulturalAudio;
+  // A vetted Human Pulse essay source may carry reflective humanities writing
+  // (philosophy, ethics, criticism) without mentioning an artist or artwork.
+  const humanReflectiveEssay = source.lane==='human' && source.essays===true && reflective && culture;
+  const human_core = (creative && making) || voice || care || (embodied && (voice || culture || reported)) || declaredPoetry || declaredCulturalAudio || humanReflectiveEssay;
   const ai_core = system && (impact || movement || elite || scientific);
   return {
     // The live flow may include a well-attributed cultural review/profile or
@@ -216,13 +223,17 @@ export function selectionGate(title, excerpt = '', source = {}) {
     ai: ai_core || (system && movement && reported),
     human_core, ai_core,
     exclusion_reason:null,
-    signals:{ creative, making, voice, care, embodied, culture, system, impact, movement, elite, scientific, reported }
+    signals:{ creative, making, voice, care, embodied, culture, reflective, system, impact, movement, elite, scientific, reported }
   };
 }
 export function classify(title, excerpt, source = {}) {
   // Require an item-level subject signal. A publisher cannot make unrelated news relevant.
   const text = `${title} ${excerpt.slice(0, 1400)}`;
-  let subject = /\b(music|song\w*|album\w*|musician\w*|band|jazz|guitar|concert)\b|音乐|歌曲|专辑|乐队|作曲/i.test(text) ? 'music'
+  // Bond6 has no separate philosophy tab; reflective humanities belongs with
+  // Writing rather than Art & Design when a phrase such as “art of argument”
+  // appears in its source text.
+  let subject = /\b(?:philosoph(?:y|er|ical)|ethics?|moral philosophy|critical thinking)\b|哲学|伦理|道德哲学|批判性思维/i.test(text) ? 'writing'
+    : /\b(music|song\w*|album\w*|musician\w*|band|jazz|guitar|concert)\b|音乐|歌曲|专辑|乐队|作曲/i.test(text) ? 'music'
     : /\b(art|artist\w*|paint\w*|sculpt\w*|photograph\w*|illustrat\w*|design\w*|exhibition|cinema|films?|filmmaking)\b|绘画|画家|摄影|设计|艺术|插画|展览|电影|剧集/i.test(text) ? 'art'
     : /\b(books?|poems?|poetry|literature|literary|novels?|writers?|writing|fiction|essays?)\b|文学|写作|小说|诗歌|书籍|读书/i.test(text) ? 'writing'
     : /\b(crafts?|crafting|craftsmanship|creative practice|creative process|pottery|ceramics|woodworking|video games?|game design|gaming)\b|手工|创意|游戏|创作|制作/i.test(text) ? 'practice' : sourceSubjects[source.id] ?? 'digital';
