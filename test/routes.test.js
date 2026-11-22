@@ -12,7 +12,7 @@ test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaS
     r.lane_recommendation AS rhythm_lane,r.confidence AS rhythm_confidence,r.labels AS rhythm_labels,r.evidence AS rhythm_evidence
     FROM stories s JOIN story_signals r ON r.story_url=s.url WHERE s.url=?`).bind(s.url).first();
   db.sql.prepare('INSERT INTO editions VALUES(?,?,?,?,?,NULL)').run('2026-11-13','daily','2026-11-13',now,JSON.stringify({id:'2026-11-13',kind:'daily',date:'2026-11-13',stories:[snapshotStory(picked,note(s),now)]}));
-  for(const prefix of ['','/zh']) for(const path of ['/','/about','/sources','/saved','/subscribe','/edit','/edit/2026-11-13','/bond','/bond/field-notes-making-and-proof','/feed.xml','/feed.xml?kind=daily&lane=human','/feed.xml?kind=bond']){
+  for(const prefix of ['','/zh']) for(const path of ['/','/about','/sources','/saved','/subscribe','/edit','/edit/2026-11-13','/bonding','/bonding/field-notes-making-and-proof','/feed.xml','/feed.xml?kind=daily&lane=human','/feed.xml?kind=bond']){
     const r=await worker.fetch(new Request('https://bond6.io'+prefix+path),{DB:db});assert.equal(r.status,200,prefix+path);
     const text=await r.text();assert.ok(!text.includes('undefined'),path);if(!path.includes('.xml')){assert.match(text,/rel="canonical"/);assert.match(text,/hreflang="zh-Hans"/);}
   }
@@ -74,7 +74,7 @@ test('archive pages cap a single publisher while retaining other arrivals',async
 test('mobile lane and filters survive navigation and language switch',async()=>{
   const db=database();const r=await worker.fetch(new Request('https://bond6.io/?lane=ai&topic=music'),{DB:db});const text=await r.text();
   const primary=text.match(/<nav class="tabs"[^>]*>([\s\S]*?)<\/nav>/)?.[1]??'';
-  assert.match(text,/data-lane="ai" data-desktop-lane="ai"/);assert.match(text,/lane-view-switch/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/data-infinite-trigger data-lane="human"/);assert.match(text,/data-infinite-trigger data-lane="ai"/);assert.match(text,/data-infinite-lane-feed="human"/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bond\?lane=ai&amp;topic=music"/);assert.match(text,/class="saved-link" href="\/saved"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.doesNotMatch(text,/<footer[\s\S]*?href="\/edit">Editions/);
+  assert.match(text,/data-lane="ai" data-desktop-lane="ai"/);assert.match(text,/lane-view-switch/);assert.match(text,/owl-perch/);assert.match(text,/robot-picker-machine/);assert.match(text,/heartbeat/);assert.match(text,/101001/);assert.match(text,/data-infinite-trigger data-lane="human"/);assert.match(text,/data-infinite-trigger data-lane="ai"/);assert.match(text,/data-infinite-lane-feed="human"/);assert.match(text,/\/zh\/\?lane=ai&amp;topic=music/);assert.match(text,/href="\/bonding\?lane=ai&amp;topic=music"/);assert.match(text,/class="saved-link" href="\/saved"/);assert.doesNotMatch(primary,/href="\/(?:edit|saved)/);assert.doesNotMatch(text,/<footer[\s\S]*?href="\/edit">Editions/);
 });
 test('live feed continuations use a stable cursor and never repeat rendered stories',async()=>{
   const db=database();
@@ -102,8 +102,8 @@ test('Focusing labels emerging signals and Bonding renders a Bonding route',asyn
     await storeItems(db,{...source,id:'human-journal',name:'Human Journal'},[human],now);
     await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
     await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
-    const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);
-    const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
+    const focusing=await worker.fetch(new Request('https://bond6.io/focusing'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);assert.match(focusingText,/focus-lane-identities/);
+    const bonding=await worker.fetch(new Request('https://bond6.io/bonding'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
   } finally { Date.now=realNow; }
 });
 test('Focusing and Bonding surface a verified multi-source event cross-current without calling a proof settled',async()=>{
@@ -114,13 +114,27 @@ test('Focusing and Bonding surface a verified multi-source event cross-current w
     const techcrunch=story(314,{title:'AI claimed a solution to the Riemann hypothesis — and a human did, too',excerpt:'The proposed proof remains under review while researchers compare the AI claim and human contribution.',lane:'ai',subject:'digital',source:'TechCrunch',source_id:'techcrunch'});
     await storeItems(db,{...source,id:'decoder',name:'The Decoder',topic:'AI development & impact'},[decoder],now);
     await storeItems(db,{...source,id:'techcrunch',name:'TechCrunch',topic:'AI industry & impact'},[techcrunch],now-1);
-    const focusing=await worker.fetch(new Request('https://bond6.io/trending'),{DB:db});const focusingText=await focusing.text();
+    const focusing=await worker.fetch(new Request('https://bond6.io/focusing'),{DB:db});const focusingText=await focusing.text();
     assert.match(focusingText,/Riemann hypothesis/);assert.match(focusingText,/Under review · 2 sources/);assert.match(focusingText,/signal=event%3Ariemann-hypothesis/);
-    const eventFeed=await worker.fetch(new Request('https://bond6.io/trending?signal=event%3Ariemann-hypothesis'),{DB:db});const eventText=await eventFeed.text();
+    const eventFeed=await worker.fetch(new Request('https://bond6.io/focusing?signal=event%3Ariemann-hypothesis'),{DB:db});const eventText=await eventFeed.text();
     assert.match(eventText,/Anthropic claims a Claude proof/);assert.match(eventText,/AI claimed a solution/);
-    const bonding=await worker.fetch(new Request('https://bond6.io/bond'),{DB:db});const bondingText=await bonding.text();
+    const bonding=await worker.fetch(new Request('https://bond6.io/bonding'),{DB:db});const bondingText=await bonding.text();
     assert.match(bondingText,/Event cross-current/);assert.match(bondingText,/Claims under independent review/);assert.match(bondingText,/not as a settled result/);
   } finally { Date.now=realNow; }
+});
+test('legacy Trending and homepage signal links redirect to the named Focusing route',async()=>{
+  const db=database();
+  const old=await worker.fetch(new Request('https://bond6.io/trending?signal=books-writing',{redirect:'manual'}),{DB:db});
+  assert.equal(old.status,301);assert.equal(old.headers.get('Location'),'https://bond6.io/focusing?signal=books-writing');
+  const oldHome=await worker.fetch(new Request('https://bond6.io/?signal=books-writing',{redirect:'manual'}),{DB:db});
+  assert.equal(oldHome.status,301);assert.equal(oldHome.headers.get('Location'),'https://bond6.io/focusing?signal=books-writing');
+});
+test('legacy Bond links redirect to the named Bonding route',async()=>{
+  const db=database();
+  const old=await worker.fetch(new Request('https://bond6.io/bond/field-notes-making-and-proof',{redirect:'manual'}),{DB:db});
+  assert.equal(old.status,301);assert.equal(old.headers.get('Location'),'https://bond6.io/bonding/field-notes-making-and-proof');
+  const index=await worker.fetch(new Request('https://bond6.io/bond',{redirect:'manual'}),{DB:db});
+  assert.equal(index.status,301);assert.equal(index.headers.get('Location'),'https://bond6.io/bonding');
 });
 test('live Rhythm ordering is opt-in without exposing diagnostic controls',async()=>{
   const db=database();await storeItems(db,source,[story(90)],now);

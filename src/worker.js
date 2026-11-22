@@ -28,7 +28,7 @@ async function rss(env,v) {
     const editions=results.map(r=>({...JSON.parse(r.snapshot),published:r.published_at}));
     if (kind==='bond') editions.push(...legacyEditions);
     items=editions.slice(0,50).flatMap(e=>{
-      if(kind==='bond') return e.stories?.every(s=>s.original_lang===(v.zh?'zh':'en')) ? [{title:(v.zh?e.zh:e.en).title,link:'https://bond6.io'+v.local('/bond/'+e.id),id:'bond:'+e.id,date:e.published??Date.parse(e.date+'T12:00Z'),description:(v.zh?e.zh:e.en).note,author:'Bond6',category:'bond'}] : [];
+      if(kind==='bond') return e.stories?.every(s=>s.original_lang===(v.zh?'zh':'en')) ? [{title:(v.zh?e.zh:e.en).title,link:'https://bond6.io'+v.local('/bonding/'+e.id),id:'bond:'+e.id,date:e.published??Date.parse(e.date+'T12:00Z'),description:(v.zh?e.zh:e.en).note,author:'Bond6',category:'bond'}] : [];
       return e.stories.filter(s=>(!lane||s.lane===lane)&&s.original_lang===(v.zh?'zh':'en')).map(s=>({title:s.title,link:'https://bond6.io'+v.local('/edit/'+e.id)+'#story-'+s.content_hash.slice(0,12),id:'daily:'+e.id+':'+s.url,date:e.published,author:s.author??s.source,description:s.source,category:s.subject}));
     }).slice(0,50);
   }
@@ -37,7 +37,7 @@ async function rss(env,v) {
 }
 async function sitemap(env) {
   const {results}=await env.DB.prepare('SELECT id,kind FROM editions ORDER BY edition_date DESC LIMIT 100').all();
-  const paths=['/','/about','/sources','/subscribe','/edit','/bond',...results.map(e=>(e.kind==='daily'?'/edit/':'/bond/')+e.id),...legacyEditions.map(e=>'/bond/'+e.id)];
+  const paths=['/','/about','/sources','/subscribe','/edit','/bonding',...results.map(e=>(e.kind==='daily'?'/edit/':'/bonding/')+e.id),...legacyEditions.map(e=>'/bonding/'+e.id)];
   return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.flatMap(p=>[p,'/zh'+p]).map(p=>`<url><loc>https://bond6.io${xml(p)}</loc></url>`).join('')}</urlset>`,{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':CACHE_CONTROL.public}});
 }
 export async function event(request,env,now=Date.now()) {
@@ -56,10 +56,18 @@ export async function event(request,env,now=Date.now()) {
 }
 async function route(request,env,v) {
   const path=v.path;
-  if(path==='/')return home(env,v);
-  if(path==='/trending')return home(env,v,{trending:true});
-  if(path==='/bond')return bondPage(env,v);
-  if(/^\/bond\/[a-z0-9-]+$/.test(path))return bondPage(env,v,path.slice(6));
+  if(path==='/') {
+    // Older Focusing links used the homepage with a signal parameter. Give
+    // them a stable, named destination rather than a one-column archive view.
+    if (v.url.searchParams.has('signal')) { const destination=new URL(request.url); destination.pathname=v.local('/focusing'); return Response.redirect(destination,301); }
+    return home(env,v);
+  }
+  if(path==='/trending') { const destination=new URL(request.url); destination.pathname=v.local('/focusing'); return Response.redirect(destination,301); }
+  if(path==='/focusing')return home(env,v,{trending:true});
+  if(path==='/bond') { const destination=new URL(request.url); destination.pathname=v.local('/bonding'); return Response.redirect(destination,301); }
+  if(/^\/bond\/[a-z0-9-]+$/.test(path)) { const destination=new URL(request.url); destination.pathname=v.local('/bonding/'+path.slice(6)); return Response.redirect(destination,301); }
+  if(path==='/bonding')return bondPage(env,v);
+  if(/^\/bonding\/[a-z0-9-]+$/.test(path))return bondPage(env,v,path.slice(9));
   if(path==='/edit')return dailyPage(env,v);
   if(/^\/edit\/\d{4}-\d{2}-\d{2}$/.test(path))return dailyPage(env,v,path.slice(6));
   if(path==='/saved')return savedPage(v);
@@ -102,7 +110,10 @@ export default {
       if(snapshot){const headers=new Headers(snapshot.headers);headers.set('Cache-Control',CACHE_CONTROL.none);headers.set('CDN-Cache-Control',CACHE_CONTROL.none);headers.set('X-Bond6-Snapshot','stale');response=new Response(snapshot.body,{status:200,headers});staleSnapshot=true;}
       else response=html(v,v.t('Feed unavailable'),`<p class="notice">${v.t('The feed is temporarily unavailable. Please try again shortly.')}</p>`,{status:503});
     }
-    response.headers.set('X-Bond6-Release',v.release);
+    // Redirect responses expose immutable headers in some runtimes, so create
+    // a mutable response wrapper before adding the release marker.
+    const responseHeaders=new Headers(response.headers);responseHeaders.set('X-Bond6-Release',v.release);
+    response=new Response(response.body,{status:response.status,statusText:response.statusText,headers:responseHeaders});
     if(cacheKey&&response.ok&&!staleSnapshot){
       const snapshotHeaders=new Headers(response.headers);snapshotHeaders.set('Cache-Control','public, max-age=3600');snapshotHeaders.set('CDN-Cache-Control','public, max-age=3600');
       const snapshot=new Response(response.clone().body,{status:response.status,statusText:response.statusText,headers:snapshotHeaders});

@@ -32,7 +32,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   intro??=description;
   const canonical=new URL(v.local(v.path),'https://bond6.io').href;
   const en=new URL(v.path,'https://bond6.io').href, zh=new URL('/zh'+v.path,'https://bond6.io').href;
-  const nav=[['/','Latest'],['/trending','Focusing'],['/bond','Bonding']];
+  const nav=[['/','Latest'],['/focusing','Focusing'],['/bonding','Bonding']];
   const navLinks=nav.map(([p,label])=>`<a data-keep-lane href="${esc(qlink(v,{q:null,page:null,view:null,load:null,before:null,before_url:null},p))}"${v.path===p?' aria-current="page"':''}>${v.t(label)}</a>`).join('');
   const body=`<!doctype html><html lang="${v.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${esc(heading)}${title?' · Bond6.io':''}</title><meta name="description" content="${esc(description)}"><meta name="theme-color" content="#f6f3ec">
@@ -52,7 +52,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   <main class="shell" id="main" tabindex="-1"><div class="intro${homepage?' homepage-intro':''}"><div><h1>${esc(heading)}</h1>${subtitle?`<p class="homepage-subtitle">${esc(subtitle)}</p>`:!title?`<p>${esc(intro)}</p>`:''}</div></div>${content}</main>
   <div class="reader-message shell" role="status" aria-live="polite"></div>
   <footer class="shell footer"><div class="footer-inner"><p translate="no">© ${new Date().getUTCFullYear()} Bond6.io</p><nav aria-label="${v.t('Contact and subscriptions')}">
-  <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/trending')}">${v.t('Focusing')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
+  <a href="${v.local('/about')}">${v.t('About')}</a><a href="${v.local('/sources')}">${v.t('Sources')}</a><a href="${v.local('/focusing')}">${v.t('Focusing')}</a><a href="mailto:info@bond6.io">${v.t('Contact')}</a><a href="${v.local('/subscribe')}">RSS</a></nav></div></footer></body></html>`;
   return new Response(body,{status,headers:{'Content-Type':'text/html; charset=utf-8','Content-Language':v.lang,'Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,'CDN-Cache-Control':status===200?CACHE_CONTROL.public:CACHE_CONTROL.none,
     'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin',
     'Content-Security-Policy':getCSPHeader()}});

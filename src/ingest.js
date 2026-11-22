@@ -47,8 +47,13 @@ const isTracker = (tag, url) => {
   return (width > 0 && width <= 1) || (height > 0 && height <= 1) || /(?:pixel|tracking|spacer|blank)\.(?:gif|png)(?:$|[?#])/i.test(url);
 };
 function embeddedMedia(markup) {
-  if (typeof markup !== 'string') return {};
-  const tags = Array.from(markup.matchAll(/<(img|audio|video|source|iframe)\b[^>]*>/gi)).map(match => ({ name:match[1].toLowerCase(), tag:match[0] }));
+  // fast-xml-parser represents Atom `<content type="html">` as an object
+  // (`{ '#text': '...' }`) because it also preserves the type attribute.
+  // RSS content:encoded is normally a string. Treat both forms as the same
+  // feed-supplied markup; this avoids a separate page request for Atom media.
+  const html = typeof markup === 'string' ? markup : markup?.['#text'];
+  if (typeof html !== 'string') return {};
+  const tags = Array.from(html.matchAll(/<(img|audio|video|source|iframe)\b[^>]*>/gi)).map(match => ({ name:match[1].toLowerCase(), tag:match[0] }));
   let image_url, audio_url, video_url;
   for (const { name, tag } of tags) {
     const rawUrl = tagAttr(tag, 'src');

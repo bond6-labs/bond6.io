@@ -33,6 +33,10 @@ test('RSS publisher media supports medium=image and safe embedded feed previews'
   const [tracker]=fromRss('<rss><channel><item><title>A writer shares a studio session</title><link>https://example.org/tracker</link><content:encoded><![CDATA[<p>A detailed account of music and creative work.</p><img src="https://cdn.example.org/tracking.gif" width="1" height="1"><img src="https://cdn.example.org/cover.jpg"></img>]]></content:encoded></item></channel></rss>',source);
   assert.equal(tracker.image_url,'https://cdn.example.org/cover.jpg');
 });
+test('Atom HTML content retains its feed-supplied image without a page fetch',()=>{
+  const [atom]=fromRss('<feed><entry><title>A gallery opens</title><link href="https://example.org/gallery"/><content type="html"><![CDATA[<p>A short note about the opening.</p><figure><img src="https://cdn.example.org/gallery.jpg" width="1600" height="1000"></figure>]]></content></entry></feed>',source);
+  assert.equal(atom.image_url,'https://cdn.example.org/gallery.jpg');
+});
 test('opt-in publisher previews use exposed metadata only and stay same-site',async()=>{
   const html='<!doctype html><meta property="og:description" content="A publisher supplied description of a model release and its effects on people."><meta property="og:image" content="https://cdn.openai.com/preview.png"><audio src="https://cdn.openai.com/briefing.mp3"></audio>';
   assert.deepEqual(publisherPreview(html),{description:'A publisher supplied description of a model release and its effects on people.',image_url:'https://cdn.openai.com/preview.png',audio_url:'https://cdn.openai.com/briefing.mp3',video_url:null});
