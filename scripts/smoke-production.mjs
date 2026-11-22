@@ -1,9 +1,15 @@
 const base=process.env.BOND6_SMOKE_URL??'https://bond6.io';
 const expected=process.env.BOND6_EXPECTED_RELEASE;
-const paths=['/healthz','/','/zh/','/sources','/zh/sources','/trending','/bond'];
+// Verify the canonical public routes. Legacy `/trending` and `/bond` now
+// redirect permanently, so treating them as required 200 responses makes a
+// successful deployment look like a failed release.
+const paths=['/healthz','/','/zh/','/sources','/zh/sources','/focusing','/bonding'];
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
-for(let attempt=1;attempt<=8;attempt++){
+// A new Worker version normally propagates quickly, but the custom-domain
+// edge can briefly serve the prior version or reject a request while it rolls.
+// This runs only in CI after a deploy, not on reader traffic.
+for(let attempt=1;attempt<=12;attempt++){
   try{
     const results=await Promise.all(paths.map(async path=>{
       const response=await fetch(new URL(path,base),{redirect:'error'});
@@ -13,6 +19,6 @@ for(let attempt=1;attempt<=8;attempt++){
     if(!failures.length){console.log(`Production verified: ${expected??'release header not required'}`);process.exit(0);}
     console.error(`Attempt ${attempt}:`,failures);
   }catch(error){console.error(`Attempt ${attempt}:`,error.message);}
-  if(attempt<8)await wait(5_000);
+  if(attempt<12)await wait(5_000);
 }
 throw new Error('Production smoke test did not observe a healthy expected release.');
