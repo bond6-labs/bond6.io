@@ -46,9 +46,30 @@ test('opt-in publisher previews use exposed metadata only and stay same-site',as
   const blocked=await fetchPublisherPreview({url:'https://other.example/story'},{site:'https://openai.com/',article_preview:true},async()=>{throw new Error('must not fetch');});
   assert.deepEqual(blocked,{});
 });
+test('publisher preview follows one same-site canonical redirect but not a cross-site redirect',async()=>{
+  const html='<!doctype html><meta property="og:image" content="https://cdn.openai.com/preview.png">';
+  const calls=[];
+  const preview=await fetchPublisherPreview({url:'https://openai.com/index/example'},{site:'https://openai.com/',article_preview:true},async url=>{
+    calls.push(url);
+    return url.endsWith('/') ? new Response(html,{headers:{'content-type':'text/html'}}) : new Response(null,{status:308,headers:{location:'/index/example/'}});
+  });
+  assert.equal(preview.image_url,'https://cdn.openai.com/preview.png');
+  assert.deepEqual(calls,['https://openai.com/index/example','https://openai.com/index/example/']);
+  let crossSiteCalls=0;
+  const blocked=await fetchPublisherPreview({url:'https://openai.com/index/example'},{site:'https://openai.com/',article_preview:true},async()=>{
+    crossSiteCalls++;return new Response(null,{status:302,headers:{location:'https://other.example/story'}});
+  });
+  assert.deepEqual(blocked,{});assert.equal(crossSiteCalls,1);
+});
 test('unsafe URLs and document declarations are rejected',()=>{
   for(const url of ['javascript:alert(1)','http://127.0.0.1/a','https://name:password@example.org'])assert.equal(canonical(url),null);
   assert.throws(()=>fromRss('<!DOCTYPE x><rss/>',source));
+});
+test('a large count of ordinary XML entities falls back without weakening entity limits',()=>{
+  const entities='&amp;'.repeat(10_100);
+  const [item]=fromRss(`<rss><channel><item><title>Reflective culture note</title><link>https://example.org/note</link><description>A writer reflects on a poem and memory. ${entities}</description></item></channel></rss>`,{...source,short_excerpt:true});
+  assert.equal(item.title,'Reflective culture note');
+  assert.match(item.excerpt,/writer reflects/);
 });
 test('feed reads stop after the bounded item window before a historic archive can exceed the body limit',async()=>{
   const encoder=new TextEncoder();

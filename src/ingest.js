@@ -17,7 +17,19 @@ export const retryIntervalMs = (source, failures) => {
   return Math.min(ceiling,5*2**Math.min(Math.max(1,failures),8))*60_000;
 };
 const CURRENT_ITEM_WINDOW=30*DAY;
-const xml = new XMLParser({ ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } });
+const xmlOptions = { ignoreAttributes: false, parseTagValue: false, processEntities: { maxEntitySize: 512, maxTotalExpansions: 10000 } };
+const xml = new XMLParser(xmlOptions);
+// A few otherwise valid RSS publishers contain a very large number of normal
+// named entities. Keep the expansion ceiling; the fallback leaves entities
+// literal and the existing text cleaner decodes them safely later.
+const xmlWithoutEntityExpansion = new XMLParser({ ...xmlOptions, processEntities: false });
+const parseFeedXml = body => {
+  try { return xml.parse(body); }
+  catch (error) {
+    if (/Entity expansion count limit exceeded/i.test(error?.message ?? '')) return xmlWithoutEntityExpansion.parse(body);
+    throw error;
+  }
+};
 const shortHosts = new Set(['t.co', 'bit.ly', 'buff.ly', 'ow.ly', 'tinyurl.com']);
 // A feed's declared language defines which edition it can enter. Individual
 // publishers occasionally supply an English metadata headline for a Chinese
@@ -150,8 +162,7 @@ function previewUrlFor(story, source) {
   const page = canonical(story?.url), site = canonical(source?.site ?? source?.url);
   if (!page || !site || !page.startsWith('https://')) return null;
   // Feed item links are untrusted input. Preview only a configured publisher's
-  // own canonical host and reject redirects, so a feed cannot turn collection
-  // into an internal-network fetch or a third-party crawl.
+  // own canonical host. A later redirect check preserves that same boundary.
   return new URL(page).hostname === new URL(site).hostname ? page : null;
 }
 
@@ -159,10 +170,15 @@ export async function fetchPublisherPreview(story, source, fetcher = fetch) {
   const url = previewUrlFor(story, source);
   if (!url) return {};
   try {
-    const response = await fetcher(url, {
-      headers: { 'User-Agent': 'Bond6 (+https://bond6.io/about)', Accept: 'text/html,application/xhtml+xml' },
-      redirect: 'error', signal: AbortSignal.timeout(ARTICLE_PREVIEW_TIMEOUT_MS)
-    });
+    const request = { headers: { 'User-Agent': 'Bond6 (+https://bond6.io/about)', Accept: 'text/html,application/xhtml+xml' }, redirect: 'manual', signal: AbortSignal.timeout(ARTICLE_PREVIEW_TIMEOUT_MS) };
+    let response = await fetcher(url, request);
+    // Some publishers canonicalize a feed URL with a same-site trailing slash.
+    // Follow at most one such redirect, never to another host or protocol.
+    if ([301,302,303,307,308].includes(response.status) && response.headers.get('location')) {
+      const next=canonical(new URL(response.headers.get('location'),url).href);
+      if (!next || new URL(next).hostname !== new URL(url).hostname) return {};
+      response=await fetcher(next,{...request,redirect:'error'});
+    }
     if (!response.ok || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) return {};
     return publisherPreview(await previewBody(response));
   } catch {
@@ -218,7 +234,7 @@ export function fromRss(body, source) {
   const selected=[];
   for(const match of body.matchAll(atom?/<entry\b[^>]*>[\s\S]*?<\/entry>/gi:/<item\b[^>]*>[\s\S]*?<\/item>/gi)){selected.push(match[0]);if(selected.length===FEED_ITEM_LIMIT)break;}
   body=atom?'<feed>'+selected.join('')+'</feed>':'<rss><channel>'+selected.join('')+'</channel></rss>';
-  const feed = xml.parse(body);
+  const feed = parseFeedXml(body);
   const items = feed.rss?.channel?.item ?? feed.feed?.entry;
   if (!feed.rss?.channel && !feed.feed) throw new Error('Unrecognized feed format');
   return [items].flat().filter(Boolean).slice(0, FEED_ITEM_LIMIT).map(item => {
