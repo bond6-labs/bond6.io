@@ -1,4 +1,15 @@
 export const sources = [
+  // November batch: four verified additions, six budgeted trials (14 checks/day).
+  {id:'offing',name:'The Offing',kind:'rss',url:'https://www.theoffingmag.com/feed/',site:'https://www.theoffingmag.com/',topic:'Literature & writers',language:'en',lane:'human',essays:true,poll_minutes:720},
+  {id:'my-modern-met',name:'My Modern Met',kind:'rss',url:'https://www.mymodernmet.com/feed',site:'https://www.mymodernmet.com/',topic:'Art & creative practice',language:'en',lane:'human',essays:true,poll_minutes:720},
+  {id:'understanding-ai',name:'Understanding AI',kind:'rss',url:'https://www.understandingai.org/feed',site:'https://www.understandingai.org/',topic:'AI evidence & impact',language:'en',lane:'ai',essays:true,poll_minutes:720},
+  {id:'buzhi-reading',name:'不止读书',kind:'rss',url:'http://www.ximalaya.com/album/47548262.xml',site:'https://www.ximalaya.com/album/47548262',topic:'Books & cultural conversation',language:'zh',lane:'human',format:'podcast',short_excerpt:true,essays:true,poll_minutes:720},
+  {id:'design-milk',name:'Design Milk',kind:'rss',url:'https://design-milk.com/feed/',site:'https://design-milk.com/',topic:'Design & creative practice',language:'en',lane:'human',state:'candidate',tier:'candidate',essays:true,poll_minutes:1440},
+  {id:'ploughshares',name:'Ploughshares',kind:'rss',url:'https://www.pshares.org/feed',site:'https://www.pshares.org/',topic:'Literature & writers',language:'en',lane:'human',state:'candidate',tier:'candidate',essays:true,poll_minutes:1440},
+  {id:'ars-ai',name:'Ars Technica — AI',kind:'rss',url:'https://arstechnica.com/ai/feed/',site:'https://arstechnica.com/',topic:'AI research & society',language:'en',lane:'ai',state:'candidate',tier:'candidate',poll_minutes:1440},
+  {id:'zhidx',name:'智东西',kind:'rss',url:'https://www.zhidx.com/rss',site:'https://www.zhidx.com/',topic:'AI industry & impact',language:'zh',lane:'ai',state:'candidate',tier:'candidate',poll_minutes:1440},
+  {id:'leiphone',name:'雷峰网',kind:'rss',url:'https://www.leiphone.com/feed',site:'https://www.leiphone.com/',topic:'AI research & society',language:'zh',lane:'ai',state:'candidate',tier:'candidate',poll_minutes:1440},
+  {id:'latepost',name:'晚点 LatePost',kind:'rss',url:'https://rsshub.bestblogs.dev/latepost',site:'https://www.latepost.com/',topic:'AI industry & impact',language:'zh',lane:'ai',state:'candidate',tier:'candidate',poll_minutes:1440},
   // Human Pulse — original reporting, criticism, and first-person practice.
   { id: 'bandcamp', name: 'Bandcamp Daily', kind: 'rss', url: 'https://daily.bandcamp.com/feed/', site: 'https://daily.bandcamp.com/', topic: 'Music', essays: true },
   { id: 'sspai', name: '少数派', kind: 'rss', url: 'https://sspai.com/feed', site: 'https://sspai.com/', topic: 'Life online', essays: true },

@@ -2,7 +2,7 @@ import { collect, prune } from './ingest.js';
 import { publishingStep } from './publishing.js';
 import { locale, html, esc } from './render.js';
 import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions } from './pages.js';
-import { classify, conversationTopics, dayKey } from './content.js';
+import { classify, conversationTopics, dayKey, publicExcerpt, restrictedStory } from './content.js';
 import { sources, retiredSourceIds } from './sources.js';
 import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH, SOURCE_EVALUATION_HOUR_UTC, SOURCE_EVALUATION_MINUTE_UTC } from './config.js';
 import { scoreRhythmBacklog } from './rhythm.js';
@@ -22,7 +22,7 @@ async function rss(env,v) {
     const catalogueBySource=new Map(catalogue.map(source=>[source.id,source]));
     const originalLanguage=v.zh?'zh':'en';
     items=results.filter(s=>{const source=catalogueBySource.get(s.source_id);return !retiredSourceIds.has(s.source_id)&&!['paused','retired'].includes(source?.state)&&(!source||source.language===originalLanguage)&&classify(s.title??'',s.excerpt??'',sources.find(candidate=>candidate.id===s.source_id)).lane===s.lane;})
-      .map(s=>({title:s.title,link:s.url,id:s.url,date:s.original_published_at??s.discovered_at,author:s.author,description:s.excerpt||s.source,category:s.subject}));
+      .map(s=>({title:s.title,link:s.url,id:s.url,date:s.original_published_at,author:s.author,description:restrictedStory(s)?v.say('Subscription required. Read at the original source.','订阅内容，请前往原站阅读。'):publicExcerpt(s.excerpt||s.source),category:s.subject}));
   } else {
     const {results}=await env.DB.prepare('SELECT * FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 50').bind(kind).all();
     const editions=results.map(r=>({...JSON.parse(r.snapshot),published:r.published_at}));

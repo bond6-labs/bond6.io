@@ -68,7 +68,7 @@ test('archive pages cap a single publisher while retaining other arrivals',async
   for(let i=0;i<8;i++)await storeItems(db,{...source,id:'same-publisher',name:'Same Publisher'},[story(500+i,{url:`https://example.org/same/${i}`,link:`https://example.org/same/${i}`,canonical_url:`https://example.org/same/${i}`,title:`A musician records a new album at home ${i}`,author:null,source:'Same Publisher',source_id:'same-publisher',subject:'music',discovered_at:now-i})],now-i);
   for(let i=0;i<4;i++)await storeItems(db,{...source,id:`other-${i}`,name:`Other Publisher ${i}`},[story(600+i,{url:`https://example.org/other/${i}`,link:`https://example.org/other/${i}`,canonical_url:`https://example.org/other/${i}`,title:`A musician records a different album at home ${i}`,source:`Other Publisher ${i}`,source_id:`other-${i}`,subject:'music',discovered_at:now-100-i})],now-100-i);
   const page=await worker.fetch(new Request('https://bond6.io/?view=all&topic=music'),{DB:db});const text=await page.text();
-  assert.equal((text.match(/<span>Same Publisher<\/span>/g)??[]).length,3);
+  assert.equal((text.match(/<span>Same Publisher<\/span>/g)??[]).length,2);
   assert.match(text,/Other Publisher 0/);
 });
 test('mobile lane and filters survive navigation and language switch',async()=>{
@@ -103,6 +103,7 @@ test('Focusing labels emerging signals and Bonding renders a Bonding route',asyn
     await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
     await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
     const focusing=await worker.fetch(new Request('https://bond6.io/focusing'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);assert.match(focusingText,/focus-lane-identities/);
+    assert.match(focusingText,/A musician writes about care/);assert.doesNotMatch(focusingText,/No recent stories match your search/);
     const bonding=await worker.fetch(new Request('https://bond6.io/bonding'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
   } finally { Date.now=realNow; }
 });
@@ -119,7 +120,7 @@ test('Focusing and Bonding surface a verified multi-source event cross-current w
     const eventFeed=await worker.fetch(new Request('https://bond6.io/focusing?signal=event%3Ariemann-hypothesis'),{DB:db});const eventText=await eventFeed.text();
     assert.match(eventText,/Anthropic claims a Claude proof/);assert.match(eventText,/AI claimed a solution/);
     const bonding=await worker.fetch(new Request('https://bond6.io/bonding'),{DB:db});const bondingText=await bonding.text();
-    assert.match(bondingText,/Event cross-current/);assert.match(bondingText,/Claims under independent review/);assert.match(bondingText,/not as a settled result/);
+    assert.doesNotMatch(bondingText,/class="bond-route-map bond-event-route"/);
   } finally { Date.now=realNow; }
 });
 test('legacy Trending and homepage signal links redirect to the named Focusing route',async()=>{

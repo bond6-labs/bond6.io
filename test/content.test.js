@@ -1,10 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fromRss,fromBluesky,storeItems,suppressItems,resolveShortLink,prune,poll,pollIntervalMs,retryIntervalMs,readBody,publisherPreview,fetchPublisherPreview} from '../src/ingest.js';
-import {classify,selectionGate,canonical,contentHash,usableText} from '../src/content.js';
+import {classify,selectionGate,canonical,contentHash,usableText,publicExcerpt,restrictedStory} from '../src/content.js';
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
 import {story,source,now,note,review} from './fixtures.js';
+test('public excerpts are bounded and subscription detection avoids incidental Premium mentions',()=>{
+  assert.ok(publicExcerpt('A writer explores memory. '.repeat(100)).length<=300);
+  assert.ok(publicExcerpt('一位作家记录生活与记忆。'.repeat(100)).length<=300);
+  assert.equal(publicExcerpt('Bookseller , with care .… The post A song appeared first on Stereogum .'),'Bookseller, with care.');
+  assert.doesNotMatch(publicExcerpt('A report. " data-has-syndication-rights="1" src="https://example.org/a.jpg"/>'),/data-has|src=/);
+  assert.equal(restrictedStory({url:'https://thequietus.com/subscriber-area/music'}),true);
+  assert.equal(restrictedStory({title:'Premium: A paid essay'}),true);
+  assert.equal(restrictedStory({title:'How YouTube Premium affects musicians'}),false);
+});
 test('RSS preserves Chinese, author and publication; Atom updated is not publication',()=>{
   const [s]=fromRss('<rss><channel><item><title>音乐与我的生活</title><link>https://example.org/a?utm_source=x</link><dc:creator>李明</dc:creator><description>这是我在家录制一首歌曲的经历，写下音乐创作的过程。</description><pubDate>Thu, 12 Nov 2026 12:00:00 GMT</pubDate></item></channel></rss>',source);
   assert.equal(s.original_lang,'zh');assert.equal(s.author,'李明');assert.equal(s.lane,'human');assert.equal(s.original_published_at,now-86400000);assert.equal(s.url,'https://example.org/a');

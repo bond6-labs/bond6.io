@@ -1,5 +1,5 @@
 import { chinese } from './chinese.js';
-import { subjectLabels } from './content.js';
+import { subjectLabels, publicExcerpt, restrictedStory } from './content.js';
 import { CACHE_CONTROL } from './config.js';
 import { getCSPHeader } from './security.js';
 export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
@@ -39,7 +39,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   <link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="en" href="${en}"><link rel="alternate" hreflang="zh-Hans" href="${zh}"><link rel="alternate" hreflang="x-default" href="${en}">
   <meta property="og:type" content="${edition?'article':'website'}"><meta property="og:site_name" content="Bond6.io"><meta property="og:title" content="${esc(heading)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">
   <meta property="og:image" content="https://bond6.io/social-card.png"><meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="/favicon.svg?v=${esc(v.release??'local')}" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=daily">
+  <link rel="icon" href="/favicon.svg?v=${esc(v.release??'local')}" type="image/svg+xml"><link rel="alternate" type="application/rss+xml" title="${siteTitle}" href="${v.local('/feed.xml')}?kind=live">
   <script src="/reader.js?v=${esc(v.release??'local')}" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=Courier+Prime:wght@400;700&family=Inter:wght@400;600;700&family=Lora:wght@500;600&family=Noto+Serif+SC:wght@500;600&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
@@ -47,7 +47,7 @@ export function html(v,title,content,{status=200,description,intro,subtitle,wide
   <a class="skip-link" href="#main">${v.t('Skip to content')}</a>
   <header class="masthead"><div class="shell masthead-inner"><a class="wordmark" href="${v.local('/')}" aria-label="${v.t('Bond6.io home')}" translate="no"><img class="brand-lockup" src="/bond6-logo.png" width="1778" height="340" alt="" draggable="false"></a>
   <nav class="tabs" aria-label="${v.t('Main navigation')}">${navLinks}</nav><div class="reader-controls"><a class="saved-link" href="${v.local('/saved')}" aria-label="${v.t('Saved stories')}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 4.5h11v15l-5.5-3.6-5.5 3.6z"></path></svg><span class="saved-count" data-saved-count hidden>0</span></a>${searchForm(v)}
-  <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中'}</a>
+  <a class="language-link" href="${esc(v.alternate)}" lang="${v.zh?'en':'zh-Hans'}" aria-label="${v.zh?'Read in English':'阅读简体中文'}" hreflang="${v.zh?'en':'zh-Hans'}">${v.zh?'EN':'中'}</a>
   </div></div></header>
   <main class="shell" id="main" tabindex="-1"><div class="intro${homepage?' homepage-intro':''}"><div><h1>${esc(heading)}</h1>${subtitle?`<p class="homepage-subtitle">${esc(subtitle)}</p>`:!title?`<p>${esc(intro)}</p>`:''}</div></div>${content}</main>
   <div class="reader-message shell" role="status" aria-live="polite"></div>
@@ -94,14 +94,15 @@ export function card(s,v,{pick=false,lead=false,rhythm=false,editionId,mentions=
   // A headline alone is not enough to judge whether a story is worth opening.
   // Leads get a fuller deck; every other card keeps a compact, source-supplied
   // preview. We deliberately do not manufacture or scrape article prose here.
-  const deck=s.excerpt?deckPreview(s.excerpt,lead?(v.zh?180:260):(v.zh?130:190)):null;
+  const restricted=restrictedStory(s);
+  const deck=!restricted&&s.excerpt?{text:publicExcerpt(s.excerpt,lead?(v.zh?180:260):(v.zh?130:190)),truncated:false}:null;
   return `<article class="story${pick?' daily-pick':''}${lead?' story-lead':''}" id="story-${s.content_hash?.slice(0,12)??'item'}" data-discovered="${s.discovered_at??0}"${focusKeys.length?` data-focus="${esc(focusKeys.join(','))}"`:''}>
     <div class="story-meta"><span class="topic">${v.t(subjectLabels[s.subject]??s.topic??'Digital Life')}</span><span class="new-mark" hidden>${v.say('New','新发现')}</span></div>
     <h3><a href="${esc(s.url)}" data-event="original" lang="${s.original_lang==='zh'?'zh-Hans':'en'}">${esc(title)}</a></h3>
     ${deck?`<p class="story-deck">${esc(deck.text)}${deck.truncated?'…':''}</p>`:''}
     ${pick?`<p class="pick-note">${esc(copy?.note)}</p>`:''}
     <div class="byline"><span>${esc(s.author&&s.author!==s.source?s.author+' · '+s.source:s.source)}</span>${publication}</div>
-    ${mediaPreview(s,v)}
+    ${restricted?`<p class="source-context">${v.say('Subscription required · Read at the original source','订阅内容 · 请前往原站阅读')}</p>`:mediaPreview(s,v)}
     ${s.content_type==='shared-article'?`<p class="source-context">${v.say('Shared link · article date not verified','转发链接 · 文章日期未经核实')}</p>`:''}
     ${pick?`<details class="note-method"><summary>${v.say('AI-assisted summary','AI 辅助摘要')}</summary><p>${v.say('Checked against the available source excerpt. This can still contain errors.','已对照可获取的来源摘录检查，仍可能有误。')} ${correction(v,share)} · <a href="${v.local('/about')}#method">${v.say('How we publish','发布方式')}</a></p></details>`:''}
     ${actions(s,v,share)}${s.coverage>=2?`<details class="mention-evidence"><summary>${v.say(`Mentioned by ${s.coverage} tracked sources`,`由 ${s.coverage} 个关注来源提及`)}</summary><div class="discussions">${discussion||v.say('Coverage recorded from independent tracked sources.','由不同关注来源记录。')}</div></details>`:''}${discussion&&!s.coverage?`<details><summary>${v.t('Related discussion')}</summary><div class="discussions">${discussion}</div></details>`:''}</article>`;

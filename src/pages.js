@@ -3,6 +3,7 @@ import { DAY, classify, conversations, conversationTopic, dayKey, eventCrossCurr
 import { sources, archivedSources, retiredSourceIds } from './sources.js';
 import { editions as legacy } from './picks.js';
 import { RHYTHM_VERSION } from './rhythm.js';
+import { distinctStories } from './editorial.js';
 
 const sourceTopics={
   'AI & public life':'AI 与公共生活','AI & society':'AI 与社会','AI development & impact':'AI 发展与影响','AI evidence & impact':'AI 证据与影响',
@@ -29,6 +30,7 @@ export const legacyEditions=legacy.map((e,i)=>({id:'field-notes-'+legacySlugs[i]
   stories:Object.entries(e.picks).map(([lane,s])=>({...s,lane:lane==='human-feed'?'human':'ai',original_published_at:null,original_lang:'en',title:s.en.title}))}));
 const parse=row=>row?{...JSON.parse(row.snapshot),correction:row.correction}:null;
 export async function latestEdition(db,kind) { return parse(await db.prepare('SELECT snapshot,correction FROM editions WHERE kind=? ORDER BY edition_date DESC LIMIT 1').bind(kind).first()); }
+const relativeChecked=(timestamp,v)=>{const minutes=Math.max(0,Math.floor((Date.now()-timestamp)/60000));return minutes<60?v.say(` · ${minutes} minutes ago`,` · ${minutes} 分钟前`):v.say(` · ${Math.floor(minutes/60)} hours ago`,` · ${Math.floor(minutes/60)} 小时前`);};
 const laneName=(lane,v)=>v.t(lane==='human'?'Human Pulse':'AI Wave');
 const cursorFrom=v=>{
   const discoveredAt=Number(v.url.searchParams.get('before')), url=v.url.searchParams.get('before_url')??'';
@@ -49,42 +51,46 @@ const bondBridges=[
   {key:'access',en:'Tools & access',zh:'工具与可及性',question:{en:'Who gains agency when a tool becomes easier to use?',zh:'当工具变得更易使用时，谁获得了更多行动能力？'},pattern:/\b(?:tool|access|platform|software|technology|digital|system)\b|工具|平台|软件|技术|数字|系统/i}
 ];
 const bondText=story=>`${story.title??''} ${story.excerpt??''}`;
-const bridgeScore=(story,bridge)=>bridge.pattern.test(String(story.title??''))?4:bridge.pattern.test(bondText(story))?1:0;
+const bridgeScore=(story,bridge)=>bridge.pattern.test(String(story.title??''))&&bridge.pattern.test(story.excerpt??'')?4:0;
 const liveBondRoute=stories=>{
-  const crossCurrent=eventCrossCurrents(stories)[0];
+  const crossCurrent=eventCrossCurrents(stories).find(event=>event.stories.some(s=>s.lane==='human')&&event.stories.some(s=>s.lane==='ai'));
+  if(crossCurrent){const human=crossCurrent.stories.find(s=>s.lane==='human');const ai=crossCurrent.stories.find(s=>s.lane==='ai'&&s.source_id!==human.source_id);if(ai)crossCurrent.stories=[human,ai,...crossCurrent.stories.filter(s=>s!==human&&s!==ai)];else return null;}
   if (crossCurrent) return {kind:'event',event:crossCurrent,freshness:crossCurrent.latest};
-  const usable=stories.filter(story=>story?.lane==='human'||story?.lane==='ai');
+  const usable=stories.filter(story=>(story?.lane==='human'||story?.lane==='ai')&&(story.excerpt?.length??0)>=60);
   const routes=[];
   for(const bridge of bondBridges){
     const matching=usable.map(story=>({story,score:bridgeScore(story,bridge)})).filter(candidate=>candidate.score>=4);
     const human=matching.filter(candidate=>candidate.story.lane==='human'), ai=matching.filter(candidate=>candidate.story.lane==='ai');
     if(!human.length||!ai.length)continue;
+    const independentAi=ai.find(candidate=>candidate.story.source_id!==human[0].story.source_id);
+    if(!independentAi)continue;
+    ai.splice(ai.indexOf(independentAi),1);ai.unshift(independentAi);
     const pair=[human[0].story,ai[0].story], third=[...human.slice(1),...ai.slice(1)].map(candidate=>candidate.story).find(story=>story.source_id!==pair[0].source_id&&story.source_id!==pair[1].source_id)??null;
     routes.push({bridge,human:pair[0],ai:pair[1],third,freshness:Math.max(...pair.map(story=>Number(story.discovered_at)||0))});
   }
   return routes.sort((a,b)=>b.freshness-a.freshness)[0]??null;
 };
 const bondNode=(story,lane,v)=>`<a class="bond-route-node ${lane}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${laneName(lane,v)}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
-const bondEventNode=(story,v)=>`<a class="bond-route-node event-source ${story.lane==='human'?'human':'ai'}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${v.say('Independent report','独立报道')}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
+const bondEventNode=(story,v)=>`<a class="bond-route-node event-source ${story.lane==='human'?'human':'ai'}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${v.say('Source report','来源报道')}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
 const eventRouteMap=(route,v)=>{
   const event=route.event, title=v.zh?event.zh:event.en;
-  const status=event.status==='under-review'?v.say('Claims under independent review','证明主张仍待独立核验'):v.say('Multiple independent reports','多个独立来源报道');
+  const status=event.status==='under-review'?v.say('Claims under independent review','证明主张仍待独立核验'):v.say('Multiple independent reports','多个报道来源报道');
   const explanation=event.status==='under-review'
-    ?v.say('Independent reporting tracks an AI-assisted claim alongside a human contribution. Bond6 presents this as a developing claim, not as a settled result.','独立报道同时追踪 AI 参与的证明主张与人类贡献。Bond6 将其作为正在发展的主张呈现，并不把它当作既成结论。')
-    :v.say('Independent reports connect human mathematical work with AI-assisted research.','独立报道将人类数学工作与 AI 参与的研究并置起来。');
+    ?v.say('Source reporting tracks an AI-assisted claim alongside a human contribution. Bond6 presents this as a developing claim, not as a settled result.','来源报道同时追踪 AI 参与的证明主张与人类贡献。Bond6 将其作为正在发展的主张呈现，并不把它当作既成结论。')
+    :v.say('Source reports connect human mathematical work with AI-assisted research.','来源报道将人类数学工作与 AI 参与的研究并置起来。');
   const [first,second,...rest]=event.stories;
-  return `<section class="bond-route-map bond-event-route" aria-labelledby="bonding-route-title"><header><span class="bond-kicker">${v.say('Event cross-current','同题交汇')}</span><h2 id="bonding-route-title">${esc(title)}</h2><p>${explanation}</p></header><div class="bond-route-diagram">${bondEventNode(first,v)}<div class="bond-bridge"><span>${v.say('Status','状态')}</span><strong>${status}</strong><small>${v.say(`${event.sources} independent sources`,`来自 ${event.sources} 个独立来源`)}</small><i aria-hidden="true">↔</i></div>${bondEventNode(second,v)}</div>${rest[0]?`<div class="bond-third">${v.say('A third reading','第三篇延伸阅读')} ${bondEventNode(rest[0],v)}</div>`:''}<div class="bond-response"><p>${v.say('What does AI assistance change in mathematical discovery — and what must still be independently checked?','AI 的参与会怎样改变数学发现？又有哪些部分仍必须接受独立核验？')}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 event cross-current | '+event.en)}">${v.t('Share your experience')}</a></div></section>`;
+  return `<section class="bond-route-map bond-event-route" aria-labelledby="bonding-route-title"><header><span class="bond-kicker">${v.say('Event cross-current','同题交汇')}</span><h2 id="bonding-route-title">${esc(title)}</h2><p>${explanation}</p></header><div class="bond-route-diagram">${bondEventNode(first,v)}<div class="bond-bridge"><span>${v.say('Status','状态')}</span><strong>${status}</strong><small>${v.say(`${event.sources} reporting sources`,`来自 ${event.sources} 个报道来源`)}</small><i aria-hidden="true">↔</i></div>${bondEventNode(second,v)}</div>${rest[0]?`<div class="bond-third">${v.say('A third reading','第三篇延伸阅读')} ${bondEventNode(rest[0],v)}</div>`:''}<div class="bond-response"><p>${v.say('What does AI assistance change in mathematical discovery — and what must still be independently checked?','AI 的参与会怎样改变数学发现？又有哪些部分仍必须接受独立核验？')}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 event cross-current | '+event.en)}">${v.t('Share your experience')}</a></div></section>`;
 };
 const bondRouteMap=(route,v)=>route.kind==='event'?eventRouteMap(route,v):`<section class="bond-route-map" aria-labelledby="bonding-route-title"><header><span class="bond-kicker">${v.say('Bonding route','连结路线')}</span><h2 id="bonding-route-title">${v.say('A pressure to read together','一组值得一起读的张力')}</h2><p>${v.say('Bond6 pairs recent stories with a shared, visible bridge. This is an invitation to compare, not a claim that their authors agree.','Bond6 用可见的共同线索并置近期文章。这是一份并读邀请，并不意味着作者观点一致。')}</p></header><div class="bond-route-diagram">${bondNode(route.human,'human',v)}<div class="bond-bridge"><span>${v.say('Bridge','连结')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><i aria-hidden="true">↔</i></div>${bondNode(route.ai,'ai',v)}</div>${route.third?`<div class="bond-third">${v.say('A third reading','第三篇延伸阅读')} ${bondNode(route.third,route.third.lane,v)}</div>`:''}<div class="bond-response"><p>${esc(v.zh?route.bridge.question.zh:route.bridge.question.en)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 Bonding route | '+route.bridge.en)}">${v.t('Share your experience')}</a></div></section>`;
-const bondRouteTeaser=(route,v)=>route.kind==='event'?`<aside class="bond-teaser bond-teaser-live bond-event-teaser"><div><span class="bond-kicker">${v.say('Event cross-current','同题交汇')}</span><p>${v.say('Independent reports where human work and AI claims meet.','人类工作与 AI 主张相遇时的独立报道。')}</p></div><a href="${v.local('/bonding')}"><span class="bond-route">${route.event.status==='under-review'?v.say('Under review','核验中'):v.say('Multiple reports','多源报道')} <b aria-hidden="true">·</b> ${v.say(`${route.event.sources} sources`,`${route.event.sources} 个来源`)}</span><strong>${esc(v.zh?route.event.zh:route.event.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`:`<aside class="bond-teaser bond-teaser-live"><div><span class="bond-kicker">${v.t('Bonding')}</span><p>${v.say('A Bonding route between Human Pulse and AI Wave.','一条连接「人文脉动」与「AI冲击波」的连结路线。')}</p></div><a href="${v.local('/bonding')}"><span class="bond-route">${v.t('Human Pulse')} <b aria-hidden="true">×</b> ${v.t('AI Wave')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`;
+const bondRouteTeaser=(route,v)=>route.kind==='event'?`<aside class="bond-teaser bond-teaser-live bond-event-teaser"><div><span class="bond-kicker">${v.say('Event cross-current','同题交汇')}</span><p>${v.say('Source reports where human work and AI claims meet.','人类工作与 AI 主张相遇时的来源报道。')}</p></div><a href="${v.local('/bonding')}"><span class="bond-route">${route.event.status==='under-review'?v.say('Under review','核验中'):v.say('Multiple reports','多源报道')} <b aria-hidden="true">·</b> ${v.say(`${route.event.sources} sources`,`${route.event.sources} 个来源`)}</span><strong>${esc(v.zh?route.event.zh:route.event.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`:`<aside class="bond-teaser bond-teaser-live"><div><span class="bond-kicker">${v.t('Bonding')}</span><p>${v.say('A Bonding route between Human Pulse and AI Wave.','一条连接「人文脉动」与「AI冲击波」的连结路线。')}</p></div><a href="${v.local('/bonding')}"><span class="bond-route">${v.t('Human Pulse')} <b aria-hidden="true">×</b> ${v.t('AI Wave')}</span><strong>${esc(v.zh?route.bridge.zh:route.bridge.en)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`;
 // A source refresh should take effect immediately. Historical records remain in
 // D1 for bounded retention and edition attribution, but must not keep appearing
 // in a live lane after their source has been retired.
-const focusedStories=rows=>rows.filter(story=>!retiredSourceIds.has(story.source_id) && classify(story.title??'',story.excerpt??'',sources.find(source=>source.id===story.source_id)).lane===story.lane);
+const focusedStories=rows=>distinctStories(rows.filter(story=>!retiredSourceIds.has(story.source_id) && classify(story.title??'',story.excerpt??'',sources.find(source=>source.id===story.source_id)).lane===story.lane).map(story=>({...story,subject:classify(story.title??'',story.excerpt??'',sources.find(source=>source.id===story.source_id)).subject})));
 // A lively publisher should contribute to Bond6 without becoming the whole
 // reading experience. The homepage has a tighter SQL cap; archives use this
 // equivalent cap for special result sets such as Focusing.
-const capBySource=(rows,limit=3)=>{
+const capBySource=(rows,limit=2)=>{
   const seen=new Map();
   return rows.filter(story=>{
     const source=story.source_id??story.source??'';
@@ -94,8 +100,8 @@ const capBySource=(rows,limit=3)=>{
   });
 };
 const laneSignature=(lane,v)=>lane==='human'
-  ?`<div class="lane-character lane-character-human" aria-hidden="true">${owl('perch')}</div><div class="lane-signature human-signature"><span class="heartbeat" aria-hidden="true"><svg viewBox="0 0 120 30" focusable="false"><g class="heartbeat-heart"><path d="M15 26 3.8 15.4C-2 9.8 1.7 2.1 8.8 2.1c3.1 0 5.3 1.8 6.2 4 1-2.2 3.1-4 6.3-4 7.1 0 10.7 7.7 5 13.3Z"/></g><path class="heartbeat-baseline" d="M42 16h76"/><g class="heartbeat-wave"><path d="M-13 16h8l3-5 4 11 5-18 5 18 4-9 4 3h8"/><path d="M39 16h8l3-5 4 11 5-18 5 18 4-9 4 3h8"/></g></svg></span><span><b>37°C</b> · ${v.say('slow current','缓慢脉动')}</span></div>`
-  :`<div class="lane-character lane-character-ai" aria-hidden="true">${robot('perch')}</div><div class="lane-signature ai-signature"><span class="digital-flow" aria-hidden="true"><span>101001&nbsp;101001&nbsp;101001&nbsp;</span></span><span>${v.say('fast signal','快速信号')}</span></div>`;
+  ?`<div class="lane-character lane-character-human" aria-hidden="true">${owl('perch')}</div><div class="lane-signature human-signature" aria-hidden="true"><span class="heartbeat" aria-hidden="true"><svg viewBox="0 0 120 30" focusable="false"><g class="heartbeat-heart"><path d="M15 26 3.8 15.4C-2 9.8 1.7 2.1 8.8 2.1c3.1 0 5.3 1.8 6.2 4 1-2.2 3.1-4 6.3-4 7.1 0 10.7 7.7 5 13.3Z"/></g><path class="heartbeat-baseline" d="M42 16h76"/><g class="heartbeat-wave"><path d="M-13 16h8l3-5 4 11 5-18 5 18 4-9 4 3h8"/><path d="M39 16h8l3-5 4 11 5-18 5 18 4-9 4 3h8"/></g></svg></span><span><b>37°C</b> · ${v.say('slow current','缓慢脉动')}</span></div>`
+  :`<div class="lane-character lane-character-ai" aria-hidden="true">${robot('perch')}</div><div class="lane-signature ai-signature" aria-hidden="true"><span class="digital-flow" aria-hidden="true"><span>101001&nbsp;101001&nbsp;101001&nbsp;</span></span><span>${v.say('fast signal','快速信号')}</span></div>`;
 
 // Focusing is a different reading mode, not a different product. Keep the two
 // scouts visible above its results so a reader never loses the Human Pulse /
@@ -133,7 +139,7 @@ function filters(v) {
 }
 function conversationStrip(topics,v,{empty=false}={}) {
   if (!topics.length&&!empty) return '';
-  const explanation=v.say('Strong signals have three or more independent sources. Emerging signals have two; reader pulse is anonymous, aggregate interest from Bond6 readers.','强信号来自至少三个独立来源；新兴信号来自两个。读者脉动是 Bond6 读者匿名汇总的兴趣信号。');
+  const explanation=v.say('Strong signals have three or more reporting sources. Emerging signals have two; reader pulse is anonymous, aggregate interest from Bond6 readers.','强信号来自至少三个报道来源；新兴信号来自两个。读者脉动是 Bond6 读者匿名汇总的兴趣信号。');
   const label=topic=>topic.kind==='event'
     ?v.say(`${topic.status==='under-review'?'Under review':'Multiple reports'} · ${topic.sources} sources`,`${topic.status==='under-review'?'核验中':'多源报道'} · ${topic.sources} 个来源`)
     :topic.strength==='strong'?v.say(`Strong · ${topic.sources} sources`,`强信号 · ${topic.sources} 个来源`):topic.strength==='emerging'?v.say(`Emerging · ${topic.sources} sources`,`新兴 · ${topic.sources} 个来源`):v.say(`Reader pulse · ${topic.readers} opens`,`读者脉动 · ${topic.readers} 次打开`);
@@ -203,13 +209,12 @@ export async function home(env,v,{trending=false}={}) {
       // rather than accepted as arbitrary URL values.
       if (!signal&&requestedSignal) signal=activeConversations.find(candidate=>candidate.key===requestedSignal)??null;
     }
-    const result=trending&&!signal?await db.prepare(`SELECT s.*,count(DISTINCT m.source) AS coverage FROM mentions m JOIN stories s USING(url) WHERE ${where} AND m.published_at>=?
-      GROUP BY s.url HAVING count(DISTINCT m.source)>=3 ORDER BY coverage DESC,max(m.published_at) DESC LIMIT 21`).bind(...args,now-DAY).all()
+    const result=trending&&!signal?{results:focusedStories(supporting[1].results).filter(story=>activeConversations.some(topic=>storyFocusKeys(story).includes(topic.key)))}
       :signal?await db.prepare(`SELECT s.* FROM stories s WHERE ${where} AND discovered_at>=? ORDER BY discovered_at DESC,url DESC LIMIT 120`).bind(...args,now-7*DAY).all()
       :await db.prepare(`WITH diverse AS (
         SELECT s.*,ROW_NUMBER() OVER(PARTITION BY s.source_id ORDER BY s.discovered_at DESC,s.url DESC) AS source_rank
         FROM stories s WHERE ${where}
-      ) SELECT * FROM diverse WHERE source_rank<=3 ORDER BY discovered_at DESC,url DESC LIMIT 21${cursor?'':' OFFSET ?'}`).bind(...args,...(cursor?[]:[(page-1)*20])).all();
+      ) SELECT * FROM diverse WHERE source_rank<=2 ORDER BY discovered_at DESC,url DESC LIMIT 21${cursor?'':' OFFSET ?'}`).bind(...args,...(cursor?[]:[(page-1)*20])).all();
     rawStories=result.results;
     stories=capBySource(focusedStories(signal?result.results.filter(story=>story.discovered_at>=now-7*DAY&&storyFocusKeys(story).includes(signal.key)).slice(0,20):result.results));
   }
@@ -233,15 +238,15 @@ export async function home(env,v,{trending=false}={}) {
   };
   const topicResults=signal?v.say('Stories in “','「')+(v.zh?signal.zh:signal.en)+v.say('” from the sources we follow this week.','」：来自本周关注来源的相关文章。'):null;
   const visibleStories=stories.slice(0,20), nextCursor=!trending&&!signal&&rawStories.length>20?olderLink(v,olderStory(visibleStories)??olderStory(rawStories),{load:continuationLane}):null;
-  const main=archive?`<p class="feed-note">${search?v.say('Search results for “','搜索结果：“')+esc(search)+'”':topicResults??(trending?v.say('Topics gathering attention across tracked sources and, when available, anonymous reader interest.','正在本站关注来源与匿名读者兴趣中形成关注的主题。'):v.say('All recent arrivals','所有近期发现'))}</p><div class="stories archive-stories">${stories.length?visibleStories.map(render).join(''):`<p class="notice">${v.t('No recent stories match your search. Try another word or phrase.')}</p>`}</div>
+  const main=archive?`<p class="feed-note">${search?v.say('Search results for “','搜索结果：“')+esc(search)+'”':topicResults??(trending?v.say('Topics gathering attention across tracked sources and, when available, anonymous reader interest.','正在本站关注来源与匿名读者兴趣中形成关注的主题。'):v.say('All recent arrivals','所有近期发现'))}</p><div class="stories archive-stories">${stories.length?visibleStories.map(render).join(''):`<p class="notice">${search?v.t('No recent stories match your search. Try another word or phrase.'):v.say('No matching stories are available for this focus yet. Browse Latest for recent arrivals.','此关注主题暂时没有可显示的文章，请到最新页面阅读近期内容。')}</p>`}</div>
     <nav class="pagination" aria-label="${v.t('Story pages')}">${!cursor&&page>1?`<a href="${esc(qlink(v,{page:page-1,view:'all',before:null,before_url:null}))}">← ${v.say('Previous','上一页')}</a>`:''}${nextCursor?`<a data-next-page href="${esc(nextCursor)}">${v.t('Older stories')} →</a>`:''}<a href="${esc(qlink(v,{page:null,view:null,q:null,load:null,before:null,before_url:null},'/'))}">${v.t('Back to latest')}</a></nav>`
-    :`<div class="feed-columns" data-lane="${lane}" data-desktop-lane="${desktopLane}">${['human','ai'].map(l=>{const markup=column(l), selected=picks.filter(s=>s.lane===l), arrivals=stories.filter(s=>s.lane===l&&!selected.some(p=>p.url===s.url)), displayed=showDaily?[...selected,...arrivals]:arrivals, href=olderLink(v,olderStory(displayed),{load:l})??qlink(v,{view:'all',page:null,load:l,before:null,before_url:null});return markup.replace('</div></div></section>',`</div><div class="infinite-lane-feed" data-infinite-lane-feed="${l}" hidden><div class="stories archive-stories" data-infinite-stories></div><p class="infinite-status" data-infinite-status aria-live="polite"></p></div><a class="infinite-trigger" data-infinite-trigger data-lane="${l}" href="${esc(href)}">${v.say('Load older ','加载更早的')}${laneName(l,v)} <span aria-hidden="true">→</span></a></div></section>`);}).join('')}</div><nav class="pagination" aria-label="${v.t('Story pages')}"><a href="${esc(qlink(v,{view:'all',page:null,load:null,before:null,before_url:null}))}">${v.t('Browse all stories')} →</a><a href="${v.local('/edit')}">${v.say('Past daily picks','往期每日精选')} →</a><a href="#main">${v.say('Back to top','返回顶部')} ↑</a></nav>`;
+    :`<div class="feed-columns" data-lane="${lane}" data-desktop-lane="${desktopLane}">${['human','ai'].map(l=>{const markup=column(l), selected=picks.filter(s=>s.lane===l), arrivals=stories.filter(s=>s.lane===l&&!selected.some(p=>p.url===s.url)), displayed=showDaily?[...selected,...arrivals]:arrivals, href=olderLink(v,olderStory(displayed),{load:l})??qlink(v,{view:'all',page:null,load:l,before:null,before_url:null});return markup.replace('</div></div></section>',`</div><div class="infinite-lane-feed" data-infinite-lane-feed="${l}" hidden><div class="stories archive-stories" data-infinite-stories></div><p class="infinite-status" data-infinite-status aria-live="polite"></p></div><a class="infinite-trigger" data-infinite-trigger data-lane="${l}" href="${esc(href)}">${v.say('Load older ','加载更早的')}${laneName(l,v)} <span aria-hidden="true">→</span></a></div></section>`);}).join('')}</div><nav class="pagination" aria-label="${v.t('Story pages')}"><a href="${esc(qlink(v,{view:'all',page:null,load:null,before:null,before_url:null}))}">${v.t('Browse all stories')} →</a>${edition?`<a href="${v.local('/edit')}">${v.say('Past daily picks','往期每日精选')} →</a>`:''}<a href="#main">${v.say('Back to top','返回顶部')} ↑</a></nav>`;
   const bond=!archive&&!liveBond?(await latestEdition(db,'bond')??legacyEditions[0]):null;
   const homepageHeading=v.say('Humanity and AI, flowing here.','人文与AI浪潮，在此呈现。');
   const homepageSubtitle=v.say('The best of both, discovered for you daily.','精彩内容，为您探索。');
   return html(v,trending?(signal?v.zh?signal.zh:signal.en:v.t('Focusing')):homepageHeading,`${!archive?mix(mixStats,v,lane,desktopLane):''}${trending?focusLaneIdentities(v)+conversationStrip(activeConversations,v,{empty:true}):''}${filters(v)}${main}
     ${!archive?(liveBond?bondRouteTeaser(liveBond,v):bond?.stories?.every(story=>story.original_lang===originalLanguage)?`<aside class="bond-teaser"><div><span class="bond-kicker">${v.t('Bonding')}</span><p>${v.say('A considered bridge: one Human Pulse story alongside one AI Wave story.','一则经过思考的连结：把一篇「人文脉动」与一篇「AI冲击波」并置阅读。')}</p></div><a href="${v.local('/bonding/'+bond.id)}"><span class="bond-route">${v.t('Human Pulse')} <b aria-hidden="true">×</b> ${v.t('AI Wave')}</span><strong>${esc((v.zh?bond.zh:bond.en).title)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`:''):''}
-    <p class="feed-note feed-status">${last?v.say('Sources last checked: ','上次检查来源：')+date(last,v)+' · '+new Date(last).toISOString().slice(11,16)+' UTC':v.t('Awaiting the first source check')}</p>`,{wide:true,homepage:!trending,subtitle:!archive&&!trending?homepageSubtitle:undefined});
+    <p class="feed-note feed-status">${last?v.say('Sources last checked: ','上次检查来源：')+date(last,v)+' · '+new Date(last).toISOString().slice(11,16)+' UTC'+relativeChecked(last,v):v.t('Awaiting the first source check')}</p>`,{wide:true,homepage:!trending,subtitle:!archive&&!trending?homepageSubtitle:undefined});
 }
 export async function dailyPage(env,v,id) {
   if (!id) {
@@ -278,10 +283,10 @@ export async function bondPage(env,v,id) {
     ${copy.question?`<div class="bond-response"><p>${esc(copy.question)}</p><a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 Bonding note | '+copy.title)}">${v.t('Share your experience')}</a></div>`:''}${edition.correction?`<p class="bond-note">${esc(edition.correction)}</p>`:''}${participation(v)}</section>`:'';
   const liveEventTitle=liveRoute?.kind==='event'?(v.zh?liveRoute.event.zh:liveRoute.event.en):null;
   const liveDescription=liveRoute?.kind==='event'
-    ?v.say(`Independent reports on ${liveRoute.event.en}; claims remain under review.`,`关于${liveRoute.event.zh}的独立报道；相关主张仍待核验。`)
+    ?v.say(`Source reports on ${liveRoute.event.en}; claims remain under review.`,`关于${liveRoute.event.zh}的来源报道；相关主张仍待核验。`)
     :(v.zh?liveRoute?.bridge.zh:liveRoute?.bridge.en);
-  return html(v,id?copy.title:(liveEventTitle?`${liveEventTitle} · ${v.t('Bonding')}`:v.t('Bonding')),`<div class="bond-intro"><span>${v.t('Bonding')}</span><p>${v.say('Bonding routes pair recent Human Pulse and AI Wave stories through a visible shared bridge. When independent reports describe one named event from both human and AI perspectives, Bond6 can also show an explicitly labelled event cross-current. Bonding notes keep longer, considered connections.','连结路线会用可见的共同线索并置近期「人文脉动」与「AI冲击波」文章。当独立报道从人类与 AI 两个角度呈现同一命名事件时，Bond6 也会清晰标注为「同题交汇」。连结笔记则保留更长、更深入的思考。')}</p></div>${liveRoute?bondRouteMap(liveRoute,v):''}${editionMarkup}
-    ${editions.length?`<h2>${v.say('More Bonding notes','更多连结笔记')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition?.id).map(e=>`<li><a href="${v.local('/bonding/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`:''}`,{wide:true,edition:!!id,description:metaSummary(copy?.note??liveDescription)});
+  return html(v,id?copy.title:(liveEventTitle?`${liveEventTitle} · ${v.t('Bonding')}`:v.t('Bonding')),`<div class="bond-intro"><span>${v.t('Bonding')}</span><p>${v.say('Bonding routes pair recent Human Pulse and AI Wave stories through a visible shared bridge. When independent reports describe one named event from both human and AI perspectives, Bond6 can also show an explicitly labelled event cross-current. Bonding notes keep longer, considered connections.','连结路线会用可见的共同线索并置近期「人文脉动」与「AI冲击波」文章。当来源报道从人类与 AI 两个角度呈现同一命名事件时，Bond6 也会清晰标注为「同题交汇」。连结笔记则保留更长、更深入的思考。')}</p></div>${liveRoute?bondRouteMap(liveRoute,v):''}${editionMarkup}
+    ${editions.length?`<h2>${v.say('More Bonding notes','更多连结笔记')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition?.id).map(e=>`<li><a href="${v.local('/bonding/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`:''}`,{wide:true,edition:!!id,description:metaSummary(liveDescription??copy?.note)});
 }
 export function about(v) {
   const contents=[
@@ -332,7 +337,7 @@ export async function sourcesPage(env,v) {
 }
 export function subscribe(env,v) {
   const links=[...(env.GENERATED_PUBLISHING === 'true'?[['daily',null,v.say('Daily picks','每日精选')]]:[]),['live','human',v.t('Human Pulse')],['live','ai',v.t('AI Wave')],['bond',null,v.t('Bonding')],['live',null,v.say('All arrivals','全部新发现')]];
-  return html(v,v.t('Subscribe'),`<p>${v.say('Choose a feed and paste its address into your RSS reader. Switch language above for the other edition.','选择一个订阅源，把地址粘贴到 RSS 阅读器里。切换页面语言即可获取另一语言的订阅源。')}</p><ul class="subscription-list">${links.map(([kind,lane,title])=>{const path=v.local('/feed.xml')+'?'+new URLSearchParams({kind,...(lane?{lane}:{})});return `<li><h2>${title}</h2><a href="${esc(path)}">https://bond6.io${esc(path)}</a></li>`;}).join('')}</ul>`);
+  return html(v,v.t('Subscribe'),`<p>${v.say('Choose a feed and paste its address into your RSS reader. Switch language above for the other edition.','选择一个订阅源，把地址粘贴到 RSS 阅读器里。切换页面语言即可获取另一语言的订阅源。')}</p><ul class="subscription-list">${links.map(([kind,lane,title])=>{const path=v.local('/feed.xml')+'?'+new URLSearchParams({kind,...(lane?{lane}:{})});return `<li><h2>${title}</h2><a href="${esc(path)}">https://bond6.io${esc(path)}</a></li>`;}).join('')}</ul>`,{description:v.say('Subscribe to Bond6’s English RSS feeds for human culture and AI developments.','订阅 Bond6 中文 RSS，阅读人文文化与 AI 动态。')});
 }
 export function savedPage(v) {
   return html(v,v.say('Saved stories','收藏的文章'),`<p class="feed-note">${v.say('Up to 100 stories, kept on this browser only. Clearing browser data removes them.','最多 100 条，仅保存在这个浏览器中。清除浏览器数据也会删除收藏。')}</p><button type="button" id="clear-saved" hidden>${v.say('Clear saved stories','清空收藏')}</button><div id="saved-list"></div><noscript><p class="notice">${v.say('Saved stories need JavaScript and browser storage. All other reading remains available.','收藏功能需要 JavaScript 和浏览器存储。其他阅读功能仍可使用。')}</p></noscript>`);

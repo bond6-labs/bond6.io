@@ -3,7 +3,7 @@ const expected=process.env.BOND6_EXPECTED_RELEASE;
 // Verify the canonical public routes. Legacy `/trending` and `/bond` now
 // redirect permanently, so treating them as required 200 responses makes a
 // successful deployment look like a failed release.
-const paths=['/healthz','/','/zh/','/sources','/zh/sources','/focusing','/bonding'];
+const paths=['/healthz','/','/zh/','/?view=all','/zh/?view=all','/sources','/zh/sources','/focusing','/zh/focusing','/bonding','/zh/bonding','/edit','/zh/edit','/subscribe','/zh/subscribe','/feed.xml','/zh/feed.xml'];
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 // A new Worker version normally propagates quickly, but the custom-domain
@@ -16,7 +16,13 @@ for(let attempt=1;attempt<=12;attempt++){
       return {path,status:response.status,release:response.headers.get('x-bond6-release')};
     }));
     const failures=results.filter(result=>result.status!==200||(expected&&result.release!==expected));
-    if(!failures.length){console.log(`Production verified: ${expected??'release header not required'}`);process.exit(0);}
+    if(!failures.length){
+      for(const [old,target] of [['/trending','/focusing'],['/bond','/bonding'],['/zh/trending','/zh/focusing'],['/zh/bond','/zh/bonding']]){
+        const response=await fetch(new URL(old,base),{redirect:'manual'});
+        if(response.status!==301||new URL(response.headers.get('location'),base).pathname!==target)throw new Error(`Incorrect redirect: ${old}`);
+      }
+      console.log(`Production verified: ${expected??'release header not required'}`);process.exit(0);
+    }
     console.error(`Attempt ${attempt}:`,failures);
   }catch(error){console.error(`Attempt ${attempt}:`,error.message);}
   if(attempt<12)await wait(5_000);

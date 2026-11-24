@@ -1,5 +1,6 @@
 import { decodeHeadline } from './headline.js';
 import { validateLanguage, validateURL } from './validation.js';
+import { editorialSubject } from './editorial.js';
 
 export const DAY = 86_400_000;
 export const subjects = ['music', 'art', 'writing', 'practice', 'digital'];
@@ -53,7 +54,9 @@ export function cleanHeadline(value, limit = 500, prefixes = []) {
   return text && text.length <= limit ? text : null;
 }
 export function cleanAuthor(value) {
-  return plain(value, 160).replace(/\s*\(GPG[^)]*\)/i, '').replace(/\s+@[^\s]+$/, '').trim() || null;
+  if(Array.isArray(value))return [...new Set(value.map(cleanAuthor).filter(Boolean))].join(', ')||null;
+  if(value&&typeof value==='object')return cleanAuthor(value.name??value['#text']??'');
+  return plain(value, 160).replace(/^By\s+/i,'').replace(/\s+[I|·]\s*designboom\s*$/i,'').replace(/\s*\(GPG[^)]*\)/i, '').replace(/\s+@[^\s]+$/, '').replace(/\s+([,.])/g,'$1').trim() || null;
 }
 // These are transparent editorial topic definitions, not a measure of global popularity.
 // A topic needs either independent-source evidence or clearly labelled reader interest.
@@ -76,7 +79,9 @@ export function storyTopics(story) {
   // Classify from the original item only. Editions are now language-separated,
   // so stale or generated translations must not influence a story's lane.
   const text = `${story.title ?? ''} ${story.excerpt ?? ''}`;
-  return conversationTopics.filter(topic => topic.match.test(text)).map(topic => topic.key);
+  const subject=editorialSubject(story.title??'',story.excerpt??'',sourceSubjects[story.source_id]);
+  const required={'independent-music':'music','books-writing':'writing','visual-culture':'art'};
+  return conversationTopics.filter(topic => (!required[topic.key]||required[topic.key]===subject)&&topic.match.test(`${story.title??''} ${(story.excerpt??'').slice(0,600)}`)).map(topic => topic.key);
 }
 
 // An event cross-current is not a declaration that a claim is true. It is a
@@ -162,6 +167,22 @@ export const plain = (value, limit = 5000) => {
 };
 export const canonical = validateURL;
 export const language = validateLanguage;
+// Public excerpts are shorter than the bounded text used for classification.
+export function publicExcerpt(value, limit=300) {
+  const text=plain(value,5000)
+    .replace(/(?:data-[\w-]+|src|srcset|loading|decoding)\s*=\s*"[^"]*"\s*\/?[>]*/gi,' ')
+    .replace(/The post\s+[\s\S]*?appeared first on\s+[^.]+\.?/gi,' ')
+    .replace(/^(?:Welcome to Import AI[^.!?]*[.!?]|This is today[’']s edition of The Download[^.!?]*[.!?])\s*/i,'')
+    .replace(/\bSubscribe now[.!]?/gi,'').replace(/\s+([,.;:!?，。；：！？])/g,'$1')
+    .replace(/([.!?。！？])(?:\.{2,}|…)+/g,'$1').replace(/\s+/g,' ').trim();
+  if(text.length<=limit)return text;
+  const head=text.slice(0,limit-1);
+  const end=[...head.matchAll(/[。！？]|[.!?](?=\s|$)/g)].at(-1);
+  if(end&&end.index>=limit*.35)return head.slice(0,end.index+1);
+  return compactHeadline(text,limit-1);
+}
+export const restrictedStory = story => /\/subscriber-area(?:\/|$)/i.test(story.url??'')
+  || /^(?:\[?(?:premium|paid|members?[- ]only|subscriber[- ]only)\]?\s*[:—-]|付费|会员专享)/i.test(story.title??'');
 // Bond6 is deliberately narrow. These are topic boundaries, not a judgement
 // about an item's overall importance. They keep the feed centred on lived
 // human experience and direct AI consequences rather than the general news
@@ -247,6 +268,7 @@ export function classify(title, excerpt, source = {}) {
     : source.lane === 'ai'
       ? (gate.ai ? 'ai' : null)
       : gate.ai ? 'ai' : gate.human ? 'human' : null;
+  subject=editorialSubject(title,excerpt,sourceSubjects[source.id]);
   return { lane, subject };
 }
 export async function contentHash(story) {
