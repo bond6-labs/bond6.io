@@ -1,7 +1,7 @@
 import { collect, prune } from './ingest.js';
 import { publishingStep } from './publishing.js';
 import { locale, html, esc } from './render.js';
-import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions } from './pages.js';
+import { home, dailyPage, bondPage, about, sourcesPage, subscribe, savedPage, legacyEditions, archiveBondRoutes } from './pages.js';
 import { classify, conversationTopics, dayKey, publicExcerpt, restrictedStory } from './content.js';
 import { sources, retiredSourceIds } from './sources.js';
 import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH, SOURCE_EVALUATION_HOUR_UTC, SOURCE_EVALUATION_MINUTE_UTC } from './config.js';
@@ -125,6 +125,7 @@ export default {
     ctx.waitUntil((async()=>{
       const now=controller.scheduledTime,minute=new Date(now).getUTCMinutes();
       await ensureSourceCatalogue(env.DB,now);
+      if(new Date(now).getUTCHours()===0&&minute===45){await archiveBondRoutes(env.DB,now);return;}
       // Five-minute scheduling leaves room under D1's free read allowance.
       // Fresh sources are still prioritised by their individual due times.
       if(new Date(now).getUTCHours()===SOURCE_EVALUATION_HOUR_UTC&&minute===SOURCE_EVALUATION_MINUTE_UTC){await evaluateSourceVitality(env.DB,now);return;}

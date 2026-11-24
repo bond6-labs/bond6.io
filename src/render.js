@@ -64,7 +64,11 @@ export function actions(story,v,shareUrl) {
 function mediaPreview(story,v) {
   const credit=v.say(`Media from ${story.source}`,`媒体来自 ${story.source}`);
   const art=story.subject==='art';
-  const image=story.image_url?`<a class="story-image${art?' preserve-media':''}" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><span class="story-image-frame"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" width="16" height="10" data-media-check data-min-width="${art?180:320}" data-min-height="${art?180:180}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="story-image-credit">${esc(credit)}</span></a>`:'';
+  // Guardian's feed intentionally signs a 140px image rendition. We cannot
+  // safely rewrite that signed URL to a larger size, but it is still a useful
+  // publisher-selected preview when rendered as a compact thumbnail.
+  const signedThumbnail=/^https:\/\/i\.guim\.co\.uk\//i.test(story.image_url??'');
+  const image=story.image_url?`<a class="story-image${art?' preserve-media':''}${signedThumbnail?' compact-thumbnail':''}" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><span class="story-image-frame"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" width="16" height="10" data-media-check data-min-width="${signedThumbnail?120:art?180:320}" data-min-height="${signedThumbnail?80:art?180:180}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="story-image-credit">${esc(credit)}</span></a>`:'';
   const audio=story.audio_url?`<div class="story-audio"><span>${v.say('Listen from ','收听：')}${esc(story.source)}</span><audio controls preload="none" src="${esc(story.audio_url)}">${v.say('Audio is available at the original source.','音频可在原始来源收听。')}</audio></div>`:'';
   const videoUrl=typeof story.video_url==='string'&&story.video_url.startsWith('https://')?story.video_url:null;
   if (!videoUrl) return image+audio;

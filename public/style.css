@@ -78,6 +78,8 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .story-image { display: block; position: relative; max-width: 620px; margin: 13px 0 2px; overflow: hidden; }
 .story-image-frame { display: block; aspect-ratio: 16 / 10; overflow: hidden; background: var(--surface); }
 .story-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.story-image.compact-thumbnail { max-width: 280px; }
+.story-image.compact-thumbnail .story-image-frame { aspect-ratio: 5 / 4; }
 .story-image.preserve-media .story-image-frame { background: #e9e1d2; }
 .story-image.preserve-media img { object-fit: contain; }
 .story-image-credit { display: block; padding: 4px 7px; color: var(--muted); font-size: 10px; }

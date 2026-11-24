@@ -6,6 +6,19 @@ import {storeItems} from '../src/ingest.js';
 import {story,source,now,note} from './fixtures.js';
 import {snapshotStory} from '../src/publishing.js';
 import {ensureSourceCatalogue} from '../src/source-vitality.js';
+import {archiveBondRoutes} from '../src/pages.js';
+test('Bonding archives a qualified route once and serves it after stories disappear',async()=>{
+  const db=database();
+  const human=story(501,{title:'An artist describes creative work',excerpt:'An artist describes creative work and making art in a studio, explaining the process in personal detail.',source_id:'h'});
+  const ai=story(502,{title:'AI changes creative work for artists',excerpt:'An AI system changes creative work for artists and raises questions about authorship and copyright.',source_id:'a',lane:'ai',subject:'digital'});
+  await storeItems(db,{...source,id:'h'},[human],now);
+  await storeItems(db,{...source,id:'a'},[ai],now);
+  await archiveBondRoutes(db,now);await archiveBondRoutes(db,now+1000);
+  const rows=db.sql.prepare('SELECT * FROM bond_routes').all();assert.equal(rows.length,1);
+  db.sql.prepare('DELETE FROM stories').run();
+  const response=await worker.fetch(new Request('https://bond6.io/bonding/'+rows[0].id),{DB:db});
+  assert.equal(response.status,200);assert.match(await response.text(),/An artist describes creative work/);
+});
 test('EN/CN routes, feed filters, archives, metadata and HEAD work without JavaScript or AI',async()=>{
   const db=database();const s=story();await storeItems(db,source,[s],now);
   const picked=await db.prepare(`SELECT s.*,r.rhythm_version,r.human_score AS rhythm_human_score,r.ai_score AS rhythm_ai_score,
@@ -165,11 +178,12 @@ test('language editions show only original-language stories and no translated-ti
 test('publisher media previews render in the matching original-language edition',async()=>{
   const db=database();
   const en=story(96,{image_url:'https://cdn.example.org/cover.jpg',audio_url:'https://cdn.example.org/listen.mp3',video_url:'https://www.youtube-nocookie.com/embed/abcdef12345'});
+  const guardian=story(101,{url:'https://theguardian.com/culture/preview',link:'https://theguardian.com/culture/preview',canonical_url:'https://theguardian.com/culture/preview',image_url:'https://i.guim.co.uk/img/media/preview.jpg?width=140&s=signed'});
   const zh=story(97,{url:'https://example.org/zh/media',link:'https://example.org/zh/media',canonical_url:'https://example.org/zh/media',title:'一段中文声音记录',original_lang:'zh',image_url:'https://cdn.example.org/zh-cover.jpg',audio_url:'https://cdn.example.org/zh-listen.mp3'});
   const insecure=story(98,{url:'https://example.org/insecure-video',link:'https://example.org/insecure-video',canonical_url:'https://example.org/insecure-video',video_url:'http://cdn.example.org/wrong-attachment.mp4'});
-  await storeItems(db,source,[en,zh,insecure],now);
+  await storeItems(db,source,[en,zh,insecure,guardian],now);
   const english=await worker.fetch(new Request('https://bond6.io/'),{DB:db});const enText=await english.text();
-  assert.match(enText,/cdn\.example\.org\/cover\.jpg/);assert.match(enText,/<audio controls preload="none" src="https:\/\/cdn\.example\.org\/listen\.mp3">/);assert.match(enText,/youtube-nocookie\.com\/embed\/abcdef12345/);assert.match(enText,/referrerpolicy="strict-origin-when-cross-origin"/);assert.match(english.headers.get('Content-Security-Policy'),/media-src https:/);
+  assert.match(enText,/cdn\.example\.org\/cover\.jpg/);assert.match(enText,/compact-thumbnail/);assert.match(enText,/data-min-width="120"/);assert.match(enText,/<audio controls preload="none" src="https:\/\/cdn\.example\.org\/listen\.mp3">/);assert.match(enText,/youtube-nocookie\.com\/embed\/abcdef12345/);assert.match(enText,/referrerpolicy="strict-origin-when-cross-origin"/);assert.match(english.headers.get('Content-Security-Policy'),/media-src https:/);
   assert.doesNotMatch(enText,/<source src="http:\/\/cdn\.example\.org\/wrong-attachment\.mp4">/);
   const chinese=await worker.fetch(new Request('https://bond6.io/zh/'),{DB:db});const zhText=await chinese.text();
   assert.match(zhText,/zh-cover\.jpg/);assert.match(zhText,/zh-listen\.mp3/);assert.doesNotMatch(zhText,/src="https:\/\/cdn\.example\.org\/cover\.jpg"/);

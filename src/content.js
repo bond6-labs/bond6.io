@@ -199,6 +199,7 @@ const humanEmbodied = /\b(?:climb(?:ing)?|mountain(?:eer(?:ing)?)?|trail running
 const culturalContext = /\b(?:review|interview|profile|conversation|criticism|critique|exhibition|performance|retrospective|reading|listening)\b|乐评|书评|影评|访谈|专访|人物|对谈|评论|批评|展览|演出|回顾|阅读|聆听/i;
 const humanReflection = /\b(?:philosoph(?:y|er|ical)|ethics?|moral(?:ity)?|kindness|critical thinking|argument(?:s|ation)?|consciousness)\b|哲学|伦理|道德|善意|批判性思维|论证|意识/i;
 const aiSystem = /\b(?:ai|artificial intelligence|llms?|large language model|chatgpt|openai|anthropic|generative ai|machine learning|deepfake|model training|data cent(?:er|re)|ai agent|algorithmic (?:feed|ranking|recommendation)|recommender system|automated decision(?:-making)?|facial recognition|biometric (?:system|surveillance))\b|人工智能|大模型|生成式|机器学习|深度伪造|训练模型|数据中心|智能体|算法推荐|自动化决策|人脸识别|生物识别/i;
+const productLaunchHeadline = /(?:发布|推出|上市).{0,35}(?:手机|电脑|平板|折叠屏|智能手表)|(?:手机|电脑|平板|折叠屏|智能手表).{0,25}(?:发布|推出|上市)/i;
 const aiImpact = /\b(?:replace(?:s|d|ment|ing)?|automate(?:s|d|ion|ing)?|job(?:s)?|work(?:er|place|load)?|labou?r|wage|union|artist|writer|teacher|student|privacy|surveillance|copyright|authorship|rights|trust|education|creative work)\b|替代|自动化|工作|劳动|工资|工会|艺术家|作者|教师|学生|隐私|监控|版权|署名|权利|信任|教育|创作/i;
 // “Deploy” is common metaphorical prose. It only signals AI movement when
 // the deployed object is itself an AI system, model, agent, tool, or algorithm.
@@ -240,7 +241,7 @@ export function selectionGate(title, excerpt = '', source = {}) {
   // Picks still require the stronger core signals recorded by Bond6 Rhythm.
     // A cultural publisher alone cannot make an item Human Pulse. The live
     // fallback still needs both a creative subject and an editorial context.
-    human: human_core || (creative && (culture || reported)),
+    human: !productLaunchHeadline.test(title ?? '') && (human_core || (creative && (culture || reported))),
     ai: ai_core || (system && movement && reported),
     human_core, ai_core,
     exclusion_reason:null,

@@ -5,6 +5,11 @@ import {classify,selectionGate,canonical,contentHash,usableText,publicExcerpt,re
 import {validateNote,approved} from '../src/ai.js';
 import {database} from './db.js';
 import {story,source,now,note,review} from './fixtures.js';
+test('device launches do not become Human Pulse through generic support language',()=>{
+  const title='华为发布了大折叠手机和小折叠电脑，但 1 亿鸿蒙设备才是最大的亮点';
+  assert.equal(classify(title,'华为推出折叠手机，系统支持多种设备。',{id:'ifanr'}).lane,null);
+  assert.equal(classify('华为推出手机 AI 智能体','人工智能智能体发布，能够自动化工作。',{id:'ifanr'}).lane,'ai');
+});
 test('public excerpts are bounded and subscription detection avoids incidental Premium mentions',()=>{
   assert.ok(publicExcerpt('A writer explores memory. '.repeat(100)).length<=300);
   assert.ok(publicExcerpt('一位作家记录生活与记忆。'.repeat(100)).length<=300);

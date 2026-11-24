@@ -70,6 +70,26 @@ const liveBondRoute=stories=>{
   }
   return routes.sort((a,b)=>b.freshness-a.freshness)[0]??null;
 };
+// Save only evidence-qualified routes, with a stable identity derived from
+// their source links. Repeated scheduler runs never create duplicate editions.
+export async function archiveBondRoutes(db,now=Date.now()) {
+  for(const language of ['en','zh']) {
+    const {results}=await db.prepare(`SELECT * FROM stories s WHERE s.lane IS NOT NULL AND s.original_lang=? AND s.discovered_at>=?
+      AND NOT EXISTS(SELECT 1 FROM source_catalogue c WHERE c.id=s.source_id AND c.language<>?)
+      ORDER BY s.discovered_at DESC,s.url DESC LIMIT 120`).bind(language,now-7*DAY,language).all();
+    const route=liveBondRoute(focusedStories(results));
+    if(!route)continue;
+    const compact=s=>s&&Object.fromEntries(['url','title','author','source','source_id','lane','excerpt','discovered_at'].map(key=>[key,s[key]??null]));
+    if(route.kind==='event')route.event.stories=route.event.stories.slice(0,3).map(compact);
+    else {route.human=compact(route.human);route.ai=compact(route.ai);route.third=compact(route.third);const {pattern,...bridge}=route.bridge;route.bridge=bridge;}
+    const stories=route.kind==='event'?route.event.stories:[route.human,route.ai,route.third].filter(Boolean);
+    const identity=JSON.stringify([language,route.kind,route.kind==='event'?route.event.key:route.bridge.key,stories.map(s=>s.url).sort()]);
+    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity));
+    const id='route-'+Array.from(new Uint8Array(digest).slice(0,16),b=>b.toString(16).padStart(2,'0')).join('');
+    await db.prepare('INSERT OR IGNORE INTO bond_routes(id,language,created_at,snapshot) VALUES(?,?,?,?)').bind(id,language,now,JSON.stringify(route)).run();
+  }
+  await db.prepare('DELETE FROM bond_routes WHERE id IN (SELECT id FROM bond_routes ORDER BY created_at DESC,id DESC LIMIT -1 OFFSET 50)').run();
+}
 const bondNode=(story,lane,v)=>`<a class="bond-route-node ${lane}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${laneName(lane,v)}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
 const bondEventNode=(story,v)=>`<a class="bond-route-node event-source ${story.lane==='human'?'human':'ai'}" href="${esc(story.url)}" data-event="original" data-focus="${esc(storyFocusKeys(story).join(','))}"><span>${v.say('Source report','来源报道')}</span><strong>${esc(story.title)}</strong><small>${esc(story.author&&story.author!==story.source?story.author+' · '+story.source:story.source)}</small></a>`;
 const eventRouteMap=(route,v)=>{
@@ -237,7 +257,7 @@ export async function home(env,v,{trending=false}={}) {
     <nav class="pagination" aria-label="${v.t('Story pages')}">${!cursor&&page>1?`<a href="${esc(qlink(v,{page:page-1,view:'all',before:null,before_url:null}))}">← ${v.say('Previous','上一页')}</a>`:''}${nextCursor?`<a data-next-page href="${esc(nextCursor)}">${v.t('Older stories')} →</a>`:''}<a href="${esc(qlink(v,{page:null,view:null,q:null,load:null,before:null,before_url:null},'/'))}">${v.t('Back to latest')}</a></nav>`
     :`<div class="feed-columns" data-lane="${lane}" data-desktop-lane="${desktopLane}">${['human','ai'].map(l=>{const markup=column(l), selected=picks.filter(s=>s.lane===l), arrivals=stories.filter(s=>s.lane===l&&!selected.some(p=>p.url===s.url)), displayed=showDaily?[...selected,...arrivals]:arrivals, href=olderLink(v,olderStory(displayed),{load:l})??qlink(v,{view:'all',page:null,load:l,before:null,before_url:null});return markup.replace('</div></div></section>',`</div><div class="infinite-lane-feed" data-infinite-lane-feed="${l}" hidden><div class="stories archive-stories" data-infinite-stories></div><p class="infinite-status" data-infinite-status aria-live="polite"></p></div><a class="infinite-trigger" data-infinite-trigger data-lane="${l}" href="${esc(href)}">${v.say('Load older ','加载更早的')}${laneName(l,v)} <span aria-hidden="true">→</span></a></div></section>`);}).join('')}</div><nav class="pagination" aria-label="${v.t('Story pages')}"><a href="${esc(qlink(v,{view:'all',page:null,load:null,before:null,before_url:null}))}">${v.t('Browse all stories')} →</a>${edition?`<a href="${v.local('/edit')}">${v.say('Past daily picks','往期每日精选')} →</a>`:''}<a href="#main">${v.say('Back to top','返回顶部')} ↑</a></nav>`;
   const bond=!archive&&!liveBond?(await latestEdition(db,'bond')??legacyEditions[0]):null;
-  const homepageHeading=v.say('Human culture and the AI wave, side by side.','人文与 AI 浪潮，并肩呈现。');
+  const homepageHeading=v.say('Human culture and the AI wave, always in motion.','人文与 AI 浪潮，并肩呈现。');
   const homepageSubtitle=v.say('The best of both, discovered for you daily.','精彩内容，为您探索。');
   return html(v,trending?(signal?v.zh?signal.zh:signal.en:v.t('Focusing')):homepageHeading,`${!archive?mix(mixStats,v,lane,desktopLane):''}${trending?conversationStrip(activeConversations,v,{empty:true}):''}${filters(v)}${main}
     ${!archive?(liveBond?bondRouteTeaser(liveBond,v):bond?.stories?.every(story=>story.original_lang===originalLanguage)?`<aside class="bond-teaser"><div><span class="bond-kicker">${v.t('Bonding')}</span><p>${v.say('A considered bridge: one Human Pulse story alongside one AI Wave story.','一则经过思考的连结：把一篇「人文脉动」与一篇「AI冲击波」并置阅读。')}</p></div><a href="${v.local('/bonding/'+bond.id)}"><span class="bond-route">${v.t('Human Pulse')} <b aria-hidden="true">×</b> ${v.t('AI Wave')}</span><strong>${esc((v.zh?bond.zh:bond.en).title)}</strong><span class="bond-arrow" aria-hidden="true">→</span></a></aside>`:''):''}
@@ -259,6 +279,14 @@ function participation(v) {
 }
 export async function bondPage(env,v,id) {
   const now=Date.now();
+  const language=v.zh?'zh':'en';
+  const {results:archived}=await env.DB.prepare('SELECT id,created_at,snapshot FROM bond_routes WHERE language=? ORDER BY created_at DESC,id DESC LIMIT 50').bind(language).all();
+  if(id?.startsWith('route-')) {
+    const saved=archived.find(row=>row.id===id);
+    if(!saved)return html(v,v.t('Page unavailable'),`<p class="notice">${v.say('This saved route is no longer available.','这条存档连结已不可用。')} <a href="${v.local('/bonding')}">${v.t('Bonding')}</a></p>`,{status:404,wide:true});
+    const route=JSON.parse(saved.snapshot);
+    return html(v,v.t('Bonding'),`<p class="feed-note">${v.say('Saved route','存档连结')} · ${date(saved.created_at,v)}</p>${bondRouteMap(route,v)}`,{wide:true});
+  }
   const [{results},{results:recent}]=await Promise.all([
     env.DB.prepare(`SELECT snapshot,correction FROM editions WHERE kind='bond' ORDER BY edition_date DESC LIMIT 50`).all(),
     env.DB.prepare(`SELECT * FROM stories s WHERE s.lane IS NOT NULL AND s.original_lang=? AND s.discovered_at>=?
@@ -269,7 +297,7 @@ export async function bondPage(env,v,id) {
   const editions=[...results.map(parse),...legacyEditions].filter(edition=>edition.stories?.length&&edition.stories.every(story=>story.original_lang===originalLanguage)).slice(0,50);
   const edition=id?editions.find(e=>e.id===id):editions[0];
   const liveRoute=id?null:liveBondRoute(focusedStories(recent));
-  if (!edition&&!liveRoute) return html(v,v.t('Bonding'),`<p class="notice">${v.say('No original-language Bonding route or note is available yet.','暂时还没有可用的中文连结路线或连结笔记。')}</p>`,{wide:true});
+  if (!edition&&!liveRoute&&!archived.length) return html(v,v.t('Bonding'),`<p class="notice">${v.say('No original-language Bonding route or note is available yet.','暂时还没有可用的中文连结路线或连结笔记。')}</p>`,{wide:true});
   const copy=edition?(v.zh?edition.zh:edition.en):null;
   const pair=edition?.stories.map(s=>`<article class="editorial-pick"><p class="pick-label">${laneName(s.lane,v)}</p><h3>${esc((v.zh?s.zh:s.en).title)}</h3><p>${esc((v.zh?s.zh:s.en).note)}</p>${s.quote?`<blockquote><p lang="en">${esc(s.quote)}</p>${v.zh&&s.zh.quote?`<p>${esc(s.zh.quote)} ${v.t('(translated)')}</p>`:''}</blockquote>`:''}<p class="pick-links">${esc(s.author?s.author+' · '+s.source:s.source)}</p>${actions(s,v,'https://bond6.io'+v.local('/bonding/'+edition.id))}</article>`).join('')??'';
   const editionMarkup=edition?`<p class="feed-note">${date(Date.parse(edition.date+'T12:00Z'),v)}${edition.legacy?' · '+v.say('Archive research edition','研究存档选编'):''}</p>
@@ -281,6 +309,7 @@ export async function bondPage(env,v,id) {
     ?v.say(`Source reports on ${liveRoute.event.en}; claims remain under review.`,`关于${liveRoute.event.zh}的来源报道；相关主张仍待核验。`)
     :(v.zh?liveRoute?.bridge.zh:liveRoute?.bridge.en);
   return html(v,id?copy.title:(liveEventTitle?`${liveEventTitle} · ${v.t('Bonding')}`:v.t('Bonding')),`<div class="bond-intro"><span>${v.t('Bonding')}</span><p>${v.say('Bonding routes pair recent Human Pulse and AI Wave stories through a visible shared bridge. When independent reports describe one named event from both human and AI perspectives, Bond6 can also show an explicitly labelled event cross-current. Bonding notes keep longer, considered connections.','连结路线会用可见的共同线索并置近期「人文脉动」与「AI冲击波」文章。当来源报道从人类与 AI 两个角度呈现同一命名事件时，Bond6 也会清晰标注为「同题交汇」。连结笔记则保留更长、更深入的思考。')}</p></div>${liveRoute?bondRouteMap(liveRoute,v):''}${editionMarkup}
+    ${!id&&archived.length?`<h2>${v.say('Saved routes','连结存档')}</h2><ul class="edition-list">${archived.map(row=>{const route=JSON.parse(row.snapshot), title=route.kind==='event'?(v.zh?route.event.zh:route.event.en):(v.zh?route.bridge.zh:route.bridge.en);return `<li><a href="${v.local('/bonding/'+row.id)}">${esc(title)}</a><small>${date(row.created_at,v)}</small></li>`;}).join('')}</ul>`:''}
     ${editions.length?`<h2>${v.say('More Bonding notes','更多连结笔记')}</h2><ul class="edition-list">${editions.filter(e=>e.id!==edition?.id).map(e=>`<li><a href="${v.local('/bonding/'+e.id)}">${esc((v.zh?e.zh:e.en).title)}</a><small>${date(Date.parse(e.date+'T12:00Z'),v)}</small></li>`).join('')}</ul>`:''}`,{wide:true,edition:!!id,description:metaSummary(liveDescription??copy?.note)});
 }
 export function about(v) {
