@@ -366,6 +366,12 @@ export async function storeItems(db, source, items, now) {
       article_preview_checked_at=coalesce(excluded.article_preview_checked_at,stories.article_preview_checked_at)
       WHERE (excluded.is_article>=stories.is_article OR stories.source_id IS NULL)
         AND (stories.content_hash IS NOT excluded.content_hash
+          -- Older records can predate media-aware hashes.  Treat a newly
+          -- supplied feed preview as a material update in its own right, so
+          -- an unchanged headline/excerpt never leaves a card text-only.
+          OR coalesce(stories.image_url,'') IS NOT coalesce(excluded.image_url,'')
+          OR coalesce(stories.audio_url,'') IS NOT coalesce(excluded.audio_url,'')
+          OR coalesce(stories.video_url,'') IS NOT coalesce(excluded.video_url,'')
           OR (stories.article_preview_checked_at IS NULL AND excluded.article_preview_checked_at IS NOT NULL))`).bind(...values));
   }
   for (let start = 0; start < validItems.length; start += 20) {

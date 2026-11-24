@@ -102,7 +102,7 @@ test('Focusing labels emerging signals and Bonding renders a Bonding route',asyn
     await storeItems(db,{...source,id:'human-journal',name:'Human Journal'},[human],now);
     await storeItems(db,{...source,id:'human-journal-two',name:'Human Journal Two'},[humanTwo],now-1);
     await storeItems(db,{...source,id:'ai-journal',name:'AI Journal',topic:'Digital Life'},[ai],now-2);
-    const focusing=await worker.fetch(new Request('https://bond6.io/focusing'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);assert.match(focusingText,/focus-lane-identities/);
+    const focusing=await worker.fetch(new Request('https://bond6.io/focusing'),{DB:db});const focusingText=await focusing.text();assert.match(focusingText,/Emerging · 2 sources/);assert.match(focusingText,/conversation-strip/);assert.doesNotMatch(focusingText,/focus-lane-identities/);
     assert.match(focusingText,/A musician writes about care/);assert.doesNotMatch(focusingText,/No recent stories match your search/);
     const bonding=await worker.fetch(new Request('https://bond6.io/bonding'),{DB:db});const bondingText=await bonding.text();assert.match(bondingText,/Bonding route/);assert.match(bondingText,/Making &amp; authorship/);
   } finally { Date.now=realNow; }

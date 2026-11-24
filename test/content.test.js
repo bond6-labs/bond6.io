@@ -192,6 +192,15 @@ test('40-item ingestion stays under D1 limits; edits invalidate translations wit
   await storeItems(db,{...source,kind:'bluesky',name:'Sharer'},[{...changed,original_published_at:null}],now+10000);
   assert.equal((await db.prepare('SELECT * FROM stories WHERE url=?').bind(changed.url).first()).author,'Leah');
 });
+test('a later feed-supplied preview backfills a text-only card even when an older hash matches',async()=>{
+  const db=database();
+  const initial=story(92,{content_hash:'legacy-hash',image_url:null});
+  await storeItems(db,source,[initial],now);
+  const refreshed={...initial,image_url:'https://cdn.example.org/guardian-preview.jpg'};
+  await storeItems(db,source,[refreshed],now+5_000);
+  const stored=await db.prepare('SELECT image_url FROM stories WHERE url=?').bind(initial.url).first();
+  assert.equal(stored.image_url,'https://cdn.example.org/guardian-preview.jpg');
+});
 test('unsupported notes fail deterministic validation and source comparison',()=>{
   const s=story(),valid=note(s);assert.equal(validateNote(valid,s),true);assert.equal(usableText({...s,excerpt:s.title}),false);
   for(const mutate of [n=>n.claims[0].evidence='invented supporting passage',n=>n.claims[0].en+=' There were 999 musicians.',n=>n.zh.title='English only',n=>n.url='https://other.org',n=>n.entities[0].source='Someone absent']){const output=structuredClone(valid);mutate(output);assert.equal(validateNote(output,s),false);}

@@ -58,6 +58,21 @@
     });
   }
   enableSearch();
+  function enablePwa(){
+    const buttons=[...document.querySelectorAll('[data-pwa-install]')];
+    if(!('serviceWorker' in navigator))return;
+    window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}),{once:true});
+    let deferredPrompt=null;
+    window.addEventListener('beforeinstallprompt',event=>{
+      event.preventDefault();deferredPrompt=event;buttons.forEach(button=>button.hidden=false);
+    });
+    buttons.forEach(button=>button.addEventListener('click',async()=>{
+      if(!deferredPrompt)return;
+      deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;buttons.forEach(control=>control.hidden=true);
+    }));
+    window.addEventListener('appinstalled',()=>{deferredPrompt=null;buttons.forEach(button=>button.hidden=true);});
+  }
+  enablePwa();
   document.addEventListener('click',event=>{
     const link=event.target.closest('a[data-event="original"]');if(!link)return;metric('original');
     const key=link.closest('.story')?.dataset.focus?.split(',').find(Boolean);if(!key||!storage||!countEvents)return;

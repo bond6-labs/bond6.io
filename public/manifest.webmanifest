@@ -1,0 +1,17 @@
+{
+  "name": "Bond6 — Humanity and AI",
+  "short_name": "Bond6",
+  "description": "Human culture and the AI wave, read together.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f3ec",
+  "theme_color": "#f6f3ec",
+  "icons": [{
+    "src": "/favicon.svg",
+    "sizes": "any",
+    "type": "image/svg+xml",
+    "purpose": "any"
+  }]
+}
