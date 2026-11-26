@@ -69,7 +69,9 @@ function mediaPreview(story,v) {
   // publisher-selected preview when rendered as a compact thumbnail.
   const signedThumbnail=/^https:\/\/i\.guim\.co\.uk\//i.test(story.image_url??'');
   const image=story.image_url?`<a class="story-image${art?' preserve-media':''}${signedThumbnail?' compact-thumbnail':''}" href="${esc(story.url)}" data-event="original" aria-label="${esc(credit)}"><span class="story-image-frame"><img src="${esc(story.image_url)}" alt="${esc(story.title)}" width="16" height="10" data-media-check data-min-width="${signedThumbnail?120:art?180:320}" data-min-height="${signedThumbnail?80:art?180:180}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="story-image-credit">${esc(credit)}</span></a>`:'';
-  const audio=story.audio_url?`<div class="story-audio"><span>${v.say('Listen from ','收听：')}${esc(story.source)}</span><audio controls preload="none" src="${esc(story.audio_url)}">${v.say('Audio is available at the original source.','音频可在原始来源收听。')}</audio></div>`:'';
+  let restrictedAudio=false;
+  try { restrictedAudio=new URL(story.audio_url).hostname.toLowerCase()==='audios.thepaper.cn'; } catch { /* No valid audio URL. */ }
+  const audio=story.audio_url?`<div class="story-audio"><span>${v.say('Listen from ','收听：')}${esc(story.source)}</span>${restrictedAudio?'':`<audio controls preload="none" src="${esc(story.audio_url)}" data-media-player>${v.say('Audio is available at the original source.','音频可在原始来源收听。')}</audio>`}<a class="media-original" href="${esc(story.url)}" data-event="original">${v.say('Listen at the original source','前往原文收听')}</a></div>`:'';
   const videoUrl=typeof story.video_url==='string'&&story.video_url.startsWith('https://')?story.video_url:null;
   if (!videoUrl) return image+audio;
   const title=v.say(`Play video from ${story.source}`,`播放 ${story.source} 的视频`);
@@ -77,8 +79,8 @@ function mediaPreview(story,v) {
     // YouTube requires the embedding site's origin to identify an iframe
     // player. This sends only Bond6's origin, never the full story URL.
     ? `<iframe src="${esc(videoUrl)}" title="${esc(title)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-    : `<video class="story-video-native" controls preload="metadata"${story.image_url?` poster="${esc(story.image_url)}"`:''}><source src="${esc(videoUrl)}">${v.say('Video is available at the original source.','视频可在原始来源观看。')}</video>`;
-  return `${image}${audio}<details class="story-video"><summary>${esc(title)}</summary><div>${video}</div></details>`;
+    : `<video class="story-video-native" controls preload="metadata" data-media-player${story.image_url?` poster="${esc(story.image_url)}"`:''} src="${esc(videoUrl)}">${v.say('Video is available at the original source.','视频可在原始来源观看。')}</video>`;
+  return `${image}${audio}<details class="story-video"><summary>${esc(title)}</summary><div>${video}</div><p class="media-original-wrap"><a class="media-original" href="${esc(story.url)}" data-event="original">${v.say('Watch at the original source','前往原文观看')}</a></p></details>`;
 }
 export const correction=(v,url)=>`<a href="mailto:info@bond6.io?subject=${encodeURIComponent('Bond6 correction | '+url)}">${v.say('Suggest a correction','建议更正')}</a>`;
 const deckPreview=(excerpt,limit)=>{

@@ -86,6 +86,8 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .story-audio { max-width: 620px; margin-top: 12px; padding: 9px 10px; border-inline-start: 2px solid var(--column-accent, var(--gold)); background: var(--surface); }
 .story-audio > span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
 .story-audio audio { display: block; width: 100%; height: 34px; }
+.media-original { display: inline-block; margin-top: 6px; color: var(--gold); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.media-original-wrap { margin: 0; padding: 4px 10px 10px; }
 .story-video { max-width: 620px; margin-top: 12px; border: 1px solid var(--rule); background: var(--surface); }
 .story-video summary { display: flex; align-items: center; min-height: 44px; padding: 0 11px; color: var(--gold); cursor: pointer; font-size: 13px; }
 .story-video > div { aspect-ratio: 16 / 9; background: #171b1c; }

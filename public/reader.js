@@ -47,7 +47,16 @@
     image.addEventListener('error',check,{once:true});
     if(image.complete)check();else image.addEventListener('load',check,{once:true});
   }
-  function bindStoryControls(root=document){root.querySelectorAll('.save-story').forEach(bindSave);root.querySelectorAll('.share-story').forEach(bindShare);root.querySelectorAll('img[data-media-check]').forEach(bindMediaQuality);refreshButtons();}
+  function bindMediaPlayer(player){
+    if(player.dataset.readerBound)return;player.dataset.readerBound='true';
+    player.addEventListener('error',()=>{
+      player.hidden=true;
+      const container=player.closest('.story-audio, .story-video');
+      const link=container?.querySelector('.media-original');
+      if(link)link.textContent=say('Playback unavailable · Open original','无法播放 · 前往原文');
+    });
+  }
+  function bindStoryControls(root=document){root.querySelectorAll('.save-story').forEach(bindSave);root.querySelectorAll('.share-story').forEach(bindShare);root.querySelectorAll('img[data-media-check]').forEach(bindMediaQuality);root.querySelectorAll('[data-media-player]').forEach(bindMediaPlayer);refreshButtons();}
   bindStoryControls();
   function enableSearch(){
     const control=document.querySelector('.search-control'),input=control?.querySelector('input[type="search"]'),summary=control?.querySelector('summary');
