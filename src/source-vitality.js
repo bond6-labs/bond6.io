@@ -165,7 +165,7 @@ export function evaluateSource(row, now=Date.now()) {
   const stale=age>=STALE_SOURCE_DAYS*DAY&&(!row.last_new_item_at||now-Number(row.last_new_item_at)>=STALE_SOURCE_DAYS*DAY);
   let recommendation='keep',rationale='Evidence is still accumulating.';
   if(age>=30*DAY&&noSuccess){recommendation='retire-technical';rationale='No successful feed response in 30 days.';}
-  else if(failedDays>=3){recommendation='pause';rationale='No successful feed response on 3 observed days; pause it before repeated retries consume collection capacity.';}
+  else if(Number(row.consecutive_failures||0)>=4 && now-Number(row.last_success_at||row.added_at||now)>=DAY){recommendation='pause';rationale='At least four consecutive checks failed, with no success for at least 24 hours; paused for review.';}
   else if(row.state==='active'&&stale){recommendation='watch-stale';rationale=`No genuinely new item recorded in ${STALE_SOURCE_DAYS} days; slow collection and review before any retirement.`;}
   else if(raw>=100&&accepted<3&&!row.pinned){recommendation='retire-review';rationale='Fewer than 3 accepted items from at least 100 raw items.';}
   else if(raw>=40&&(accepted/raw)<.05&&!row.pinned){recommendation='watch';rationale='Accepted-item yield is below 5% after a meaningful sample.';}
@@ -176,13 +176,13 @@ export function evaluateSource(row, now=Date.now()) {
 
 export async function evaluateSourceVitality(db, now=Date.now()) {
   const start=now-SOURCE_VITALITY_RETENTION_DAYS*DAY;
-  const {results}=await db.prepare(`SELECT c.*,
+  const {results}=await db.prepare(`SELECT c.*,coalesce(s.failures,0) AS consecutive_failures,
     coalesce(sum(o.checks),0) AS checks,coalesce(sum(o.successes),0) AS successes,coalesce(sum(o.errors),0) AS errors,
     coalesce(sum(o.raw_items),0) AS raw_items,coalesce(sum(o.usable_items),0) AS usable_items,
     coalesce(sum(o.accepted_items),0) AS accepted_items,coalesce(sum(o.duplicate_items),0) AS duplicate_items,
     CASE WHEN coalesce(sum(o.discovery_lag_samples),0)>0 THEN round(coalesce(sum(o.discovery_lag_total_minutes),0)*1.0/sum(o.discovery_lag_samples)) END AS average_discovery_lag_minutes,
     sum(CASE WHEN o.errors>0 AND o.successes=0 THEN 1 ELSE 0 END) AS failed_days
-    FROM source_catalogue c LEFT JOIN source_daily_observations o ON o.source_id=c.id AND o.day>=?
+    FROM source_catalogue c LEFT JOIN source_state s ON s.id=c.id LEFT JOIN source_daily_observations o ON o.source_id=c.id AND o.day>=?
     WHERE c.state IN ('candidate','probation','active','watch','paused') GROUP BY c.id`).bind(dayKey(start)).all();
   const statements=[];
   for(const row of results){

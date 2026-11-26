@@ -106,7 +106,6 @@
       const column=trigger.closest('.feed-column'),feed=column?.querySelector('[data-infinite-lane-feed]'),list=feed?.querySelector('[data-infinite-stories]'),statusLine=feed?.querySelector('[data-infinite-status]');
       if(!column||!feed||!list||!statusLine)return;
       let loading=false,finished=false;
-      const rendered=new Set([...column.querySelectorAll('.story h3 a[href]')].map(link=>link.href));
       const message=text=>{statusLine.textContent=text;};
       const finish=()=>{finished=true;trigger.hidden=true;message(say('You’ve reached the oldest retained arrivals.','已到达当前保留的最早内容。'));};
       const load=async()=>{
@@ -118,6 +117,7 @@
           const incoming=documentPage.querySelector('.archive-stories');
           const cards=incoming?[...incoming.querySelectorAll(':scope > .story')]:[];
           if(!cards.length){finish();return;}
+          const rendered=new Set([...document.querySelectorAll('.feed-column .story h3 a[href]')].map(link=>link.href));
           const fresh=cards.filter(card=>{const link=card.querySelector('h3 a[href]')?.href;if(!link||rendered.has(link))return false;rendered.add(link);return true;});
           if(fresh.length){list.append(...fresh);feed.hidden=false;bindStoryControls(feed);}
           const next=documentPage.querySelector('[data-next-page]');
@@ -137,6 +137,10 @@
     const columns=[...document.querySelectorAll('.feed-column')];
     if(!columns.length||!window.fetch)return;
     const pending=new Map();
+    // A changed top-ten selection may contain old articles that were already
+    // outside this page's initial window. Only discoveries after page load
+    // qualify as new, regardless of source caps or reclassification.
+    const openedAt=Date.now();
     const buttonFor=lane=>document.querySelector(`[data-refresh-lane="${lane}"]`);
     const showPending=(lane,cards)=>{
       const button=buttonFor(lane);if(!button)return;
@@ -153,12 +157,13 @@
           const lane=column.id.replace(/-feed$/,'');
           const source=page.querySelector('#'+column.id),incoming=source?.querySelector('.arrivals-label + .stories');
           if(!incoming)continue;
-          const seen=new Set([...column.querySelectorAll('.story h3 a[href]')].map(link=>link.href));
+          const seen=new Set([...document.querySelectorAll('.feed-column .story h3 a[href]')].map(link=>link.href));
           const queued=pending.get(lane)??[];
           queued.forEach(card=>{const href=card.querySelector('h3 a[href]')?.href;if(href)seen.add(href);});
           const fresh=[...incoming.querySelectorAll(':scope > .story')].filter(card=>{
             const href=card.querySelector('h3 a[href]')?.href;
-            return Boolean(href&&!seen.has(href));
+            if(!href||seen.has(href)||Number(card.dataset.discovered)<=openedAt)return false;
+            seen.add(href);return true;
           });
           if(!fresh.length)continue;
           const all=[...queued,...fresh];pending.set(lane,all);showPending(lane,all);
@@ -170,10 +175,11 @@
       const column=document.querySelector('#'+lane+'-feed'),arrivals=column?.querySelector('.arrivals-label + .stories');
       if(!arrivals||!cards.length)return;
       arrivals.querySelector('.notice')?.remove();
-      const additions=cards.map(card=>document.importNode(card,true));
+      const seen=new Set([...document.querySelectorAll('.feed-column .story h3 a[href]')].map(link=>link.href));
+      const additions=cards.filter(card=>{const href=card.querySelector('h3 a[href]')?.href;if(!href||seen.has(href))return false;seen.add(href);return true;}).map(card=>document.importNode(card,true));
       additions.forEach(card=>{const mark=card.querySelector('.new-mark');if(mark)mark.hidden=false;});
       arrivals.prepend(...additions);pending.delete(lane);showPending(lane,[]);bindStoryControls(arrivals);
-      notify(say(`${additions.length} new arrivals added.`, `已加载 ${additions.length} 条新内容。`));
+      notify(additions.length?say(`${additions.length} new arrivals added.`, `已加载 ${additions.length} 条新内容。`):say('These arrivals are already on the page.','这些内容已在页面中。'));
     }));
     window.setInterval(check,5*60*1000);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});

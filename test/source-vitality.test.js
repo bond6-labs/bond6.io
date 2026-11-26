@@ -99,7 +99,8 @@ test('daily observations preserve new-item evidence and produce a review recomme
 test('persistent technical failures pause early while weak editorial yield only recommends review',()=>{
   const base={checks:14,successes:0,errors:14,raw_items:0,usable_items:0,accepted_items:0,duplicate_items:0,last_success_at:null,last_new_item_at:null,expected_minutes:60,added_at:now-31*86_400_000,state:'active',pinned:0,failed_days:14};
   assert.equal(evaluateSource(base,now).recommendation,'retire-technical');
-  assert.equal(evaluateSource({...base,added_at:now-15*86_400_000,failed_days:3},now).recommendation,'pause');
+  assert.equal(evaluateSource({...base,added_at:now-15*86_400_000,consecutive_failures:4},now).recommendation,'pause');
+  assert.notEqual(evaluateSource({...base,added_at:now-15*86_400_000,last_success_at:now-3600000,consecutive_failures:4},now).recommendation,'pause');
   const weak={...base,checks:20,successes:20,errors:0,raw_items:100,usable_items:90,accepted_items:1,duplicate_items:0,last_success_at:now,last_new_item_at:now,failed_days:0};
   assert.equal(evaluateSource(weak,now).recommendation,'retire-review');
 });
