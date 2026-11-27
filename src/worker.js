@@ -8,6 +8,7 @@ import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH, SOURCE_EVALUATIO
 import { scoreRhythmBacklog } from './rhythm.js';
 import { ensureSourceCatalogue, evaluateSourceVitality } from './source-vitality.js';
 import {subscribeRequest,confirmation,unsubscribe,digestStep,pruneEmailData} from './newsletter.js';
+import {privacyPage,disclaimerPage} from './legal.js';
 
 const xml=value=>esc(String(value??'').replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,''));
 async function rss(env,v) {
@@ -38,7 +39,7 @@ async function rss(env,v) {
 }
 async function sitemap(env) {
   const {results}=await env.DB.prepare('SELECT id,kind FROM editions ORDER BY edition_date DESC LIMIT 100').all();
-  const paths=['/','/about','/sources','/subscribe','/edit','/bonding',...results.map(e=>(e.kind==='daily'?'/edit/':'/bonding/')+e.id),...legacyEditions.map(e=>'/bonding/'+e.id)];
+  const paths=['/','/about','/privacy','/disclaimer','/sources','/subscribe','/edit','/bonding',...results.map(e=>(e.kind==='daily'?'/edit/':'/bonding/')+e.id),...legacyEditions.map(e=>'/bonding/'+e.id)];
   return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.flatMap(p=>[p,'/zh'+p]).map(p=>`<url><loc>https://bond6.io${xml(p)}</loc></url>`).join('')}</urlset>`,{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':CACHE_CONTROL.public}});
 }
 export async function event(request,env,now=Date.now()) {
@@ -73,6 +74,8 @@ async function route(request,env,v) {
   if(/^\/edit\/\d{4}-\d{2}-\d{2}$/.test(path))return dailyPage(env,v,path.slice(6));
   if(path==='/saved')return savedPage(v);
   if(path==='/about')return about(v);
+  if(path==='/privacy')return privacyPage(v);
+  if(path==='/disclaimer')return disclaimerPage(v);
   if(path==='/about.html')return Response.redirect(new URL(v.local('/about'),v.url),301);
   if(path==='/sources')return sourcesPage(env,v);
   if(path==='/subscribe')return subscribe(env,v);

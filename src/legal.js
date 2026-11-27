@@ -1,0 +1,25 @@
+import {html} from './render.js';
+
+export function privacyPage(v){
+  const content=v.zh?`
+    <p>本说明介绍 Bond6 如何处理网站和邮件订阅相关信息。如有隐私问题或希望查询、更正或删除您的订阅信息，请联系 <a href="mailto:info@bond6.io">info@bond6.io</a>。</p>
+    <h2>邮件订阅</h2><p>订阅时，我们收集您的邮箱地址、所选语言和每日或每周频率，并保存订阅状态。我们通过确认邮件核实订阅；未确认时不会发送摘要。确认后的摘要可通过其中的退订链接停止接收。更改订阅偏好需要重新确认。</p>
+    <p>订阅资料保存在 Cloudflare D1；我们向 Resend 提供邮箱地址和邮件内容以发送邮件。这些服务商可能按其服务条款处理信息，也可能在加拿大以外处理数据。请参阅其各自的隐私说明。</p>
+    <h2>保留与删除</h2><p>有效订阅在订阅期间保留。确认链接 24 小时后失效；未确认记录在失效七天后清理；退订记录在七天后清理；投递记录按计划最多保留七天。清理由定时任务执行，可能因服务中断延迟。Cloudflare 的数据库恢复历史和服务商记录可能另有保留期限。</p>
+    <h2>设备与网站访问</h2><p>收藏及部分阅读、访问设置保存在您的浏览器或设备上。清除网站数据或更换设备可能使这些信息消失。Bond6 使用每日汇总数据了解访问、回访、打开原文、收藏和分享；这些计数不保存服务器端访客标识或搜索词。浏览器隐私信号会关闭可选事件计数。Cloudflare 为运行和保护服务可能处理 IP 地址、请求及安全日志；订阅防滥用使用短期保存的散列限流记录。</p>
+    <h2>外部链接与媒体</h2><p>原文链接、图片、音频、视频或嵌入播放器可能连接第三方服务。访问或加载这些内容时，第三方可能收到您的请求信息并按其政策处理。Bond6 不控制第三方的隐私做法。</p>
+    <h2>联系与更新</h2><p>请通过 <a href="mailto:info@bond6.io">info@bond6.io</a> 提出隐私或订阅问题。我们可能随服务变化更新本说明；如有重大变化，将在适当情况下提供提示。</p>`:`
+    <p>This notice explains how Bond6 handles information connected with the site and email subscriptions. For privacy questions or to request access, correction or deletion of subscription information, contact <a href="mailto:info@bond6.io">info@bond6.io</a>.</p>
+    <h2>Email subscriptions</h2><p>When you subscribe, we collect your email address, chosen language and daily or weekly frequency, and keep your subscription status. We verify subscriptions by email and do not send digests before confirmation. Each digest contains an unsubscribe link. Changing preferences requires confirmation.</p>
+    <p>Subscription data is stored in Cloudflare D1. We provide your address and message content to Resend to deliver email. These providers may process information under their own terms and may process it outside Canada; please consult their privacy notices.</p>
+    <h2>Retention and deletion</h2><p>Active subscriptions are retained while subscribed. Confirmation links expire after 24 hours; unconfirmed records are cleared seven days after expiry, unsubscribed records after seven days, and delivery records are scheduled for removal after seven days. Scheduled cleanup may be delayed by service interruptions. Cloudflare database recovery history and provider records may have separate retention periods.</p>
+    <h2>Your device and site visits</h2><p>Saved stories and some reading and visit settings are stored in your browser or on your device. Clearing site data or changing devices may remove them. Bond6 uses daily aggregate counts for visits, returns, source opens, saves and shares; these counts do not retain a server-side visitor identifier or search text. Browser privacy signals disable optional event counts. Cloudflare may process IP addresses, request data and security logs to operate and protect the service; subscription abuse prevention uses short-lived hashed rate-limit records.</p>
+    <h2>External links and media</h2><p>Original links, images, audio, video and embedded players may connect to third-party services. When you visit or load them, those services may receive request information and handle it under their own policies. Bond6 does not control their privacy practices.</p>
+    <h2>Contact and updates</h2><p>Contact <a href="mailto:info@bond6.io">info@bond6.io</a> with privacy or subscription questions. We may update this notice as the service changes and will provide notice of material changes where appropriate.</p>`;
+  return html(v,v.say('Privacy notice','隐私声明'),`<div class="about-copy">${content}</div>`,{wide:true,description:v.say('How Bond6 handles subscription and reading data.','Bond6 如何处理订阅与阅读相关信息。')});
+}
+
+export function disclaimerPage(v){
+  const content=v.zh?`<p>Bond6 汇集和链接第三方内容，提供阅读线索。文章观点属于原作者或发布者，不一定代表 Bond6 的观点。</p><p>自动筛选、分类、摘录及链接可能存在错误、遗漏或过时信息；请查看原文并独立核实重要事实。内容不构成专业建议。</p><p>第三方网站及媒体由其提供者负责，Bond6 无法控制其内容、可用性或隐私做法。原文、图片及其他媒体的权利属于相应权利人。</p><p>如需提出更正或权利相关问题，请联系 <a href="mailto:info@bond6.io">info@bond6.io</a>，并附上相关链接。</p>`:`<p>Bond6 collects and links to third-party material to help readers discover stories. Views expressed in linked content belong to its authors or publishers and do not necessarily represent Bond6.</p><p>Automated selection, classification, excerpts and links can contain mistakes, omissions or outdated information. Consult the original source and independently verify important facts. Content is not professional advice.</p><p>Third-party sites and media are provided by their respective operators; Bond6 does not control their content, availability or privacy practices. Rights in original works, images and other media belong to their respective holders.</p><p>For corrections or rights enquiries, contact <a href="mailto:info@bond6.io">info@bond6.io</a> and include the relevant link.</p>`;
+  return html(v,v.say('Content disclaimer','内容与免责声明'),`<div class="about-copy">${content}</div>`,{wide:true,description:v.say('About third-party content and corrections on Bond6.','关于 Bond6 的第三方内容与更正。')});
+}

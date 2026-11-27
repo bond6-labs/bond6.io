@@ -14,7 +14,7 @@ test('cleanup removes unsubscribed records older than seven days and preserves a
 });
 test('welcome email uses the selected language and frequency',()=>{
   const zh=welcomeEmail('zh','daily','https://bond6.io/email/confirm?token=test');
-  assert.match(zh.html,/每日/);assert.match(zh.html,/确认订阅/);assert.doesNotMatch(zh.html,/Confirm subscription/);assert.match(zh.html,/\/zh\/about#email-privacy/);assert.match(zh.html,/info@bond6\.io/);
+  assert.match(zh.html,/每日/);assert.match(zh.html,/确认订阅/);assert.doesNotMatch(zh.html,/Confirm subscription/);assert.match(zh.html,/\/zh\/privacy/);assert.match(zh.html,/info@bond6\.io/);
   const en=welcomeEmail('en','weekly','https://bond6.io/email/confirm?token=test');
   assert.match(en.html,/weekly reading digest/);assert.doesNotMatch(en.html,/确认订阅/);
 });
@@ -26,7 +26,7 @@ test('private pilot accepts only the owner and does not send scheduled digests',
 });
 test('email cards include source attribution and safe illustrated previews',()=>{
   const html=digestHtml([story(1,{image_url:'https://cdn.example.org/art.jpg',title:'A creative <story>'})],'en','https://bond6.io/email/unsubscribe?token=test');
-  assert.match(html,/cdn\.example\.org\/art\.jpg/);assert.match(html,/A creative &lt;story&gt;/);assert.match(html,/Image from Studio/);assert.match(html,/Human Pulse/);assert.match(html,/\/about#email-privacy/);assert.match(html,/info@bond6\.io/);
+  assert.match(html,/cdn\.example\.org\/art\.jpg/);assert.match(html,/A creative &lt;story&gt;/);assert.match(html,/Image from Studio/);assert.match(html,/Human Pulse/);assert.match(html,/\/privacy/);assert.match(html,/info@bond6\.io/);
   const noImage=digestHtml([story(2,{image_url:'javascript:alert(1)'})],'zh','https://bond6.io/');assert.doesNotMatch(noImage,/<img/);assert.match(noImage,/人文脉动/);
 });
 test('digest does not send a recent item without a qualifying focusing signal',async()=>{
@@ -50,6 +50,8 @@ test('subscription requires confirmation, prevents scanner unsubscribe, and stop
     const confirmed=await confirmation(new Request(confirm,{method:'POST',headers:{origin:'null','sec-fetch-site':'same-origin'}}),env,now);
     assert.equal(confirmed.status,200);assert.match(confirmed.headers.get('content-type'),/^text\/html/);assert.match(await confirmed.text(),/订阅已确认/);
     assert.equal(db.sql.prepare('SELECT status FROM email_subscribers').get().status,'active');
+    const evidence=db.sql.prepare('SELECT consent_confirmed_at,consent_language,consent_frequency,consent_notice_version FROM email_subscribers').get();
+    assert.equal(evidence.consent_confirmed_at,now);assert.equal(evidence.consent_language,'en');assert.equal(evidence.consent_frequency,'weekly');assert.equal(evidence.consent_notice_version,'digest-v1');
     await digestStep(env,now);assert.equal(sent.length,1);
     const secret=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.EMAIL_TOKEN_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
     const bytes=await crypto.subtle.sign('HMAC',secret,new TextEncoder().encode('unsubscribe:reader@example.org'));
