@@ -9,6 +9,18 @@ const hash=async text=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder(
 const token=()=>hex(crypto.getRandomValues(new Uint8Array(32)));
 const enabled=env=>(env.EMAIL_SUBSCRIPTIONS==='true'||env.EMAIL_PRIVATE_PILOT==='true')&&!!env.RESEND_API_KEY&&!!env.EMAIL_TOKEN_SECRET;
 const reply=(message,status=200)=>new Response(message,{status,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
+export function welcomeEmail(language,frequency,url){
+  const zh=language==='zh';
+  const subject=zh?'欢迎来到 Bond6，请确认订阅':'Welcome to Bond6 — please confirm your subscription';
+  const heading=zh?'欢迎来到 Bond6':'Welcome to Bond6';
+  const intro=zh?'感谢您加入 Bond6。很高兴与您一起，探索人类创造力与 AI 浪潮交汇的世界。':'Thank you for joining Bond6. We’re delighted to welcome you to a place where human creativity and the AI wave come together.';
+  const mission=zh?'AI 正在以前所未有的速度改变我们工作、创作与生活的方式。与此同时，艺术、文字、音乐和人与人之间的关怀，依然提醒着我们人类体验的珍贵。Bond6 希望汇聚这两股力量，让值得关注的变化与值得珍惜的人文故事并肩呈现。':'AI is changing how we work, create, and live at extraordinary speed. At the same time, art, writing, music, and the care we share remind us of the richness of human experience. Bond6 brings these worlds together, connecting the developments shaping our future with the human stories worth holding close.';
+  const details=zh?`确认后，你将${frequency==='daily'?'每日':'每周'}收到一封简短的阅读摘要，精选人文创作与 AI 影响相关故事，附上原文链接。符合条件的内容较少时，我们可能少发或不发。`:`Once confirmed, you’ll receive a ${frequency} reading digest with a short selection of stories about human creativity and the impact of AI, with links to the original sources. When there isn’t enough suitable material, we may send fewer stories or skip an edition.`;
+  const action=zh?'确认订阅':'Confirm subscription';
+  const note=zh?'如非本人申请，请忽略此邮件。确认后可随时通过摘要中的链接退订。':'If you didn’t request this, simply ignore this email. After confirming, you can unsubscribe using the link in any digest.';
+  const html=`<!doctype html><html lang="${zh?'zh-Hans':'en'}"><body style="margin:0;background:#f6f3ec;color:#24211d"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fffdf9"><tr><td style="padding:28px;border-top:3px solid #b76a39;font:16px/1.65 Arial,sans-serif"><a href="https://bond6.io${zh?'/zh/':'/'}" style="font-weight:700;font-size:22px;color:#24211d;text-decoration:none">Bond<span style="color:#bc6634">6</span><span style="color:#287989">.io</span></a><h1 style="font:700 26px/1.25 Georgia,serif;margin:24px 0 14px">${heading}</h1><p>${intro}</p><p>${mission}</p><p>${details}</p><p style="margin:26px 0"><a href="${esc(url)}" style="display:inline-block;background:#286c78;color:white;text-decoration:none;padding:12px 20px;border-radius:3px;font-weight:700">${action}</a></p><p style="font-size:13px;color:#655e55">${note}</p><p style="font-size:14px;color:#655e55">${zh?'诚挚问候，<br>Bond6 编辑团队':'With appreciation,<br>The Bond6 Editorial Team'}</p></td></tr></table></td></tr></table></body></html>`;
+  return {subject,html};
+}
 export function digestHtml(stories,language,link){
   const zh=language==='zh';
   const cards=stories.map(s=>{
@@ -55,7 +67,7 @@ export async function subscribeRequest(request,env,now=Date.now()){
     ON CONFLICT(email) DO UPDATE SET status=CASE WHEN email_subscribers.status='active' THEN 'active' ELSE 'pending' END,confirm_hash=excluded.confirm_hash,confirm_expires=excluded.confirm_expires,unsubscribe_hash=excluded.unsubscribe_hash,updated_at=excluded.updated_at,pending_language=excluded.pending_language,pending_frequency=excluded.pending_frequency WHERE email_subscribers.updated_at<=?`).bind(email,language,frequency,confirmationHash,now+86400000,await hash(unsub),now,language,frequency,now-3600000).run();
   if(!saved.meta.changes)return reply('If eligible, a confirmation email will be sent.');
   const url='https://bond6.io/email/confirm?token='+confirmation;
-  const payload={from:'Bond6 <digest@bond6.io>',to:[email],subject:language==='zh'?'确认订阅 Bond6 / Confirm your Bond6 subscription':'Confirm your Bond6 subscription / 确认订阅 Bond6',html:language==='zh'?`<p>请确认订阅 Bond6 邮件摘要。<br>Please confirm your Bond6 email digest subscription.</p><p><a href="${url}">确认订阅 / Confirm subscription</a></p>`:`<p>Please confirm your Bond6 email digest subscription.<br>请确认订阅 Bond6 邮件摘要。</p><p><a href="${url}">Confirm subscription / 确认订阅</a></p>`};
+  const payload={from:'Bond6 <digest@bond6.io>',to:[email],...welcomeEmail(language,frequency,url)};
   let sent=false;try{sent=await send(env,payload,'confirm/'+confirmationHash);}catch{/* Provider failures allow a later retry. */}
   if(!sent)await env.DB.prepare('UPDATE email_subscribers SET updated_at=?,confirm_hash=NULL,confirm_expires=NULL WHERE confirm_hash=?').bind(now-3600000,confirmationHash).run();
   return reply('If eligible, a confirmation email will be sent.');
@@ -126,6 +138,6 @@ export async function pruneEmailData(db,now=Date.now()){
     db.prepare('DELETE FROM email_request_limits WHERE expires_at<?').bind(now),
     db.prepare('DELETE FROM email_editions WHERE created_at<?').bind(now-7*86400000),
     db.prepare("DELETE FROM email_subscribers WHERE status='pending' AND coalesce(confirm_expires,updated_at)<?").bind(now-7*86400000),
-    db.prepare("DELETE FROM email_subscribers WHERE status='unsubscribed' AND updated_at<?").bind(now-30*86400000)
+    db.prepare("DELETE FROM email_subscribers WHERE status='unsubscribed' AND updated_at<?").bind(now-7*86400000)
   ]);
 }

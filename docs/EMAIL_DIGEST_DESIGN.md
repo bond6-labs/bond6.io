@@ -1,6 +1,6 @@
 # Bond6 email digest: implementation contract
 
-Status: local implementation; subscriptions and sending remain disabled pending private production verification.
+Status: production rollout. A private confirmation and unsubscribe test was completed; monitor the first live digest and delivery failures after launch.
 
 Readers choose English or Chinese originals and daily or weekly delivery. The
 default is weekly. A subscription becomes active only after the recipient

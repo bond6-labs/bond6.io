@@ -1,9 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {database} from './db.js';
-import {subscribeRequest,confirmation,unsubscribe,digestStep,digestHtml} from '../src/newsletter.js';
+import {subscribeRequest,confirmation,unsubscribe,digestStep,digestHtml,welcomeEmail,pruneEmailData} from '../src/newsletter.js';
 import {storeItems} from '../src/ingest.js';
 import {story,source} from './fixtures.js';
+test('cleanup removes unsubscribed records older than seven days and preserves active subscriptions',async()=>{
+  const db=database(),now=Date.parse('2026-11-27T12:00:00Z');
+  const insert=db.sql.prepare('INSERT INTO email_subscribers(email,language,frequency,status,unsubscribe_hash,updated_at) VALUES(?,?,?,?,?,?)');
+  insert.run('old@example.org','en','daily','unsubscribed','x',now-7*86400000-1);
+  insert.run('recent@example.org','en','daily','unsubscribed','x',now-7*86400000);
+  insert.run('active@example.org','en','daily','active','x',now-30*86400000);
+  try{await pruneEmailData(db,now);assert.deepEqual(db.sql.prepare('SELECT email FROM email_subscribers ORDER BY email').all().map(row=>row.email),['active@example.org','recent@example.org']);}finally{db.sql.close();}
+});
+test('welcome email uses the selected language and frequency',()=>{
+  const zh=welcomeEmail('zh','daily','https://bond6.io/email/confirm?token=test');
+  assert.match(zh.html,/每日/);assert.match(zh.html,/确认订阅/);assert.doesNotMatch(zh.html,/Confirm subscription/);
+  const en=welcomeEmail('en','weekly','https://bond6.io/email/confirm?token=test');
+  assert.match(en.html,/weekly reading digest/);assert.doesNotMatch(en.html,/确认订阅/);
+});
 test('private pilot accepts only the owner and does not send scheduled digests',async()=>{
   const db=database(),env={DB:db,EMAIL_PRIVATE_PILOT:'true',RESEND_API_KEY:'test',EMAIL_TOKEN_SECRET:'test-secret'},now=Date.parse('2026-11-27T12:00:00Z');
   const original=globalThis.fetch;let sent=[];globalThis.fetch=async (_url,init)=>{sent.push(JSON.parse(init.body));return new Response('{}',{status:200});};
@@ -27,7 +41,7 @@ test('subscription requires confirmation, prevents scanner unsubscribe, and stop
   try{
     const request=new Request('https://bond6.io/email/subscribe',{method:'POST',headers:{origin:'https://bond6.io','content-type':'application/json'},body:JSON.stringify({email:'reader@example.org',language:'en',frequency:'weekly'})});
     assert.equal((await subscribeRequest(request,env,now)).status,200);assert.equal(sent.length,1);
-    assert.match(sent[0].subject,/确认订阅/);assert.match(sent[0].html,/确认订阅/);assert.match(sent[0].html,/Confirm subscription/);
+    assert.match(sent[0].subject,/Welcome to Bond6/);assert.match(sent[0].html,/weekly reading digest/);assert.doesNotMatch(sent[0].html,/确认订阅/);
     const confirm=sent[0].html.match(/https:\/\/bond6\.io\/email\/confirm\?token=[a-f0-9]+/)[0];
     assert.equal((await confirmation(new Request(confirm),env,now)).status,200);
     assert.equal(db.sql.prepare('SELECT status FROM email_subscribers').get().status,'pending');
