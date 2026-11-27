@@ -4,6 +4,12 @@ import {database} from './db.js';
 import {subscribeRequest,confirmation,unsubscribe,digestStep,digestHtml} from '../src/newsletter.js';
 import {storeItems} from '../src/ingest.js';
 import {story,source} from './fixtures.js';
+test('private pilot accepts only the owner and does not send scheduled digests',async()=>{
+  const db=database(),env={DB:db,EMAIL_PRIVATE_PILOT:'true',RESEND_API_KEY:'test',EMAIL_TOKEN_SECRET:'test-secret'},now=Date.parse('2026-11-27T12:00:00Z');
+  const original=globalThis.fetch;let sent=[];globalThis.fetch=async (_url,init)=>{sent.push(JSON.parse(init.body));return new Response('{}',{status:200});};
+  const request=email=>new Request('https://bond6.io/email/subscribe',{method:'POST',headers:{origin:'https://bond6.io','content-type':'application/json'},body:JSON.stringify({email,language:'en',frequency:'daily'})});
+  try{assert.equal((await subscribeRequest(request('other@example.org'),env,now)).status,503);assert.equal(sent.length,0);assert.equal((await subscribeRequest(request('bond6daily@gmail.com'),env,now)).status,200);assert.equal(sent.length,1);await digestStep(env,now);assert.equal(sent.length,1);}finally{globalThis.fetch=original;db.sql.close();}
+});
 test('email cards include source attribution and safe illustrated previews',()=>{
   const html=digestHtml([story(1,{image_url:'https://cdn.example.org/art.jpg',title:'A creative <story>'})],'en','https://bond6.io/email/unsubscribe?token=test');
   assert.match(html,/cdn\.example\.org\/art\.jpg/);assert.match(html,/A creative &lt;story&gt;/);assert.match(html,/Image from Studio/);assert.match(html,/Human Pulse/);

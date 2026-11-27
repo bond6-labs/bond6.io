@@ -25,7 +25,8 @@ try {
   const source=sources.find(s=>s.id==='guardian-culture');
   const feed=await nativeFetch(source.url,{signal:AbortSignal.timeout(10000)});
   if(!feed.ok)throw new Error('The public sample feed could not be read.');
-  const sample=fromRss(await feed.text(),source).find(s=>s.lane==='human'&&s.image_url&&s.excerpt?.length>=80&&storyFocusKeys(s).some(k=>!k.startsWith('event:')));
+  // Match the stored record: topic classification depends on source_id.
+  const sample=fromRss(await feed.text(),source).map(s=>({...s,source_id:source.id})).find(s=>s.lane==='human'&&s.image_url&&s.excerpt?.length>=80&&storyFocusKeys(s).some(k=>!k.startsWith('event:')));
   if(!sample)throw new Error('No qualifying illustrated sample is currently available.');
   globalThis.fetch=async(url,options)=>{const payload=JSON.parse(options.body);messages.push(payload);const response=await nativeFetch(url,options);statuses.push(response.status);return response;};
   const signup=new Request('https://bond6.io/email/subscribe',{method:'POST',headers:{origin:'https://bond6.io','content-type':'application/json'},body:JSON.stringify({email:'bond6daily@gmail.com',language:'en',frequency:'daily'})});
@@ -45,7 +46,8 @@ try {
   // Every rehearsal uses a fresh in-memory secret and payload. Isolate it
   // from prior rehearsals and live sends in Resend's idempotency window.
   await digestStep(env,now+2,{testNamespace:'rehearsal-'+crypto.randomUUID()});
-  const digest=messages[1];if(!digest||db.sql.prepare('SELECT status FROM email_outbox').get()?.status!=='sent')throw new Error(`Resend did not accept the digest (HTTP ${statuses[1]??'not sent'}).`);
+  const digest=messages[1];if(!digest)throw new Error('No digest was prepared for the sample story; no digest was sent to Resend.');
+  if(db.sql.prepare('SELECT status FROM email_outbox').get()?.status!=='sent')throw new Error(`Resend did not accept the digest (HTTP ${statuses[1]??'unknown'}).`);
   const unsubscribeLink=digest.html.match(/https:\/\/bond6\.io\/email\/unsubscribe\?token=[a-f0-9]+/)?.[0];
   if(!unsubscribeLink)throw new Error('Unsubscribe link missing.');
   await unsubscribe(new Request(unsubscribeLink,{method:'POST'}),env,now+3);

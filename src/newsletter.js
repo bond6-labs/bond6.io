@@ -7,7 +7,7 @@ const day=now=>new Date(now).toISOString().slice(0,10);
 const hex=bytes=>Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
 const hash=async text=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)));
 const token=()=>hex(crypto.getRandomValues(new Uint8Array(32)));
-const enabled=env=>env.EMAIL_SUBSCRIPTIONS==='true'&&!!env.RESEND_API_KEY&&!!env.EMAIL_TOKEN_SECRET;
+const enabled=env=>(env.EMAIL_SUBSCRIPTIONS==='true'||env.EMAIL_PRIVATE_PILOT==='true')&&!!env.RESEND_API_KEY&&!!env.EMAIL_TOKEN_SECRET;
 const reply=(message,status=200)=>new Response(message,{status,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 export function digestHtml(stories,language,link){
   const zh=language==='zh';
@@ -44,6 +44,7 @@ export async function subscribeRequest(request,env,now=Date.now()){
   let input;try{const reader=request.body?.getReader();if(!reader)return reply('Invalid request',400);let raw='',size=0;const decoder=new TextDecoder();for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>2048){await reader.cancel();return reply('Request too large',413);}raw+=decoder.decode(value,{stream:true});}input=JSON.parse(raw+decoder.decode());}catch{return reply('Invalid request',400);}
   const email=String(input.email||'').trim().toLowerCase(),language=input.language,frequency=input.frequency;
   if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!['en','zh'].includes(language)||!['daily','weekly'].includes(frequency))return reply('Invalid subscription details',400);
+  if(env.EMAIL_SUBSCRIPTIONS!=='true'&&(env.EMAIL_PRIVATE_PILOT!=='true'||email!=='bond6daily@gmail.com'))return reply('Email subscriptions are not available yet.',503);
   if(!await allowRequest(env.DB,env.EMAIL_TOKEN_SECRET,request.headers.get('CF-Connecting-IP')||'unknown',now))return reply('If eligible, a confirmation email will be sent.');
   const existing=await env.DB.prepare('SELECT status,updated_at FROM email_subscribers WHERE email=?').bind(email).first();
   if(existing&&now-existing.updated_at<3600000)return reply('If eligible, a confirmation email will be sent.');
@@ -89,7 +90,7 @@ export async function digestStep(env,now=Date.now(),{testNamespace=''}={}){
     const {results:interest}=await env.DB.prepare("SELECT event,sum(count) AS count FROM metrics WHERE day>=? AND event LIKE 'focus:%' GROUP BY event").bind(day(now-7*86400000)).all();
     const topics=conversations(eligible,now,new Map(interest.map(row=>[row.event.slice(6),Number(row.count)])));
     const cutoff=now-(frequency==='daily'?1:7)*86400000,seen=new Map(),current=[];
-    for(const lane of ['human','ai']){let count=0;for(const s of eligible){if(count===3)break;if(s.lane!==lane||s.discovered_at<cutoff)continue;const keys=storyFocusKeys(s),topic=topics.find(t=>keys.includes(t.key));if(!topic)continue;const id=s.source_id??s.source,n=seen.get(id)??0;if(n>=2)continue;seen.set(id,n+1);const reason=topic.strength==='reader'?{en:`Reader interest · ${topic.en}`,zh:`读者关注 · ${topic.zh}`}:{en:`${topic.sources} sources on ${topic.en}`,zh:`${topic.sources} 个来源关注 · ${topic.zh}`};current.push({...s,digest_focus:reason});count++;}}
+    for(const lane of ['human','ai']){let count=0;for(const s of eligible){if(count===2)break;if(s.lane!==lane||s.discovered_at<cutoff)continue;const keys=storyFocusKeys(s),topic=topics.find(t=>keys.includes(t.key));if(!topic)continue;const id=s.source_id??s.source,n=seen.get(id)??0;if(n>=2)continue;seen.set(id,n+1);const reason=topic.strength==='reader'?{en:`Reader interest · ${topic.en}`,zh:`读者关注 · ${topic.zh}`}:{en:`${topic.sources} sources on ${topic.en}`,zh:`${topic.sources} 个来源关注 · ${topic.zh}`};current.push({...s,digest_focus:reason});count++;}}
     if(current.length)await env.DB.prepare('INSERT OR IGNORE INTO email_editions(id,snapshot,created_at) VALUES(?,?,?)').bind(edition,JSON.stringify(current),now).run();
     const snapshot=await env.DB.prepare('SELECT snapshot FROM email_editions WHERE id=?').bind(edition).first();
     const chosen=snapshot?JSON.parse(snapshot.snapshot):[];
