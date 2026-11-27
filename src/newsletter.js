@@ -66,7 +66,10 @@ export async function confirmation(request,env,now=Date.now()){
   if(!/^[a-f0-9]{64}$/.test(raw))return reply('Invalid link',400);
   const digest=await hash(raw);
   if(request.method==='GET')return new Response(`<!doctype html><html><head><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width"></head><body><main><h1>Bond6</h1><p>Confirm your email subscription / 确认邮件订阅</p><form method="post"><button>Confirm / 确认</button></form></main></body></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
-  if(request.headers.get('origin')!==new URL(request.url).origin)return reply('Forbidden',403);
+  // The confirmation form uses no-referrer to protect its token. Browsers may
+  // consequently send Origin: null, even for this same-origin form submit.
+  const origin=request.headers.get('origin');
+  if(origin!==new URL(request.url).origin&&!(origin==='null'&&request.headers.get('sec-fetch-site')==='same-origin'))return reply('Forbidden',403);
   const result=await env.DB.prepare("UPDATE email_subscribers SET status='active',language=pending_language,frequency=pending_frequency,pending_language=NULL,pending_frequency=NULL,confirm_hash=NULL,confirm_expires=NULL,updated_at=? WHERE confirm_hash=? AND status IN ('pending','active') AND confirm_expires>?").bind(now,digest,now).run();
   return reply(result.meta.changes?'Subscription confirmed / 订阅已确认':'Link expired or already used / 链接已失效或使用过',result.meta.changes?200:400);
 }

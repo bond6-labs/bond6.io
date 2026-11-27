@@ -30,7 +30,8 @@ test('subscription requires confirmation, prevents scanner unsubscribe, and stop
     const confirm=sent[0].html.match(/https:\/\/bond6\.io\/email\/confirm\?token=[a-f0-9]+/)[0];
     assert.equal((await confirmation(new Request(confirm),env,now)).status,200);
     assert.equal(db.sql.prepare('SELECT status FROM email_subscribers').get().status,'pending');
-    assert.equal((await confirmation(new Request(confirm,{method:'POST',headers:{origin:'https://bond6.io'}}),env,now)).status,200);
+    assert.equal((await confirmation(new Request(confirm,{method:'POST',headers:{origin:'null','sec-fetch-site':'cross-site'}}),env,now)).status,403);
+    assert.equal((await confirmation(new Request(confirm,{method:'POST',headers:{origin:'null','sec-fetch-site':'same-origin'}}),env,now)).status,200);
     assert.equal(db.sql.prepare('SELECT status FROM email_subscribers').get().status,'active');
     await digestStep(env,now);assert.equal(sent.length,1);
     const secret=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.EMAIL_TOKEN_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
