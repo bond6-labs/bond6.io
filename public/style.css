@@ -409,6 +409,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .email-preferences { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .email-float-panel .email-float-note { margin-bottom: 0; font-size: 11px; }
 .email-float-panel a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+.email-notice:empty { display: none; }
 .email-notice:not(:empty) { position: absolute; right: 0; top: calc(100% + 4px); width: min(260px,calc(100vw - 32px)); margin: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); color: var(--ink); box-shadow: 0 4px 16px #0002; font-size: 13px; }
 @media (max-width: 900px) { .email-float-panel { padding: 12px; } }
 .feed-address { width: fit-content; max-width: 100%; padding: 12px 16px; background: var(--surface); overflow-wrap: anywhere; }
