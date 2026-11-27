@@ -67,6 +67,11 @@
     });
   }
   enableSearch();
+  document.querySelectorAll('[data-email-subscribe]').forEach(form=>form.addEventListener('submit',async event=>{
+    event.preventDefault();const status=form.querySelector('.email-status'),button=form.querySelector('button');button.disabled=true;
+    try{const data=new FormData(form);const response=await fetch('/email/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(data))});if(!response.ok)throw new Error('unavailable');status.textContent=say('If eligible, check your inbox for a confirmation link.','如符合条件，请查看邮箱中的确认链接。');}
+    catch{status.textContent=say('Subscription is unavailable. Please try later.','订阅暂不可用，请稍后再试。');}finally{button.disabled=false;}
+  }));
   function enablePwa(){
     const buttons=[...document.querySelectorAll('[data-pwa-install]')];
     if(!('serviceWorker' in navigator))return;

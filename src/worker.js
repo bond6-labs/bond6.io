@@ -7,6 +7,7 @@ import { sources, retiredSourceIds } from './sources.js';
 import { CACHE_CONTROL, MAX_EVENT_BODY_BYTES, MAX_QUERY_LENGTH, SOURCE_EVALUATION_HOUR_UTC, SOURCE_EVALUATION_MINUTE_UTC } from './config.js';
 import { scoreRhythmBacklog } from './rhythm.js';
 import { ensureSourceCatalogue, evaluateSourceVitality } from './source-vitality.js';
+import {subscribeRequest,confirmation,unsubscribe,digestStep,pruneEmailData} from './newsletter.js';
 
 const xml=value=>esc(String(value??'').replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,''));
 async function rss(env,v) {
@@ -81,7 +82,10 @@ async function route(request,env,v) {
 }
 export default {
   async fetch(request,env,ctx) {
-    const url=new URL(request.url),v=locale(url);v.release=env.BUILD_VERSION??'local';
+    const url=new URL(request.url),v=locale(url);v.release=env.BUILD_VERSION??'local';v.emailEnabled=env.EMAIL_SUBSCRIPTIONS==='true'&&!!env.RESEND_API_KEY&&!!env.EMAIL_TOKEN_SECRET;
+    if(url.pathname==='/email/subscribe'&&request.method==='POST')return subscribeRequest(request,env);
+    if(url.pathname==='/email/confirm'&&['GET','POST'].includes(request.method))return confirmation(request,env);
+    if(url.pathname==='/email/unsubscribe'&&['GET','POST'].includes(request.method))return unsubscribe(request,env);
     if(url.pathname==='/events'&&request.method==='POST')return event(request,env).catch(error=>{
       console.error('Event recording failed',{message:error.message,stack:error.stack,timestamp:Date.now()});
       return new Response(null,{status:503});
@@ -124,12 +128,13 @@ export default {
   scheduled(controller,env,ctx) {
     ctx.waitUntil((async()=>{
       const now=controller.scheduledTime,minute=new Date(now).getUTCMinutes();
+      if(env.EMAIL_DIGESTS==='true'&&new Date(now).getUTCHours()===12){await digestStep(env,now);return;}
       await ensureSourceCatalogue(env.DB,now);
       if(new Date(now).getUTCHours()===0&&minute===45){await archiveBondRoutes(env.DB,now);return;}
       // Five-minute scheduling leaves room under D1's free read allowance.
       // Fresh sources are still prioritised by their individual due times.
       if(new Date(now).getUTCHours()===SOURCE_EVALUATION_HOUR_UTC&&minute===SOURCE_EVALUATION_MINUTE_UTC){await evaluateSourceVitality(env.DB,now);return;}
-      if(new Date(now).getUTCHours()===0&&minute===55){await prune(env,now);return;}
+      if(new Date(now).getUTCHours()===0&&minute===55){await prune(env,now);await pruneEmailData(env.DB,now);return;}
       const worked=await publishingStep(env,now);
       if(!worked){await collect(env,now);if(minute===0)await scoreRhythmBacklog(env.DB,now);}
     })().catch(error=>console.error('Scheduled work failed',{message:error.message,stack:error.stack,timestamp:Date.now()})));

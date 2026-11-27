@@ -119,7 +119,6 @@ export const sources = [
   { id: 'deepmind', name: 'Google DeepMind', kind: 'rss', url: 'https://deepmind.com/blog/feed/basic/', site: 'https://deepmind.google/blog/', topic: 'AI research & capability', poll_minutes: 45 },
   { id: 'huggingface', name: 'Hugging Face', kind: 'rss', url: 'https://huggingface.co/blog/feed.xml', site: 'https://huggingface.co/blog', topic: 'Open AI tools & models', poll_minutes: 45 },
   { id: 'qbitai', name: '量子位', kind: 'rss', url: 'https://www.qbitai.com/feed', site: 'https://www.qbitai.com/', topic: 'AI research & industry', poll_minutes: 45 },
-  { id: 'ifanr', name: '爱范儿', kind: 'rss', url: 'https://www.ifanr.com/feed', site: 'https://www.ifanr.com/', topic: 'AI, products & digital life', language: 'zh', tier: 'flow', poll_minutes: 30 },
   { id: '404', name: '404 Media', kind: 'rss', url: 'https://www.404media.co/rss/', site: 'https://www.404media.co/', topic: 'Life online', poll_minutes: 10 },
   { id: 'techdirt', name: 'Techdirt', kind: 'rss', url: 'https://www.techdirt.com/feed/', site: 'https://www.techdirt.com/', topic: 'Life online', poll_minutes: 10 },
   // OpenAI's feed can omit its publisher-selected social image and summary.
@@ -189,6 +188,7 @@ export const ESSAY_DAYS = 30;
 // or displayed, but retain a name, address and explicit reason so the source
 // list can be reconsidered without having to rediscover prior work.
 export const archivedSources = [
+  { id: 'ifanr', name: '爱范儿', kind: 'rss', url: 'https://www.ifanr.com/feed', site: 'https://www.ifanr.com/', topic: 'AI, products & digital life', language: 'zh', state: 'retired', state_reason: 'Broad feed repeatedly contributed car-show promotions and device reviews; reconsider a reliable AI-specific feed in future.' },
   { id: 'gcores', name: '机核', kind: 'rss', url: 'https://www.gcores.com/rss', site: 'https://www.gcores.com/', topic: 'Creative Practice', language: 'zh', state: 'retired', state_reason: 'High gaming-news volume did not sustain enough Human Pulse material; retain for a later, more narrowly scoped gaming review.' },
   { id: 'chuapp', name: '触乐', kind: 'rss', url: 'https://www.chuapp.com/feed', site: 'https://www.chuapp.com/', topic: 'Creative Practice', language: 'zh', state: 'retired', state_reason: 'Broad game-news mix pulled the Chinese Human Pulse away from culture and first-person creative work; eligible for future topic-scoped reconsideration.' },
   { id: 'outside', name: 'Outside', kind: 'rss', url: 'https://www.outsideonline.com/feed/', site: 'https://www.outsideonline.com/', topic: 'Outdoor life & endurance', language: 'en', state: 'retired', state_reason: 'Broad lifestyle and utility coverage was not a dependable fit for Bond6’s personal, embodied-story standard.' },

@@ -10,6 +10,8 @@ test('device launches do not become Human Pulse through generic support language
   assert.equal(classify(title,'华为推出折叠手机，系统支持多种设备。',{id:'ifanr'}).lane,null);
   assert.equal(classify('华为推出手机 AI 智能体','人工智能智能体发布，能够自动化工作。',{id:'ifanr'}).lane,'ai');
   assert.equal(classify('OPPO Reno17 Pro 体验：在手机里装进一只猫，分几步？','OPPO 工业设计总监介绍手机设计和工艺。',{id:'ifanr'}).lane,null);
+  assert.equal(classify('华为 Mate X8 评测：终局之战','设计师介绍手机的工业设计。',{}).lane,null);
+  assert.equal(classify('30.98 万元起，领克 900L 想让大七座 SUV 重新成为主流丨广州车展','汽车满足家庭需求，展示设计。',{}).lane,null);
 });
 test('public excerpts are bounded and subscription detection avoids incidental Premium mentions',()=>{
   assert.ok(publicExcerpt('A writer explores memory. '.repeat(100)).length<=300);
