@@ -118,16 +118,17 @@ export async function observeSource(db, source, observation, now=Date.now()) {
  * intentionally not published, so `stories` cannot be used to decide whether
  * they are repeatedly serving the same item. Returns only genuinely new URLs.
  */
-export async function recordSourceDiscoveries(db, source, items, now=Date.now()) {
+export async function recordSourceDiscoveries(db, source, items, now=Date.now(), firstSeen=new Map()) {
   if(!items.length)return [];
   const known=new Set();
   for(let start=0;start<items.length;start+=80){
     const chunk=items.slice(start,start+80);
-    const {results}=await db.prepare(`SELECT url FROM source_discoveries WHERE source_id=? AND url IN(${chunk.map(()=>'?').join(',')})`)
+    const {results}=await db.prepare(`SELECT url,first_seen_at FROM source_discoveries WHERE source_id=? AND url IN(${chunk.map(()=>'?').join(',')})`)
       .bind(source.id,...chunk.map(item=>item.url)).all();
-    for(const row of results)known.add(row.url);
+    for(const row of results){known.add(row.url);firstSeen.set(row.url,row.first_seen_at);}
   }
   const fresh=items.filter(item=>!known.has(item.url));
+  for(const item of fresh)firstSeen.set(item.url,now);
   const statements=[];
   for(let start=0;start<fresh.length;start+=20){
     const chunk=fresh.slice(start,start+20);

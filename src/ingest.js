@@ -347,7 +347,7 @@ export async function storeItems(db, source, items, now) {
   for (let start = 0; start < validItems.length; start += 3) {
     const chunk = validItems.slice(start, start + 3);
     const values = chunk.flatMap(i => [i.url, i.title, source.name, source.topic, i.original_published_at ?? now, Number(source.kind === 'rss'), source.id, i.author,
-      i.original_lang, i.content_type, i.original_published_at, now, i.canonical_url, i.excerpt, i.parent_context ?? null, i.lane, i.subject,
+      i.original_lang, i.content_type, i.original_published_at, i.source_first_seen_at ?? now, i.canonical_url, i.excerpt, i.parent_context ?? null, i.lane, i.subject,
       i.original_lang === 'zh' ? i.title : null, i.original_lang === 'en' ? i.title : null, i.content_hash, now, 0,
       i.image_url ?? null, i.audio_url ?? null, i.video_url ?? null, i.article_preview_checked_at ?? null]);
     statements.push(db.prepare(`INSERT INTO stories(url,title,source,topic,published_at,is_article,source_id,author,original_lang,content_type,
@@ -393,12 +393,13 @@ async function collectOne(env, source, state, now) {
   if (!job) return false;
   try {
     const { items, rejectedUrls, raw_items, usable_items, etag, modified } = await poll(source, state, now);
-    const fresh=await recordSourceDiscoveries(db,source,items,now);
+    const firstSeen=new Map();
+    const fresh=await recordSourceDiscoveries(db,source,items,now,firstSeen);
     await enrichPublisherPreviews(db,source,items,now);
     // Candidate/probation feeds are evaluated but do not enter the public Flow
     // until Source Vitality has recommended and an editor has promoted them.
     if(!['candidate','probation'].includes(source.catalogue_state)) {
-      await storeItems(db, source, items, now);
+      await storeItems(db, source, items.map(item=>({...item,source_first_seen_at:firstSeen.get(item.url)??now})), now);
       await suppressItems(db, source, rejectedUrls, now);
     }
     // A feed may keep returning an old, successful XML document after its

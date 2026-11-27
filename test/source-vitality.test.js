@@ -4,6 +4,8 @@ import { database } from './db.js';
 import { now, story } from './fixtures.js';
 import { auditSourceCoverage, dueSources, ensureSourceCatalogue, evaluateSource, evaluateSourceVitality, observeSource, projectedDailyCollections, recordSourceDiscoveries, sourceFromCatalogue } from '../src/source-vitality.js';
 import { sources, archivedSources } from '../src/sources.js';
+import { storeItems } from '../src/ingest.js';
+import { readFileSync } from 'node:fs';
 
 test('Source Vitality seeds every current source once without replacing its operational state',async()=>{
   const db=database();
@@ -54,6 +56,24 @@ test('Source Discovery records first sightings once and audits coverage roles',a
   const role=audit.find(row=>row.language==='en'&&row.lane==='ai'&&row.role==='independent-verification');
   assert.ok(role.active_sources>=1);
   assert.ok((await db.prepare(`SELECT count(*) AS n FROM source_coverage_audits WHERE coverage_role='independent-verification'`).first()).n>=1);
+});
+
+test('rediscovered evicted stories retain their original discovery date in both languages',async()=>{
+  const db=database();await ensureSourceCatalogue(db,now);
+  for(const [id,lang] of [['quanta','en'],['kaix','zh']]){
+    const source=sourceFromCatalogue(await db.prepare('SELECT * FROM source_catalogue WHERE id=?').bind(id).first());
+    const item=story(lang==='en'?801:802,{original_lang:lang,url:`https://example.org/${lang}/repeat`,canonical_url:`https://example.org/${lang}/repeat`});
+    const first=new Map();await recordSourceDiscoveries(db,source,[item],now,first);
+    await storeItems(db,source,[{...item,source_first_seen_at:first.get(item.url)}],now);
+    await db.prepare('DELETE FROM stories WHERE url=?').bind(item.url).run();
+    const later=new Map();assert.equal((await recordSourceDiscoveries(db,source,[item],now+6*86400000,later)).length,0);
+    await storeItems(db,source,[{...item,source_first_seen_at:later.get(item.url)}],now+6*86400000);
+    assert.equal((await db.prepare('SELECT discovered_at FROM stories WHERE url=?').bind(item.url).first()).discovered_at,now);
+    await db.prepare('UPDATE stories SET discovered_at=? WHERE url=?').bind(now+6*86400000,item.url).run();
+  }
+  db.sql.exec(readFileSync(new URL('../migrations/0021_restore_story_discovery.sql',import.meta.url),'utf8'));
+  assert.ok((await db.prepare('SELECT discovered_at FROM stories').all()).results.every(row=>row.discovered_at===now));
+  db.sql.close();
 });
 
 test('high-yield Human Pulse sources get rapid cadence while watch sources keep their reviewed cadence',async()=>{

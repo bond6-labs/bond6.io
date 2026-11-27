@@ -67,10 +67,23 @@
     });
   }
   enableSearch();
+  const headerPopovers=[...document.querySelectorAll('.search-control, .email-float > details')];
+  document.addEventListener('pointerdown',event=>{
+    for(const control of headerPopovers)if(control.open&&!control.contains(event.target))control.open=false;
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key!=='Escape')return;
+    const control=headerPopovers.find(item=>item.open&&item.contains(document.activeElement));
+    if(control){control.open=false;control.querySelector('summary')?.focus();}
+  });
+  headerPopovers.forEach(control=>control.addEventListener('toggle',()=>{
+    if(control.open)for(const other of headerPopovers)if(other!==control)other.open=false;
+  }));
+  let emailNoticeTimer;
   document.querySelectorAll('[data-email-subscribe]').forEach(form=>form.addEventListener('submit',async event=>{
-    event.preventDefault();const status=form.querySelector('.email-status'),button=form.querySelector('button');button.disabled=true;
-    try{const data=new FormData(form);const response=await fetch('/email/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(data))});if(!response.ok)throw new Error('unavailable');status.textContent=say('If eligible, check your inbox for a confirmation link.','如符合条件，请查看邮箱中的确认链接。');}
-    catch{status.textContent=say('Subscription is unavailable. Please try later.','订阅暂不可用，请稍后再试。');}finally{button.disabled=false;}
+    event.preventDefault();const status=form.querySelector('.email-status'),button=form.querySelector('button'),control=form.closest('details'),notice=form.closest('.email-float')?.querySelector('.email-notice');button.disabled=true;status.textContent='';
+    try{const data=new FormData(form);const response=await fetch('/email/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(data))});if(!response.ok)throw new Error('unavailable');if(control){if(control.contains(document.activeElement))control.querySelector('summary')?.focus();control.open=false;}if(notice){clearTimeout(emailNoticeTimer);notice.textContent=say('If eligible, check your inbox for a confirmation link.','如符合条件，请查看邮箱中的确认链接。');emailNoticeTimer=setTimeout(()=>{notice.textContent='';},6000);}}
+    catch{const message=say('Subscription is unavailable. Please try later.','订阅暂不可用，请稍后再试。');if(control?.open)status.textContent=message;else if(notice){clearTimeout(emailNoticeTimer);notice.textContent=message;emailNoticeTimer=setTimeout(()=>{notice.textContent='';},6000);}}finally{button.disabled=false;}
   }));
   function enablePwa(){
     const buttons=[...document.querySelectorAll('[data-pwa-install]')];

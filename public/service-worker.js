@@ -1,4 +1,4 @@
-const VERSION='bond6-shell-v1';
+const VERSION='bond6-shell-v2';
 const SHELL=['/','/zh/','/style.css','/reader.js','/manifest.webmanifest','/favicon.svg','/bond6-logo.png'];
 const isNavigation=request=>request.mode==='navigate';
 
@@ -10,6 +10,8 @@ self.addEventListener('activate',event=>{
 });
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;
+  // Subscription links contain private tokens and must never enter offline caches.
+  if(new URL(event.request.url).pathname.startsWith('/email/'))return;
   if(isNavigation(event.request)){
     event.respondWith(fetch(event.request).then(response=>{
       if(response.ok)caches.open(VERSION).then(cache=>cache.put(event.request,response.clone()));
