@@ -394,8 +394,17 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline
 .subscription-coming p { max-width: 60ch; margin: 7px 0 0; color: var(--muted); }
 .email-float { position: relative; z-index: 4; margin: 0; font: 13px/1.5 Inter,system-ui,sans-serif; }
 .email-float details { position: relative; display: grid; justify-items: end; }
-.email-float summary { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 0 6px; border: 0; background: transparent; color: var(--muted); cursor: pointer; list-style: none; white-space: nowrap; }
+.email-float summary { display: inline-grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; list-style: none; }
 .email-float summary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
+.email-float summary .envelope-flap { transform-box: fill-box; transform-origin: center top; transition: transform 240ms ease; }
+.email-float summary:hover,.email-float summary:focus-visible { color: var(--gold); }
+@media (hover: hover) { .email-float summary:hover .envelope-flap { transform: rotateX(145deg); } }
+.email-float summary:focus-visible .envelope-flap { transform: rotateX(145deg); }
+.email-float details:not([open]) summary:is(:hover,:focus-visible)::after,.email-float details.email-hint:not([open]) summary::after { content: attr(data-tooltip); position: absolute; top: calc(100% + 2px); right: 0; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); font: 12px/1.3 Inter,system-ui,sans-serif; white-space: nowrap; pointer-events: none; }
+@keyframes email-flap-hint { 0%,100% { transform: rotateX(0); } 25%,65% { transform: rotateX(145deg); } }
+.email-float details.email-hint:not([open]) .envelope-flap { animation: email-flap-hint 3s ease-in-out both; }
+@media (prefers-reduced-motion: reduce) { .email-float summary .envelope-flap { transition: none; transform: none !important; } }
+@media (prefers-reduced-motion: reduce) { .email-float details.email-hint .envelope-flap { animation: none; } .email-float details.email-hint:not([open]) summary:not(:hover):not(:focus-visible)::after { display: none; } }
 .email-float summary::-webkit-details-marker { display: none; }
 .email-float summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .email-float-panel { position: absolute; right: 0; top: calc(100% + 4px); width: min(260px,calc(100vw - 32px)); max-height: calc(100dvh - 100px); overflow-y: auto; padding: 18px; border: 1px solid var(--rule); border-radius: 5px; background: #f0e9dc; box-shadow: 0 4px 16px #0002; }

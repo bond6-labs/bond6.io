@@ -79,6 +79,28 @@
   headerPopovers.forEach(control=>control.addEventListener('toggle',()=>{
     if(control.open)for(const other of headerPopovers)if(other!==control)other.open=false;
   }));
+  function enableEmailHint(){
+    const control=document.querySelector('.email-float > details'),controls=document.querySelector('.reader-controls');
+    if(!control||!controls)return;
+    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+    let lastShown=0,wasBelow=false,hideTimer;
+    try{lastShown=Number(sessionStorage.getItem('bond6-email-hint'))||0;}catch{/* The hint also works without storage. */}
+    const hide=()=>{clearTimeout(hideTimer);control.classList.remove('email-hint');};
+    const show=()=>{
+      if(reduced.matches||document.hidden||window.scrollY>100||headerPopovers.some(item=>item.open)||controls.contains(document.activeElement)||controls.matches(':hover'))return;
+      hide();control.classList.add('email-hint');lastShown=Date.now();
+      try{sessionStorage.setItem('bond6-email-hint',String(lastShown));}catch{/* Optional. */}
+      hideTimer=setTimeout(hide,3000);
+    };
+    setTimeout(show,800);
+    window.addEventListener('scroll',()=>{
+      if(window.scrollY>700)wasBelow=true;
+      else if(window.scrollY<=100&&wasBelow){wasBelow=false;if(Date.now()-lastShown>=5*60_000)show();}
+    },{passive:true});
+    controls.addEventListener('pointerdown',hide);controls.addEventListener('focusin',hide);
+    reduced.addEventListener?.('change',event=>{if(event.matches)hide();});
+  }
+  enableEmailHint();
   let emailNoticeTimer;
   document.querySelectorAll('[data-email-subscribe]').forEach(form=>form.addEventListener('submit',async event=>{
     event.preventDefault();const status=form.querySelector('.email-status'),button=form.querySelector('button'),control=form.closest('details'),notice=form.closest('.email-float')?.querySelector('.email-notice');button.disabled=true;status.textContent='';
