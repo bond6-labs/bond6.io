@@ -27,6 +27,7 @@ test('subscription requires confirmation, prevents scanner unsubscribe, and stop
   try{
     const request=new Request('https://bond6.io/email/subscribe',{method:'POST',headers:{origin:'https://bond6.io','content-type':'application/json'},body:JSON.stringify({email:'reader@example.org',language:'en',frequency:'weekly'})});
     assert.equal((await subscribeRequest(request,env,now)).status,200);assert.equal(sent.length,1);
+    assert.match(sent[0].subject,/确认订阅/);assert.match(sent[0].html,/确认订阅/);assert.match(sent[0].html,/Confirm subscription/);
     const confirm=sent[0].html.match(/https:\/\/bond6\.io\/email\/confirm\?token=[a-f0-9]+/)[0];
     assert.equal((await confirmation(new Request(confirm),env,now)).status,200);
     assert.equal(db.sql.prepare('SELECT status FROM email_subscribers').get().status,'pending');
